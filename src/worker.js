@@ -107,10 +107,16 @@ export default {
 
                 // 将房间列表注入到 HTML 字符串中
                 // 我们在 HTML 中放置一个特殊的注释占位符，然后替换它
-                const modifiedHtml = managementHtml.replace(
+                let modifiedHtml = managementHtml.replace(
                     '/* MANAGEMENT_ROOMS_LIST_PLACEHOLDER */',
                     `const potentialRoomsToCheck = ${JSON.stringify(roomsArray)};`
                 );
+                if (env.API_DOMAIN) {
+                    modifiedHtml = modifiedHtml.replace(
+                        '/* API_DOMAIN_PLACEHOLDER */',
+                        `const apiDomain = "${env.API_DOMAIN}";`
+                    );
+                }
 
                 return new Response(modifiedHtml, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
             }
