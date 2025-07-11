@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>用户组管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* ====== Base Styles ====== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 100%;
+      max-width: 600px;
+      margin: auto;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin: 0 0 8px;
+      font-size: 2.2em;
+      font-weight: 700;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ====== 已激活房间 ====== */
+    .activated-rooms-section {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid rgba(233, 236, 239, 0.5);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    .activated-rooms-section h2 {
+      margin: 0 0 16px;
+      font-size: 1.3em;
+      color: #2c3e50;
+      border-bottom: 2px solid #dee2e6;
+      padding-bottom: 12px;
+      font-weight: 600;
+    }
+    #activated-room-list {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    #activated-room-list li {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 10px 20px;
+      border-radius: 25px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.95em;
+      white-space: nowrap;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      font-weight: 500;
+      position: relative;
+      overflow: hidden;
+    }
+    #activated-room-list li::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    #activated-room-list li:hover::before {
+      left: 100%;
+    }
+    #activated-room-list li:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+    #activated-room-list li.no-rooms {
+      background: none;
+      border: 2px dashed #bdc3c7;
+      color: #7f8c8d;
+      cursor: default;
+      font-style: italic;
+      box-shadow: none;
+      font-weight: normal;
+    }
+    #activated-room-list li.no-rooms::before {
+      display: none;
+    }
+
+    /* ====== 表单与按钮 ====== */
+    .controls, .form-group {
+      display: flex;
+      gap: 15px;
+      align-items: stretch;
+      width: 100%;
+    }
+    input[type="text"] {
+      flex-grow: 1;
+      padding: 16px 20px;
+      border: 2px solid #e8ecf1;
+      border-radius: 12px;
+      font-size: 1em;
+      background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+      color: #2c3e50;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    input[type="text"]::placeholder { color: #95a5a6; }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 0 4px 20px rgba(0,0,0,0.1);
+      background: #ffffff;
+      transform: translateY(-2px);
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 16px 24px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    button:hover::before {
+      left: 100%;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    button:disabled {
+      background: linear-gradient(135deg, #bdc3c7 0%, #95a5a6 100%);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ====== 用户列表 ====== */
+    #user-list-section {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(233, 236, 239, 0.5);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    #user-list-section h2 {
+      margin: 0;
+      padding: 20px 24px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-bottom: 1px solid rgba(233, 236, 239, 0.5);
+      font-size: 1.3em;
+      color: #2c3e50;
+      font-weight: 600;
+    }
+    #user-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #user-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid rgba(241, 243, 245, 0.8);
+      transition: all 0.3s ease;
+    }
+    #user-list li:last-child { border-bottom: none; }
+    #user-list li:hover { 
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      transform: translateX(5px);
+    }
+    #user-list li span { 
+      color: #2c3e50; 
+      font-weight: 500;
+      font-size: 1.05em;
+    }
+    #user-list button {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9em;
+      box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3);
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+    #user-list button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+    }
+    #user-list button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3);
+    }
+
+    /* ====== 状态提示 ====== */
+    #status-message {
+      text-align: center;
+      min-height: 24px;
+      padding: 12px 16px;
+      font-size: 0.95em;
+      transition: all 0.3s ease;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+    .status-success { 
+      color: #27ae60; 
+      background: rgba(39, 174, 96, 0.1);
+      border: 1px solid rgba(39, 174, 96, 0.2);
+    }
+    .status-error { 
+      color: #e74c3c; 
+      background: rgba(231, 76, 60, 0.1);
+      border: 1px solid rgba(231, 76, 60, 0.2);
+    }
+    .status-info { 
+      color: #3498db; 
+      background: rgba(52, 152, 219, 0.1);
+      border: 1px solid rgba(52, 152, 219, 0.2);
+    }
+
+    /* ====== API快速链接 ====== */
+    .api-quick-links {
+      margin-top: 20px;
+    }
+    .api-quick-links h2 {
+      margin-bottom: 20px;
+      font-size: 1.3em;
+      color: #2c3e50;
+      font-weight: 600;
+      text-align: center;
+    }
+    .api-links-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .list-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(233, 236, 239, 0.5);
+      position: relative;
+      overflow: hidden;
+    }
+    .list-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+      transition: left 0.5s;
+    }
+    .list-item:hover::before {
+      left: 100%;
+    }
+    .list-item:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      border-color: #667eea;
+    }
+    .item-icon {
+      font-size: 2.2em;
+      line-height: 1;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    .item-content {
+      flex: 1;
+    }
+    .item-content h3 {
+      margin: 0 0 6px;
+      font-size: 1.1em;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    .item-content .description {
+      font-size: 0.9em;
+      color: #7f8c8d;
+      margin: 0;
+      font-weight: 400;
+    }
+
+    /* ====== 响应式：768px 以下 ====== */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .container {
+        padding: 20px;
+        border-radius: 16px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+      .activated-rooms-section { 
+        padding: 16px; 
+      }
+      #activated-room-list {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 10px;
+      }
+      #activated-room-list li { 
+        flex: 0 0 auto;
+        padding: 8px 16px;
+      }
+      .controls button,
+      .form-group button { 
+        padding: 16px 20px;
+      }
+      #user-list li span { 
+        flex: 1; 
+      }
+      #user-list li button { 
+        width: auto; 
+        flex-shrink: 0; 
+        margin-left: 8px; 
+      }
+      #user-list-section {
+        max-height: calc(100vh * 0.4);
+        overflow-y: auto;
+      }
+      .api-links-list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ====== 响应式：480px 以下 ====== */
+    @media (max-width: 480px) {
+      .container { 
+        padding: 16px; 
+      }
+      h1 { 
+        font-size: 1.6em; 
+      }
+      #activated-room-list li { 
+        padding: 6px 12px; 
+        font-size: 0.9em; 
+      }
+      #user-list-section { 
+        max-height: calc(100vh * 0.35); 
+      }
+      #user-list li { 
+        padding: 12px 16px; 
+      }
+      #user-list button { 
+        padding: 6px 12px; 
+        font-size: 0.85em; 
+      }
+      .list-item {
+        padding: 16px;
+      }
+      .item-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.8em;
+      }
+      .api-quick-links h2 {
+        font-size: 1.2em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>聊天室白名单</h1>
+
+    <div class="activated-rooms-section">
+      <h2>已激活的房间</h2>
+      <ul id="activated-room-list">
+        <li class="no-rooms">正在加载房间...</li>
+      </ul>
+    </div>
+
+    <div class="controls">
+      <input type="text" id="room-name-input" placeholder="输入或选择房间名 (e.g., test)">
+      <button id="load-users-btn">加载</button>
+    </div>
+
+    <div id="status-message" class="status-info"></div>
+
+    <div id="user-list-section">
+      <h2>当前房间白名单用户</h2>
+      <ul id="user-list">
+        <li style="justify-content:center; color:#7f8c8d;">
+          请选择或输入房间名加载白名单
+        </li>
+      </ul>
+    </div>
+
+    <div class="form-group">
+      <input type="text" id="new-user-input" placeholder="输入要添加的用户名">
+      <button id="add-user-btn">添加</button>
+    </div>
+   
+    <!-- API 快速链接区域 -->
+    <div class="api-quick-links">
+      <h2>管理工具</h2>
+      <div class="api-links-list">
+        <a data-template="https://chating.want.biz/api/room/status?roomName={roomName}" href="#" target="_blank" class="list-item">
+          <span class="item-icon">🏠</span>
+          <div class="item-content">
+            <h3>房间状态</h3>
+            <p class="description">查看房间的当前状态和配置信息</p>
+          </div>
+        </a>
+        <a data-template="https://chating.want.biz/api/debug/sessions?roomName={roomName}" href="#" target="_blank" class="list-item">
+          <span class="item-icon">👥</span>
+          <div class="item-content">
+            <h3>活跃用户</h3>
+            <p class="description">查看当前在线的用户列表</p>
+          </div>
+        </a>
+        <a data-template="https://chating.want.biz/api/debug/logs?roomName={roomName}" href="#" target="_blank" class="list-item">
+          <span class="item-icon">📝</span>
+          <div class="item-content">
+            <h3>调试日志</h3>
+            <p class="description">查看房间的详细运行日志</p>
+          </div>
+        </a>
+        <a data-template="https://chating.want.biz/api/messages/history?roomName={roomName}&since=0" href="#" target="_blank" class="list-item">
+          <span class="item-icon">💬</span>
+          <div class="item-content">
+            <h3>消息历史</h3>
+            <p class="description">查看房间的历史消息记录</p>
+          </div>
+        </a>
+        <a data-template="https://chating.want.biz/api/messages/delete?roomName={roomName}&id=msg-123&secret=0503" href="#" target="_blank" class="list-item">
+          <span class="item-icon">🗑️</span>
+          <div class="item-content">
+            <h3>删除消息</h3>
+            <p class="description">删除指定的消息内容</p>
+          </div>
+        </a>
+        <a data-template="https://chating.want.biz/api/reset-room?roomName={roomName}&secret=050X" href="#" target="_blank" class="list-item">
+          <span class="item-icon">🔄</span>
+          <div class="item-content">
+            <h3>重置房间</h3>
+            <p class="description">重置房间状态和所有配置</p>
+          </div>
+        </a>
+        <a data-template="https://chating.want.biz/api/debug/clear?roomName={roomName}" href="#" target="_blank" class="list-item">
+          <span class="item-icon">🧹</span>
+          <div class="item-content">
+            <h3>清空日志</h3>
+            <p class="description">清空房间的所有调试日志</p>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+   /* MANAGEMENT_ROOMS_LIST_PLACEHOLDER */ // 1. 最先声明，因为它由 Worker 注入
+
+    // 2. 声明 urlParams，因为它不依赖其他变量，且 adminSecret 和 initialRoom 依赖它
+    const urlParams     = new URLSearchParams(window.location.search);
+    const adminSecret   = urlParams.get('secret');
+    const initialRoom   = urlParams.get('room');
+
+    // 3. 声明所有 DOM 元素，它们不依赖其他变量，且相互独立
+    const roomNameInput      = document.getElementById('room-name-input');
+    const userList           = document.getElementById('user-list');
+    const newUserInput       = document.getElementById('new-user-input');
+    const addUserBtn         = document.getElementById('add-user-btn');
+    const loadUsersBtn       = document.getElementById('load-users-btn');
+    const statusMessage      = document.getElementById('status-message');
+    const activatedRoomList  = document.getElementById('activated-room-list');
+    const apiLinks           = document.querySelectorAll('.api-quick-links-grid a');
+
+    function showStatus(msg, type='info') {
+      statusMessage.textContent = msg;
+      statusMessage.className = `status-${type}`;
+    }
+
+    async function fetchActivatedRooms() {
+      showStatus('正在加载已激活房间...');
+      activatedRoomList.innerHTML = '<li class="no-rooms">正在加载房间...</li>';
+      const activeRooms = [];
+      // 直接使用注入的 potentialRoomsToCheck 变量
+      const fetches = potentialRoomsToCheck.map(r => // 此行保持不变，但变量来源已改变
+        fetch(`/api/room/status?roomName=${encodeURIComponent(r)}`)
+          .then(res => res.json())
+          .then(d => d.active ? r : null)
+          .catch(()=>null)
+      );
+      const results = await Promise.all(fetches);
+      results.forEach(r=>r && activeRooms.push(r));
+      renderActivatedRooms(activeRooms);
+      showStatus(`已发现 ${activeRooms.length} 个已激活的房间。`, 'success');
+    }
+    function renderActivatedRooms(rooms) {
+      activatedRoomList.innerHTML = '';
+      if (!rooms.length) {
+        const li = document.createElement('li');
+        li.className = 'no-rooms';
+        li.textContent = '暂无已激活的房间';
+        activatedRoomList.appendChild(li);
+      } else {
+        rooms.forEach(r => {
+          const li = document.createElement('li');
+          li.textContent = r;
+          li.onclick = () => {
+            roomNameInput.value = r;
+            updateApiLinks();
+            fetchUsers();
+          };
+          activatedRoomList.appendChild(li);
+        });
+      }
+    }
+
+    async function fetchUsers() {
+      const room = roomNameInput.value.trim();
+      updateApiLinks();
+      if (!room) {
+        showStatus('请输入房间名！','error');
+        userList.innerHTML = '<li style="justify-content:center;color:#7f8c8d;">请选择或输入房间名加载白名单</li>';
+        return;
+      }
+      showStatus(`正在加载房间 "${room}" 的白名单…`, 'info');
+      try {
+        const res = await fetch(`/api/users/list?roomName=${encodeURIComponent(room)}`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        renderUsers(data.users, data.active);
+        showStatus(`房间 "${room}" 白名单已加载。`, 'success');
+      } catch (e) {
+        showStatus(`错误: ${e.message}`, 'error');
+      }
+    }
+
+    function renderUsers(users, isActive) {
+      userList.innerHTML = '';
+      if (!isActive) {
+        userList.innerHTML = '<li style="justify-content:center;color:#7f8c8d;">此房间尚未激活白名单功能…</li>';
+      } else if (!users.length) {
+        userList.innerHTML = '<li style="justify-content:center;color:#7f8c8d;">此房间白名单已激活但为空…</li>';
+      } else {
+        users.forEach(u => {
+          const li = document.createElement('li');
+          const span = document.createElement('span'); span.textContent = u;
+          const btn  = document.createElement('button'); btn.textContent = '移除';
+          btn.onclick = () => removeUser(u);
+          li.append(span, btn);
+          userList.appendChild(li);
+        });
+      }
+    }
+
+    async function addUser() {
+      const room = roomNameInput.value.trim();
+      const u    = newUserInput.value.trim();
+      if (!room || !u) return showStatus('请输入房间名和要添加的用户名！','error');
+      if (!adminSecret) {
+        alert('URL 中缺少 secret 参数！');
+        return showStatus('无法执行管理员操作，缺少 secret','error');
+      }
+      addUserBtn.disabled = true;
+      addUserBtn.textContent = '添加中…';
+      showStatus(`正在添加用户 "${u}" 到房间 "${room}"…`,'info');
+      try {
+        const res = await fetch(`/api/users/add?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({username:u})
+        });
+        if (!res.ok) throw new Error(await res.text());
+        newUserInput.value = '';
+        showStatus(`用户 "${u}" 已成功添加。`,'success');
+        await fetchUsers();
+        await fetchActivatedRooms();
+      } catch(e) {
+        showStatus(`错误: ${e.message}`,'error');
+      } finally {
+        addUserBtn.disabled = false;
+        addUserBtn.textContent = '添加';
+      }
+    }
+
+    async function removeUser(u) {
+      const room = roomNameInput.value.trim();
+      if (!room || !adminSecret) return showStatus('缺少 room 或 secret','error');
+      if (!confirm(`确认移除 "${u}"？`)) return;
+      showStatus(`正在移除 "${u}"…`,'info');
+      try {
+        const res = await fetch(`/api/users/remove?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({username:u})
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showStatus(`"${u}" 已移除。`,'success');
+        await fetchUsers();
+        await fetchActivatedRooms();
+      } catch(e) {
+        showStatus(`错误: ${e.message}`,'error');
+      }
+    }
+
+    // ====== API 链接更新 ======
+    function updateApiLinks() {
+      const room = roomNameInput.value.trim() || 'test';
+      document.querySelectorAll('.api-links-list a').forEach(a=>{
+        const tpl = a.dataset.template;
+        const url = tpl.replace('{roomName}', encodeURIComponent(room));
+        a.href = url;
+      });
+    }
+
+    // ====== 初始化 & 绑定 ======
+    document.addEventListener('DOMContentLoaded', ()=>{
+      if (initialRoom) {
+        roomNameInput.value = initialRoom;
+        fetchUsers();
+      }
+      fetchActivatedRooms();
+      updateApiLinks();
+      loadUsersBtn.onclick = fetchUsers;
+      addUserBtn.onclick  = addUser;
+      roomNameInput.addEventListener('input', updateApiLinks);
+    });
+  </script>
+</body>
+</html>

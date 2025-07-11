@@ -1,0 +1,34 @@
+name = "globalChats"
+main = "src/worker.js"
+compatibility_date = "2024-07-08"
+
+# 启用 nodejs_compat 以便 ECharts 库能正常工作
+compatibility_flags = [ "nodejs_compat" ]
+
+# 静态网站托管配置
+[site]
+bucket = "./public"
+
+# Durable Object 绑定
+[[durable_objects.bindings]]
+name       = "CHAT_ROOM_DO"
+class_name = "HibernatingChating"
+script_name = "globalChats"
+
+# R2 存储桶绑定 (聊天媒体和图表共用)
+[[r2_buckets]]
+binding     = "R2_BUCKET"
+bucket_name = "yuangs" # ✨ 请确保这是您正确的R2桶名
+
+
+# 【新增】定义管理页面要检查的房间列表
+[vars]
+MANAGEMENT_ROOMS_LIST = "test,future,program" # 逗号分隔的房间名
+
+# 定时触发器
+[triggers]
+crons = [
+  "0 9 * * *",             # 对应 DAILY_TEXT_MESSAGE
+  "0 0-7 * * 1-6"   # 对应 HOURLY_CHART_GENERATION
+]
+
