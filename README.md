@@ -1,4 +1,4 @@
-### **项目综合分析报告**
+### **全球聊天室v1.0介绍**
 
 这是一个功能非常丰富的、部署在 **Cloudflare 无服务器平台**上的**实时多房间聊天应用**。它充分利用了 Cloudflare 的边缘计算能力，实现了一个高度可扩展、低延迟且无需管理传统服务器的现代化 Web 应用。
 
@@ -74,3 +74,86 @@
 
 该项目是一个技术先进、架构设计精良的现代化 Web 应用。它不仅实现了一个功能完备的聊天平台，更是一个展示如何充分利用 Cloudflare 生态系统构建复杂、可扩展、高可用性应用的优秀案例。
 
+
+---
+
+## 🚀 安装与启动指南
+
+### **1. 环境准备**
+
+在开始之前，请确保您已安装以下工具：
+
+*   [Node.js](https://nodejs.org/) (建议使用 LTS 版本)
+*   [npm](https://www.npmjs.com/) (通常随 Node.js 一起安装)
+*   一个 [Cloudflare](https://www.cloudflare.com/) 账户
+
+### **2. 安装依赖**
+
+1.  **克隆项目仓库**
+    ```bash
+    git clone https://github.com/yuanguangshan/chating.git
+    cd chating
+    ```
+
+2.  **安装 npm 依赖**
+    此项目使用 `wrangler` 进行开发和部署，并依赖 `echarts` 进行图表生成。
+    ```bash
+    npm install
+    ```
+
+### **3. Cloudflare 配置**
+
+1.  **登录 Wrangler**
+    在终端运行以下命令，它会打开浏览器引导您完成 Cloudflare 账户的授权。
+    ```bash
+    npx wrangler login
+    ```
+
+2.  **配置 R2 存储桶**
+    本项目使用 Cloudflare R2 存储用户上传的文件（如图片）和自动生成的图表。
+    *   在 Cloudflare 控制台创建一个 R2 存储桶。
+    *   打开 `wrangler.toml` 文件，将 `r2_buckets` 配置中的 `bucket_name` 修改为您创建的桶名。
+        ```toml
+        # wrangler.toml
+
+        [[r2_buckets]]
+        binding     = "R2_BUCKET"
+        bucket_name = "your-r2-bucket-name" # ✨ 修改为您自己的 R2 桶名
+        ```
+
+3.  **配置 AI 服务密钥 (可选)**
+    项目集成了 AI 功能。您需要在 Cloudflare 的 Worker 设置中配置以下 Secrets，否则 AI 相关功能将无法使用。
+    ```bash
+    npx wrangler secret put GEMINI_API_KEY
+    # 粘贴您的 【Google Gemini API Key】 并回车
+
+    npx wrangler secret put DEEPSEEK_API_KEY
+    # 粘贴您的 【DeepSeek API Key】 并回车
+
+    npx wrangler secret put ADMIN_SECRET
+    # 输入 【自定义管理员密码（管理后台的密码：https://chating.您的域名/management/* 】 并回车
+    ```
+
+### **4. 本地开发**
+
+执行以下命令以在本地启动开发服务器。`wrangler` 会模拟 Cloudflare 环境，包括 Durable Objects 和 R2。
+```bash
+npm run dev
+```
+启动后，您可以在终端输出的地址 (通常是 `http://localhost:8787`) 访问您的应用。
+
+### **5. 部署到 Cloudflare**
+
+当您准备好将应用部署到全球的 Cloudflare 网络时，运行：
+```bash
+npm run deploy
+```
+部署成功后，`wrangler` 会提供一个公开的 URL，任何人都可以通过该 URL 访问您的实时聊天应用。
+为了保护隐私，所有房间默认不能访问，须进入[管理后台](https://chating.want.biz/management?secret=ADMIN_SECRET)输入房间名称并增加至少一位成员方才解锁该聊天室。不在白名单的用户不能访问。管理员可随时在后台增删用户。
+
+### **6. 查看实时日志**
+
+您可以使用 `tail` 命令实时监控线上应用的日志，方便调试。
+```bash
+npm run tail
+```
