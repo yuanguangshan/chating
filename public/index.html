@@ -1535,16 +1535,30 @@ messageForm.addEventListener('submit', async (e) => {
         } else if (text) {
             const tempId = crypto.randomUUID();
             const tempTimestamp = Date.now();
-            
-            socket.send(JSON.stringify({ 
-                type: 'chat', 
-                payload: { 
-                    id: tempId,          
-                    timestamp: tempTimestamp, 
-                    type: 'text',
-                    text: text 
-                } 
-            }));
+
+            if (text.startsWith('@机器人小助手')) {
+                const question = text.replace('@机器人小助手', '').trim();
+                socket.send(JSON.stringify({
+                    type: 'gemini_chat',
+                    payload: {
+                        id: tempId,
+                        timestamp: tempTimestamp,
+                        type: 'text',
+                        text: question,
+                        original_user: username
+                    }
+                }));
+            } else {
+                socket.send(JSON.stringify({ 
+                    type: 'chat', 
+                    payload: { 
+                        id: tempId,          
+                        timestamp: tempTimestamp, 
+                        type: 'text',
+                        text: text 
+                    } 
+                }));
+            }
             
             messageInput.value = '';
             messageInput.style.height = 'auto';

@@ -1,9 +1,11 @@
 // 文件: src/chatroom_do.js (实现了"白名单即房间授权"的最终版)
 
 import { DurableObject } from "cloudflare:workers";
+import { getGeminiChatAnswer } from './ai.js';
 
 // 消息类型常量
 const MSG_TYPE_CHAT = 'chat';
+const MSG_TYPE_GEMINI_CHAT = 'gemini_chat';
 const MSG_TYPE_DELETE = 'delete';
 const MSG_TYPE_ERROR = 'error';
 const MSG_TYPE_WELCOME = 'welcome';
@@ -742,6 +744,9 @@ async handleSessionInitialization(ws, url) {
                 case MSG_TYPE_CHAT:
                     await this.handleChatMessage(session, data.payload); 
                     break;
+                case MSG_TYPE_GEMINI_CHAT:
+                    await this.handleGeminiChatMessage(session, data.payload);
+                    break;
                 case MSG_TYPE_DELETE:
                     await this.handleDeleteMessageRequest(session, data.payload);
                     break;
@@ -858,6 +863,30 @@ async handleSessionInitialization(ws, url) {
         }
         
         await this.addAndBroadcastMessage(message);
+    }
+
+    async handleGeminiChatMessage(session, payload) {
+        this.debugLog(`💬 正在处理用户：👦 ${session.username} 的Gemini聊天消息`, 'INFO', payload);
+
+        try {
+            const answer = await getGeminiChatAnswer(payload.text, this.env);
+            const message = {
+                id: crypto.randomUUID(),
+                username: "机器人小助手",
+                timestamp: Date.now(),
+                text: `@${payload.original_user} ${answer}`,
+                type: 'text'
+            };
+            await this.addAndBroadcastMessage(message);
+        } catch (error) {
+            this.debugLog(`❌ Gemini聊天消息处理失败: ${error.message}`, 'ERROR');
+            try {
+                session.ws.send(JSON.stringify({
+                    type: MSG_TYPE_ERROR,
+                    payload: { message: "机器人小助手暂时无法回答你的问题，请稍后再试。" }
+                }));
+            } catch (e) { /* silently fail */ }
+        }
     }
 
   // 将第二个函数重命名为 handleDeleteMessageRequest
