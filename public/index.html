@@ -337,7 +337,34 @@
         #send-button { padding: 10px 20px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 22px; cursor; font-size: 0.9em; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 3px 12px rgba(102, 126, 234, 0.3); min-width: 70px; }
         #send-button:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
         #send-button:active { transform: translateY(0); }
-        #send-button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        #send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .mentions-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 200;
+        }
+
+        .mentions-suggestions .user-item {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .mentions-suggestions .user-item:hover {
+            background: #f0f0f0;
+        }
         
         /* --- CONTEXT MENU & AI EXPLANATION STYLES --- */
         .context-menu { display: none; position: absolute; background-color: #f1f1f1; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.15); z-index: 1000; }
@@ -707,6 +734,7 @@
                         </div>
                     </div>
                     <textarea id="message-input" placeholder="请输入..." rows="1"></textarea>
+                    <div id="mentions-suggestions" class="mentions-suggestions"></div>
                 </div>
                 <button type="button" class="icon-btn" id="record-button">🎤</button>
                 <button id="send-button" type="submit" disabled>发送</button>
@@ -765,6 +793,7 @@ const clearLogsBtn = document.getElementById('clear-logs-btn');
 const copyLogsBtn = document.getElementById('copy-logs-btn');
 const toggleLogsBtn = document.getElementById('toggle-logs-btn');
 const appNotification = document.getElementById('app-notification'); // New notification element
+const mentionsSuggestions = document.getElementById('mentions-suggestions');
 
 // 【新增】DOM 元素引用
 const userNamesEl = document.getElementById('user-names'); // Sidebar user list
@@ -1089,6 +1118,25 @@ function updateOnlineUserListDisplay(onlineUsers) {
     onlineDisplay.textContent = `活跃: ${onlineUsers.length}`;
 
     logDebug(`✅ 在线用户👭列表已更新 (${onlineUsers.length} 人在线)`, LOG_LEVELS.INFO, onlineUsers.map(u => u.username));
+    populateMentionsSuggestions(onlineUsers);
+}
+
+function populateMentionsSuggestions(users) {
+    mentionsSuggestions.innerHTML = '';
+    users.forEach(user => {
+        const userItem = document.createElement('div');
+        userItem.className = 'user-item';
+        userItem.textContent = user.username;
+        userItem.addEventListener('click', () => {
+            const currentText = messageInput.value;
+            const atIndex = currentText.lastIndexOf('@');
+            const newText = currentText.substring(0, atIndex) + `@${user.username} `;
+            messageInput.value = newText;
+            mentionsSuggestions.style.display = 'none';
+            messageInput.focus();
+        });
+        mentionsSuggestions.appendChild(userItem);
+    });
 }
 
 
@@ -1901,6 +1949,21 @@ const messageHandlers = {
         }
     }
 };
+
+messageInput.addEventListener('input', () => {
+    const text = messageInput.value;
+    const atIndex = text.lastIndexOf('@');
+
+    if (atIndex !== -1) {
+        const query = text.substring(atIndex + 1);
+        const onlineUsers = Array.from(userNamesEl.children).map(el => el.dataset.username);
+        const filteredUsers = onlineUsers.filter(user => user.toLowerCase().includes(query.toLowerCase()));
+        populateMentionsSuggestions(filteredUsers.map(username => ({ username })));
+        mentionsSuggestions.style.display = filteredUsers.length > 0 ? 'block' : 'none';
+    } else {
+        mentionsSuggestions.style.display = 'none';
+    }
+});
 
 async function onSocketMessage(event) {
     if (event.data.startsWith('{"type":"heartbeat"') && event.data.endsWith('}}')) { 
