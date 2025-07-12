@@ -29,7 +29,7 @@ export { HibernatingChating };
 // --- CORS (Cross-Origin Resource Sharing) Headers ---
 // 这是一个可重用的对象，用于为API响应添加正确的CORS头部，允许跨域访问。
 const corsHeaders = {
-    'Access-Control-Allow-Origin': '*', // 生产环境建议替换为您的前端域名
+    'Access-Control-Allow-Origin': '*.want.biz', // 生产环境建议替换为您的前端域名
     'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Filename',
     'Access-Control-Max-Age': '86400', // 预检请求的缓存时间
