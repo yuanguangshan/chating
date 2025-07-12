@@ -824,7 +824,20 @@ let reconnectInterval = 1000;
 const maxReconnectInterval = 30000;
 let localStream = null;
 const peerConnections = {};
-const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const rtcConfig = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    {
+      urls: [
+        'turn:43.153.67.212:3478?transport=udp',
+        'turn:43.153.67.212:3478?transport=tcp'
+      ],
+      username: 'yuangs',
+      credential: 'yuangs123'
+    }
+  ]
+};
 
 // --- 日志功能变量 ---
 const LOG_LEVELS = { INFO: 'info', SUCCESS: 'success', WARNING: 'warning', ERROR: 'error' };
