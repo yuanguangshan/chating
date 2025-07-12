@@ -1949,7 +1949,7 @@ const messageHandlers = {
             const finalUsers = [botUser, ...filteredUsers];
             
             updateOnlineUserListDisplay(finalUsers);
-            logDebug(`✅ 收到在线用户列表更新，当前 👭${payload.users.length} 位真��用户在线 (已添加机器人)`, LOG_LEVELS.INFO, finalUsers.map(u => u.username));
+            logDebug(`✅ 收到在线用户列表更新，当前 👭${payload.users.length} 位真实用户在线 (已添加机器人)`, LOG_LEVELS.INFO, finalUsers.map(u => u.username));
         } else {
             logDebug("❗ 收到用户列表更新，但格式不正确。", LOG_LEVELS.ERROR, payload);
         }
