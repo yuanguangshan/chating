@@ -873,7 +873,7 @@ async handleSessionInitialization(ws, url) {
             id: payload.id || crypto.randomUUID(),
             username: session.username,
             timestamp: payload.timestamp || Date.now(),
-            text: `@机器人小助手 ${payload.text}`,
+            text: `@机器人小助手 ${payload.text}❤️小助手正在思考…稍后回复您❤️`,
             type: 'text'
         };
         await this.addAndBroadcastMessage(userMessage);
