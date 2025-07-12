@@ -868,16 +868,27 @@ async handleSessionInitialization(ws, url) {
     async handleGeminiChatMessage(session, payload) {
         this.debugLog(`💬 正在处理用户：👦 ${session.username} 的Gemini聊天消息`, 'INFO', payload);
 
+        // First, post the user's original message to the chat
+        const userMessage = {
+            id: payload.id || crypto.randomUUID(),
+            username: session.username,
+            timestamp: payload.timestamp || Date.now(),
+            text: `@机器人小助手 ${payload.text}`,
+            type: 'text'
+        };
+        await this.addAndBroadcastMessage(userMessage);
+
+        // Then, get the bot's answer and post it
         try {
             const answer = await getGeminiChatAnswer(payload.text, this.env);
-            const message = {
+            const botMessage = {
                 id: crypto.randomUUID(),
                 username: "机器人小助手",
                 timestamp: Date.now(),
                 text: `@${payload.original_user} ${answer}`,
                 type: 'text'
             };
-            await this.addAndBroadcastMessage(message);
+            await this.addAndBroadcastMessage(botMessage);
         } catch (error) {
             this.debugLog(`❌ Gemini聊天消息处理失败: ${error.message}`, 'ERROR');
             try {
