@@ -29,6 +29,10 @@ new_sqlite_classes = [ "HibernatingChating" ]
 MANAGEMENT_ROOMS_LIST = "test,future,kerry,program" # 逗号分隔的房间名
 API_DOMAIN = "chat.want.biz"
 
+[observability.logs]
+enabled = true
+
+
 # 定时触发器
 [triggers]
 crons = [
