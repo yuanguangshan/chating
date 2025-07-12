@@ -2,7 +2,7 @@ name = "global_chats"
 main = "src/worker.js"
 compatibility_date = "2024-07-08"
 
-# 启用 nodejs_compat 以便 ECharts 库能正常工作
+# 启用    nodejs_compat 以便 ECharts 库能正常工作
 compatibility_flags = [ "nodejs_compat" ]
 
 # 静态网站托管配置
