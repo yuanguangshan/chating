@@ -3,16 +3,25 @@
 */
 import { generateAndPostCharts } from './chart_generator.js';
 import { getDeepSeekExplanation } from './ai.js';
+import { fetchNewsFromTongHuaShun, fetchNewsFromDongFangCaiFu } from './newsService.js';
+import { getFuturesData } from './futuresDataService.js';
 
 /**
  * 1. 定义 Cron 表达式常量
  *    与 wrangler.toml 中的 [triggers].crons 保持一致
  */
 const CRON_TRIGGERS = {
-    // 假设每天早上8点发送文本消息 (注意：这里的时间可以自定义)
-    DAILY_TEXT_MESSAGE: "0 9 * * *",  
-    // 盘中和夜盘时段，每小时整点生成图表
-    HOURLY_CHART_GENERATION:   "0 0-7 * * 1-6" // 周一到周五的指定小时
+    // 规则一: 每日问候 (北京时间 08:00 -> UTC 00:00)
+    DAILY_TEXT_MESSAGE: "0 0 * * *",
+    
+    // 规则二: 图表生成 (北京时间 周一至周五, 09:00-15:00 和 21:00-03:00)
+    HOURLY_CHART_GENERATION: "0 1-7,13-19 * * 1-5",
+
+    // 规则三: 新闻获取 (同上时间段, 每10分钟一次)
+    FETCH_NEWS: "0 1-7,13-19 * * 1-5",
+
+    // 规则四: 期货数据 (同上时间段, 每小时的第15分钟, 用于测试)
+    TEST_FUTURES_DATA: "0 1-7,13-19 * * 1-5"
 };
 
 /**
@@ -82,9 +91,89 @@ async function executeChartTask(env, ctx) {
 }
 
 /**
+ * 任务：获取并发布新闻
+ * @param {object} env - 环境变量
+ * @param {object} ctx - 执行上下文
+ */
+async function executeNewsTask(env, ctx) {
+    const roomName = 'future';
+    console.log(`[Cron Task] Executing news fetching task for room: ${roomName}`);
+
+    try {
+        const [tonghuashunNews, dongfangcaifuNews] = await Promise.all([
+            fetchNewsFromTongHuaShun().catch(e => { console.error(e); return []; }),
+            fetchNewsFromDongFangCaiFu().catch(e => { console.error(e); return []; })
+        ]);
+
+        const allNews = [...tonghuashunNews, ...dongfangcaifuNews];
+
+        if (allNews.length === 0) {
+            console.log('[Cron Task] No news fetched, skipping post.');
+            return;
+        }
+
+        // 格式化新闻内容
+        let newsContent = '## 财经新闻速递\n\n';
+        allNews.forEach((item, index) => {
+            newsContent += `${index + 1}. **${item.title}**\n`;
+            newsContent += `   - 热度: ${item.hot_value}\n`;
+            newsContent += `   - [阅读原文](${item.url})\n\n`;
+        });
+
+        if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+        
+        const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+        const stub = env.CHAT_ROOM_DO.get(doId);
+        
+        ctx.waitUntil(stub.cronPost(newsContent, env.CRON_SECRET));
+        
+        console.log(`[Cron Task] Successfully dispatched news to room: ${roomName}`);
+
+    } catch (error) {
+        console.error(`CRON ERROR (news task):`, error.stack || error);
+    }
+}
+
+
+/**
  * 3. 创建 Cron 表达式到任务函数的映射
  */
 export const taskMap = new Map([
     [CRON_TRIGGERS.DAILY_TEXT_MESSAGE, executeTextTask],
-    [CRON_TRIGGERS.HOURLY_CHART_GENERATION, executeChartTask]
+    [CRON_TRIGGERS.HOURLY_CHART_GENERATION, executeChartTask],
+    [CRON_TRIGGERS.FETCH_NEWS, executeNewsTask],
+    [CRON_TRIGGERS.TEST_FUTURES_DATA, executeFuturesTestTask]
 ]);
+
+
+/**
+ * 任务：测试获取期货数据
+ * @param {object} env - 环境变量
+ * @param {object} ctx - 执行上下文
+ */
+async function executeFuturesTestTask(env, ctx) {
+    console.log(`[Cron Task] Executing futures data test task...`);
+    try {
+        const futuresData = await getFuturesData();
+        console.log('--- Futures Data Test Result ---');
+        console.log(JSON.stringify(futuresData, null, 2));
+        console.log('--- End of Futures Data Test ---');
+        
+        // 为了防止重复执行，这个任务成功后可以考虑从 wrangler.toml 中移除
+        // 或者在这里添加逻辑，只在特定条件下运行
+        
+        // 可以在这里将结果发送到特定房间进行验证
+        const roomName = 'future'; // 发送到 'future' 房间
+        const content = `## 期货数据测试成功\n\n成功获取到 ${futuresData.length} 条数据。\n\n\`\`\`json\n${JSON.stringify(futuresData, null, 2)}\n\`\`\``;
+
+        if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+        
+        const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+        const stub = env.CHAT_ROOM_DO.get(doId);
+        
+        ctx.waitUntil(stub.cronPost(content, env.CRON_SECRET));
+
+    } catch (error) {
+        console.error(`CRON ERROR (futures test task):`, error.stack || error);
+    }
+}

@@ -164,33 +164,46 @@ export class HibernatingChating extends DurableObject {
 
     sendHeartbeat() {
         if (this.sessions.size === 0) return;
-        
+
         const heartbeatMessage = JSON.stringify({
             type: MSG_TYPE_HEARTBEAT,
             payload: { timestamp: Date.now() }
         });
-        
+
+        const now = Date.now();
+        const timeout = 65000; // 65秒超时 (略大于两个心跳周期)
         let activeSessions = 0;
         const disconnectedSessions = [];
-        
+
         this.sessions.forEach((session, sessionId) => {
+            // 检查会话是否超时
+            if (now - session.lastSeen > timeout) {
+                this.debugLog(`💔 会话超时: 👦 ${session.username} (超过 ${timeout / 1000}s 未响应)`, 'WARN');
+                disconnectedSessions.push(sessionId);
+                return; // 跳过后续处理
+            }
+
             try {
                 if (session.ws.readyState === WebSocket.OPEN) {
                     session.ws.send(heartbeatMessage);
-                    session.lastSeen = Date.now();
                     activeSessions++;
-                } else {
+                } else if (session.ws.readyState !== WebSocket.CONNECTING) {
+                    // 如果连接不是OPEN也不是CONNECTING，则视为断开
                     disconnectedSessions.push(sessionId);
                 }
             } catch (e) {
+                this.debugLog(`💥 发送心跳失败: 👦 ${session.username}`, 'ERROR', e);
                 disconnectedSessions.push(sessionId);
             }
         });
-        
-        disconnectedSessions.forEach(sessionId => {
-            this.cleanupSession(sessionId, { code: 1011, reason: 'Heartbeat failed', wasClean: false });
-        });
-        
+
+        // 统一清理断开的会话
+        if (disconnectedSessions.length > 0) {
+            disconnectedSessions.forEach(sessionId => {
+                this.cleanupSession(sessionId, { code: 1011, reason: 'Heartbeat/Timeout failed', wasClean: false });
+            });
+        }
+
         if (activeSessions > 0) {
             this.debugLog(`💓 发送心跳包到 ${activeSessions} 个活跃会话 🟢 `, 'HEARTBEAT');
         }
@@ -484,17 +497,35 @@ async handleSessionInitialization(ws, url) {
         }), { headers: JSON_HEADERS });
     };
         
-    // 消息历史API处理器
+    // 消息历史API处理器 (支持分页)
     async handleMessageHistory(request, url) {
         if (this.allowedUsers === undefined) {
             return new Response('Room not found or not activated', { status: 404 });
         }
-        
+
         await this.loadMessages();
-        const since = parseInt(url.searchParams.get('since') || '0', 10);
-        const history = this.fetchHistory(since);
-        this.debugLog(`📜 请求历史消息. Since: ${since}, 返回: ${history.length} 条消息`);
-        return new Response(JSON.stringify(history), { headers: JSON_HEADERS });
+
+        const beforeId = url.searchParams.get('beforeId');
+        const limit = 20;
+
+        let endIndex = this.messages.length;
+        if (beforeId) {
+            const index = this.messages.findIndex(m => m.id === beforeId);
+            if (index !== -1) {
+                endIndex = index;
+            }
+        }
+
+        const startIndex = Math.max(0, endIndex - limit);
+        const historySlice = this.messages.slice(startIndex, endIndex);
+        const hasMore = startIndex > 0;
+
+        this.debugLog(`📜 请求历史消息. beforeId: ${beforeId}, 返回: ${historySlice.length} 条, 更多: ${hasMore}`);
+
+        return new Response(JSON.stringify({
+            messages: historySlice,
+            hasMore: hasMore
+        }), { headers: JSON_HEADERS });
     }
 
     // 消息删除API处理器
@@ -695,12 +726,16 @@ async handleSessionInitialization(ws, url) {
         // 【修改】在用户成功连接后，才加载消息历史
         await this.loadMessages();
 
+        const initialHistory = this.messages.slice(-20);
+        const hasMoreHistory = this.messages.length > 20;
+
         const welcomeMessage = {
             type: MSG_TYPE_WELCOME,
             payload: {
                 message: `👏 欢迎 ${username} 加入聊天室 💬!`,
                 sessionId: sessionId,
-                history: this.messages.slice(-50),
+                history: initialHistory,
+                hasMoreHistory: hasMoreHistory, // 告知客户端是否有更多历史记录
                 userCount: this.sessions.size
             }
         };
