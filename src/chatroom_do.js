@@ -915,7 +915,16 @@ async handleSessionInitialization(ws, url) {
 
         // Then, get the bot's answer and post it
         try {
-            const answer = await getGeminiChatAnswer(payload.text, this.env);
+            // ✨ 修正: 正确传递参数，包括历史记录(暂为空)和env对象
+            const history = this.messages
+                .filter(m => m.type === 'text') // 只考虑文本消息
+                .slice(-10) // 最近10条
+                .map(m => ({
+                    role: m.username === '机器人小助手' ? 'model' : 'user',
+                    parts: [{ text: m.text }]
+                }));
+
+            const answer = await getGeminiChatAnswer(payload.text, history, this.env);
             const botMessage = {
                 id: crypto.randomUUID(),
                 username: "机器人小助手",

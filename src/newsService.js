@@ -72,3 +72,39 @@ export async function fetchNewsFromDongFangCaiFu() {
     throw new Error(`获取东方财富新闻失败: ${error.message}`);
   }
 }
+
+/**
+ * 根据关键词获取相关新闻。
+ * @param {string} keyword - 要搜索新闻的关键词。
+ * @returns {Promise<string>} - 包含新闻列表的JSON字符串。
+ */
+export async function getNews(keyword) {
+  try {
+    console.log(`[getNews] Searching news for keyword: ${keyword}`);
+    const [thsNews, emNews] = await Promise.all([
+      fetchNewsFromTongHuaShun().catch(e => { console.error(e); return []; }),
+      fetchNewsFromDongFangCaiFu().catch(e => { console.error(e); return []; })
+    ]);
+
+    const allNews = [...thsNews, ...emNews];
+    
+    const lowerKeyword = keyword.toLowerCase();
+    const filteredNews = allNews
+      .filter(item => item.title.toLowerCase().includes(lowerKeyword))
+      .slice(0, 5); // 返回最多5条相关新闻
+
+    if (filteredNews.length > 0) {
+      return JSON.stringify(filteredNews);
+    } else {
+      // 如果没有找到，返回一个通用的热门新闻作为备选
+      const fallbackNews = allNews.slice(0, 3);
+      return JSON.stringify({
+        message: `No news found for "${keyword}". Here are some top news instead.`,
+        news: fallbackNews
+      });
+    }
+  } catch (error) {
+    console.error(`Failed to get news for ${keyword}:`, error);
+    return JSON.stringify({ error: `Failed to fetch news for ${keyword}.` });
+  }
+}

@@ -75,6 +75,73 @@ const getFuturesData = async () => {
   }
 }
 
+/**
+ * 获取单个期货合约的最新价格信息。
+ * @param {string} symbol - 期货合约代码 (e.g., 'rb', 'au').
+ * @returns {Promise<string>} - 包含价格信息的JSON字符串，如果找不到则返回错误信息。
+ */
+const getPrice = async (symbol) => {
+  try {
+    console.log(`[getPrice] Searching for symbol: "${symbol}"`);
+    const response = await fetchData('https://q.889.ink/');
+    const allData = response.list;
+    
+    if (!symbol) {
+        return JSON.stringify({ error: "Symbol parameter is missing." });
+    }
+    
+    const lowerSymbol = symbol.toLowerCase();
+
+    const contract = allData.find(item => {
+        if (!item || !item.dm || !item.name) return false;
+        
+        // 匹配逻辑 1: 合约代码前缀 (e.g., "rb" matches "RB2410")
+        const itemPrefix = item.dm.replace(/[0-9]/g, '').toLowerCase();
+        if (itemPrefix === lowerSymbol) return true;
+
+        // 匹配逻辑 2: 中文名 (e.g., "螺纹钢" matches "螺纹钢2410")
+        const simplifiedName = getSimplifiedName(item.name).toLowerCase();
+        if (simplifiedName === lowerSymbol) return true;
+        
+        return false;
+    });
+
+    if (contract) {
+      console.log(`[getPrice] Found contract:`, contract);
+      // 提取关键价格信息
+      const priceInfo = {
+        symbol: contract.dm,
+        name: contract.name,
+        price: contract.p, // 最新价
+        open: contract.o,
+        high: contract.h,
+        low: contract.l, // <-- Bug fix: was 'l' string
+        prev_close: contract.qrspj,
+        change_percent: contract.zdf,
+        change_value: contract.zde,
+        volume: contract.vol,
+        amount: contract.cje,
+        timestamp: contract.utime
+      };
+      return JSON.stringify(priceInfo);
+    } else {
+      return JSON.stringify({ error: `Contract with symbol '${symbol}' not found.` });
+    }
+  } catch (error) {
+    console.error(`Failed to get price for ${symbol}:`, error);
+    return JSON.stringify({ error: `Failed to fetch price data for ${symbol}.` });
+  }
+};
+
+// 辅助函数，用于从合约名称中提取代码 (例如 "螺纹钢2410" -> "螺纹钢")
+// 这个函数应该与 chart_generator.js 中的保持一致
+function getSimplifiedName(fullName) {
+    const match = fullName.match(/^([^\d]+)/);
+    return match && match[1] ? match[1] : fullName;
+}
+
+
 export {
-  getFuturesData
+  getFuturesData,
+  getPrice
 }
