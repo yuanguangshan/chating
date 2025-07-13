@@ -173,7 +173,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
 
     // 3. 进入与AI的多轮交互循环
     let loopCount = 0;
-    while (loopCount < 5) { // 防止无限循环
+    while (loopCount < 3) { // 防止无限循环
         loopCount++;
 
         const response = await fetch(apiUrl, {
