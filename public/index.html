@@ -811,6 +811,7 @@ const MESSAGE_BATCH_DEBOUNCE_MS = 50; // 批量处理消息的防抖时间 (保�
 
 let hasMoreHistory = false; // 【新增】标志位，表示服务器是否还有更多历史消息
 let isLoadingHistory = false; // 【新增】标志位，防止重复加载
+let isConnecting = false; // 【新增】标志位，防止并发连接
     
 let shouldReconnect = true; // 【新增】一个全局标志，控制是否允许重连
 let reconnectIntervalId = null; // 【新增】用于存储重连定时器ID
@@ -1880,16 +1881,11 @@ function processHistoryMessages(history) {
 
 // 【简化】connectWebSocket 函数
 function connectWebSocket() {
-    // 检查是否已经有了一个健康的连接
-    if (socket && socket.readyState === WebSocket.OPEN) {
-        logDebug('🔗 连接已存在，无需重复连接。');
+    if (isConnecting || (socket && socket.readyState === WebSocket.OPEN)) {
+        logDebug('🔗 连接已存在或正在进行中，忽略新的连接请求。');
         return;
     }
-    // 检查是否正在连接中
-    if (socket && socket.readyState === WebSocket.CONNECTING) {
-        logDebug('⏳ 正在连接中，请稍候... 新的连接请求被忽略。');
-        return;
-    }
+    isConnecting = true;
 
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${wsProtocol}//${window.location.host}/${roomName}?username=${encodeURIComponent(username)}`;
@@ -1903,6 +1899,7 @@ function connectWebSocket() {
 
 // 【简化】onSocketOpen 函数
 function onSocketOpen() {
+    isConnecting = false;
     logDebug('🟢 WebSocket 连接已打开 (onopen触发)。');
     statusEl.textContent = '已连接';
     connectionDot.classList.remove('disconnected');
@@ -1988,6 +1985,10 @@ const messageHandlers = {
         logDebug(`[后端日志] ${payload.message}`, payload.level.toLowerCase(), payload.data);
     },
     heartbeat: () => {
+        // 收到服务器心跳后，立即回复一个，以保持连接活跃
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'heartbeat' }));
+        }
     },
     system_notification: (payload) => { 
         logDebug(`[系统通知] ${payload.message}`, payload.level.toLowerCase(), payload);
@@ -2057,7 +2058,6 @@ async function onSocketMessage(event) {
 
 
  function onSocketClose(event) {
-    // 【关键修改】解锁：连接彻底关闭了，也要解锁，以便可以发起新的重连
     isConnecting = false;
     statusEl.textContent = "连接已断开";
     connectionDot.classList.add('disconnected');

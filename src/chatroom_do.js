@@ -164,33 +164,46 @@ export class HibernatingChating extends DurableObject {
 
     sendHeartbeat() {
         if (this.sessions.size === 0) return;
-        
+
         const heartbeatMessage = JSON.stringify({
             type: MSG_TYPE_HEARTBEAT,
             payload: { timestamp: Date.now() }
         });
-        
+
+        const now = Date.now();
+        const timeout = 65000; // 65秒超时 (略大于两个心跳周期)
         let activeSessions = 0;
         const disconnectedSessions = [];
-        
+
         this.sessions.forEach((session, sessionId) => {
+            // 检查会话是否超时
+            if (now - session.lastSeen > timeout) {
+                this.debugLog(`💔 会话超时: 👦 ${session.username} (超过 ${timeout / 1000}s 未响应)`, 'WARN');
+                disconnectedSessions.push(sessionId);
+                return; // 跳过后续处理
+            }
+
             try {
                 if (session.ws.readyState === WebSocket.OPEN) {
                     session.ws.send(heartbeatMessage);
-                    session.lastSeen = Date.now();
                     activeSessions++;
-                } else {
+                } else if (session.ws.readyState !== WebSocket.CONNECTING) {
+                    // 如果连接不是OPEN也不是CONNECTING，则视为断开
                     disconnectedSessions.push(sessionId);
                 }
             } catch (e) {
+                this.debugLog(`💥 发送心跳失败: 👦 ${session.username}`, 'ERROR', e);
                 disconnectedSessions.push(sessionId);
             }
         });
-        
-        disconnectedSessions.forEach(sessionId => {
-            this.cleanupSession(sessionId, { code: 1011, reason: 'Heartbeat failed', wasClean: false });
-        });
-        
+
+        // 统一清理断开的会话
+        if (disconnectedSessions.length > 0) {
+            disconnectedSessions.forEach(sessionId => {
+                this.cleanupSession(sessionId, { code: 1011, reason: 'Heartbeat/Timeout failed', wasClean: false });
+            });
+        }
+
         if (activeSessions > 0) {
             this.debugLog(`💓 发送心跳包到 ${activeSessions} 个活跃会话 🟢 `, 'HEARTBEAT');
         }
