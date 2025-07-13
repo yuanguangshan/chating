@@ -126,7 +126,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
     const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) throw new Error('Server config error: GEMINI_API_KEY is not set.');
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     // 1. 定义AI可以调用的工具
     const tools = [{
