@@ -188,7 +188,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
 
     const tools = [{
         functionDeclarations: [
-            { name: "get_price", description: "获取指定期货品种的详细信息，包括最新价(price)、今日涨跌幅(change_percent)、5日涨幅(zdf5)、20日涨幅(zdf20)、年初至今涨幅(zdfly)、250日涨幅(zdf250)、成交量(volume)和成交额(amount)", parameters: { type: "OBJECT", properties: { name: { type: "STRING", description: "期货品��的中文名称, 例如 '螺纹钢', '黄金', '原油'" } }, required: ["name"] } },
+            { name: "get_price", description: "获取指定期货品种的详细信息，包括最新价(price)、今日涨跌幅(change_percent)、5日涨幅(zdf5)、20日涨幅(zdf20)、年初至今涨幅(zdfly)、250日涨幅(zdf250)、成交量(volume)和成交额(amount)", parameters: { type: "OBJECT", properties: { name: { type: "STRING", description: "期货品种的中文名称, 例如 '螺纹钢', '黄金', '原油'" } }, required: ["name"] } },
             { name: "get_news", description: "获取关于某个关键词的最新新闻", parameters: { type: "OBJECT", properties: { keyword: { type: "STRING", description: "要查询新闻的关键词, 例如 '原油'" } }, required: ["keyword"] } },
             { name: "draw_chart", description: "根据指定的合约代码和周期绘制K线图", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码, 例如 'ag' (白银)" }, period: { type: "STRING", description: "图表周期, 例如 '5d' (5日), '1h' (1小时), 'daily' (日线)" } }, required: ["symbol", "period"] } }
         ]
@@ -201,54 +201,11 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         { role: "user", parts: [{ text: question }] }
     ];
 
-    // --- Stage 1: Initial check with Flash model ---
-    console.log("[AI] Stage 1: Checking with Flash model.");
-    const initialResponse = await fetch(flashModelApiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents, tools })
-    });
-
-    if (!initialResponse.ok) throw new Error(`Gemini API error (Flash): ${await initialResponse.text()}`);
-    const initialData = await initialResponse.json();
-    
-    // Check for safety blocks first
-    if (initialData.candidates === undefined) {
-        const blockReason = initialData?.promptFeedback?.blockReason;
-        if (blockReason) {
-            return `抱歉，我无法回答这个问题，因为它可能涉及到了敏感内容 (${blockReason})。`;
-        }
-        // If no candidates and no block reason, it's an unknown empty response. Escalate to Pro.
-        console.log("[AI] Flash model returned an empty response. Escalating to Pro.");
-    } else {
-        const initialCandidate = initialData.candidates[0];
-        // Robust check for a valid part
-        if (initialCandidate.content && initialCandidate.content.parts && initialCandidate.content.parts.length > 0) {
-            const initialPart = initialCandidate.content.parts[0];
-            if (initialPart.text) {
-                console.log("[AI] Flash model provided a direct answer. Returning.");
-                return initialPart.text;
-            }
-            if (initialPart.functionCall) {
-                 // It's a complex query, fall through to Stage 2 (Pro model)
-                 console.log("[AI] Flash model requested a tool. Handing over to Pro model.");
-            }
-        } else {
-            // Empty parts array, escalate to Pro
-            console.log("[AI] Flash model returned empty parts. Escalating to Pro.");
-        }
-    }
-
-    // --- Stage 2: Handover to Pro model for tool calls or complex generation ---
-    // The 'contents' array is already prepared. If Flash made a function call, we add it.
-    if (initialData?.candidates?.[0]?.content) {
-        contents.push(initialData.candidates[0].content);
-    }
-
     let loopCount = 0;
     while (loopCount < 5) {
         loopCount++;
 
+        // 优先尝试 Pro 模型
         let response = await fetch(proModelApiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -258,79 +215,98 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         let data;
         if (!response.ok) {
             const errorText = await response.text();
+            // 如果Pro模型超出配额，则无缝切换到Flash模型
             if (response.status === 429 && errorText.includes("RESOURCE_EXHAUSTED")) {
-                console.log("[AI] Pro model quota exceeded. Falling back to Flash model.");
-                // Fallback to Flash model
+                console.log("[AI] Pro model quota exceeded. Falling back to Flash model for this turn.");
                 response = await fetch(flashModelApiUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ contents, tools })
                 });
+
                 if (!response.ok) {
-                    throw new Error(`Gemini API error (Flash fallback): ${await response.text()}`);
+                    console.error(`[AI] Flash fallback also failed: ${await response.text()}`);
+                    return "抱歉，AI服务暂时遇到问题，请稍后再试。";
                 }
+                console.log("[AI] Successfully used Flash as fallback.");
                 data = await response.json();
-                // If Flash model also fails or doesn't provide a candidate, return a specific message
-                if (data.candidates === undefined || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
-                    return "抱歉，当前AI服务请求量过大，已超出配额限制，且备用模型也未能提供有效回复。请稍后再试。";
-                }
-                // Add user notification for fallback
-                return `当前AI服务请求量过大，已超出配额限制，已降级使用备用模型。回复质量可能有所下降。\n\n${data?.candidates?.[0]?.content?.parts?.[0]?.text}`;
             } else {
+                // 对于其他API错误，直接抛出
                 throw new Error(`Gemini API error (Pro): ${errorText}`);
             }
         } else {
             data = await response.json();
         }
 
-        if (data.candidates === undefined) {
+        // 检查是否有候选内容或被安全策略阻止
+        if (!data.candidates) {
             const blockReason = data?.promptFeedback?.blockReason;
             if (blockReason) {
                 return `抱歉，我无法回答这个问题，因为它可能涉及到了敏感内容 (${blockReason})。`;
             }
-            return "抱歉，我无法回答这个问题。"; // Pro model also gave an empty response
+            return "抱歉，AI未能生成有效回复。";
         }
 
         const candidate = data.candidates[0];
         if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
-             return "抱歉，我无法回答这个问题。"; // Pro model returned empty parts
+             return "抱歉，AI返回了空内容。";
         }
 
-        const part = candidate.content.parts[0];
+        // 检查是函数调用还是文本回复
+        const functionCallParts = candidate.content.parts.filter(p => p.functionCall);
 
-        if (part.functionCall) {
-            const { name, args } = part.functionCall;
-            console.log(`[AI Pro] Wants to call function: ${name} with args:`, args);
+        if (functionCallParts.length > 0) {
+            // 将模型的函数调用请求添加到历史记录中
+            contents.push(candidate.content);
 
-            const tool = availableTools[name];
-            if (tool) {
-                let result;
-                // 统一调用方式，始终传递env
-                if (name === 'get_price') {
-                    result = await tool(...Object.values(args)); // getPrice不需要env
+            // 并行执行所有工具调用
+            const toolResponseParts = await Promise.all(functionCallParts.map(async (part) => {
+                const { name, args } = part.functionCall;
+                console.log(`[AI] Calling tool: ${name} with args:`, args);
+                const tool = availableTools[name];
+
+                if (tool) {
+                    try {
+                        let result;
+                        switch (name) {
+                            case 'get_price':
+                                result = await getPrice(args.name);
+                                break;
+                            case 'get_news':
+                                result = await getNews(args.keyword);
+                                break;
+                            case 'draw_chart':
+                                result = await drawChart(env, args.symbol, args.period);
+								break;
+                            default:
+                                throw new Error(`Unknown tool: ${name}`);
+                        }
+                        return { functionResponse: { name, response: { content: result } } };
+                    } catch (e) {
+                        console.error(`[AI] Error executing tool '${name}':`, e);
+                        return { functionResponse: { name, response: { content: `工具 '${name}' 执行失败: ${e.message}` } } };
+                    }
                 } else {
-                    result = await tool(env, ...Object.values(args));
+                    console.log(`[AI] Function '${name}' is not available.`);
+                    return { functionResponse: { name, response: { content: `函数 '${name}' 不可用。` } } };
                 }
-                
-                contents.push(candidate.content);
-                contents.push({
-                    role: "tool",
-                    parts: [{ functionResponse: { name, response: { content: result } } }]
-                });
-            } else {
-                console.log(`[AI Pro] Function '${name}' is not available. Informing the model.`);
-                contents.push(candidate.content);
-                contents.push({
-                    role: "tool",
-                    parts: [{ functionResponse: { name, response: { content: `函数 '${name}' 不可用。请直接回答用户的问题。` } } }]
-                });
-            }
-        } else if (part.text) {
-            return part.text;
+            }));
+
+            // 将所有工具的执行结果添加到历史记录中，以供模型进行下一步处理
+            contents.push({
+                role: "tool",
+                parts: toolResponseParts
+            });
+
+        } else if (candidate.content.parts[0] && candidate.content.parts[0].text) {
+            // 如果是纯文本回复，直接返回
+            return candidate.content.parts[0].text;
         } else {
-            return "抱歉，我无法回答这个问题。";
+            // 其他未知情况
+            return "抱歉，收到了无法解析的AI回复。";
         }
     }
 
-    throw new Error("AI (Pro) did not provide a final answer after multiple tool calls.");
+    // 如果循环5次后仍未得到最终答案，则返回错误
+    throw new Error("AI did not provide a final answer after multiple tool calls.");
 }
