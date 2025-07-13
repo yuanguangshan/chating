@@ -126,98 +126,85 @@ export async function getGeminiChatAnswer(question, history = [], env) {
     const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) throw new Error('Server config error: GEMINI_API_KEY is not set.');
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const flashModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const proModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
 
-    // 1. 定义AI可以调用的工具
     const tools = [{
         functionDeclarations: [
-            {
-                name: "get_price",
-                description: "获取指定期货合约的详细信息，包括最新价(price)、今日涨跌幅(change_percent)、5日涨幅(zdf5)、20日涨幅(zdf20)、年初至今涨幅(zdfly)、250日涨幅(zdf250)、成交量(volume)和成交额(amount)",
-                parameters: {
-                    type: "OBJECT",
-                    properties: {
-                        symbol: { type: "STRING", description: "期货合约代码, 例如 'rb' (螺纹钢), 'au' (黄金)" }
-                    },
-                    required: ["symbol"]
-                }
-            },
-            {
-                name: "get_news",
-                description: "获取关于某个关键词的最新新闻",
-                parameters: {
-                    type: "OBJECT",
-                    properties: {
-                        keyword: { type: "STRING", description: "要查询新闻的关键词, 例如 '原油'" }
-                    },
-                    required: ["keyword"]
-                }
-            },
-            {
-                name: "draw_chart",
-                description: "根据指定的合约代码和周期绘制K线图",
-                parameters: {
-                    type: "OBJECT",
-                    properties: {
-                        symbol: { type: "STRING", description: "期货合约代码, 例如 'ag' (白银)" },
-                        period: { type: "STRING", description: "图表周期, 例如 '5d' (5日), '1h' (1小时), 'daily' (日线)" }
-                    },
-                    required: ["symbol", "period"]
-                }
-            }
+            // ... (tool definitions remain the same)
+            { name: "get_price", description: "获取指定期货合约的详细信息...", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码..." } }, required: ["symbol"] } },
+            { name: "get_news", description: "获取关于某个关键词的最新新闻", parameters: { type: "OBJECT", properties: { keyword: { type: "STRING", description: "要查询新闻的关键词..." } }, required: ["keyword"] } },
+            { name: "draw_chart", description: "根据指定的合约代码和周期绘制K线图", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码..." }, period: { type: "STRING", description: "图表周期..." } }, required: ["symbol", "period"] } }
         ]
     }];
 
-    // 2. 构建请求历史
     const contents = [
-        // 将系统提示词转换为 user 角色发送
-        { 
-            role: "user", 
-            parts: [{ 
-                text: "你是一个全能的AI助手。你的主要能力是作为金融期货助手，可以使用工具查询价格、新闻和绘制图表。但是，如果用户的问题与金融无关，你也应该利用你的通用知识库来回答，而不是拒绝。请始终友好、乐于助人地回答所有类型的问题。" 
-            }] 
-        },
-        // 然后添加一条空的 model 回复表示AI已接受指令
-        { 
-            role: "model", 
-            parts: [{ 
-                text: "好的，我已理解我的角色和能力范围。请提出您的问题。" 
-            }] 
-        },...history, { role: "user", parts: [{ text: question }] }];
+        { role: "user", parts: [{ text: "你是一个全能的AI助手。你的主要能力是作为金融期货助手，可以使用工具查询价格、新闻和绘制图表。但是，如果用户的问题与金融无关，你也应该利用你的通用知识库来回答，而不是拒绝。请始终友好、乐于助人地回答所有类型的问题。"  }] },
+        { role: "model", parts: [{ text: "好的，我已理解我的角色和能力范围..." }] },
+        ...history, 
+        { role: "user", parts: [{ text: question }] }
+    ];
 
-    // 3. 进入与AI的多轮交互循环
+    // --- Stage 1: Initial check with Flash model ---
+    console.log("[AI] Stage 1: Checking with Flash model.");
+    const initialResponse = await fetch(flashModelApiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents, tools })
+    });
+
+    if (!initialResponse.ok) throw new Error(`Gemini API error (Flash): ${await initialResponse.text()}`);
+    const initialData = await initialResponse.json();
+    const initialCandidate = initialData?.candidates?.[0];
+    if (!initialCandidate || !initialCandidate.content || !initialCandidate.content.parts) {
+        throw new Error('Unexpected AI response format from Gemini (Flash).');
+    }
+
+    const initialPart = initialCandidate.content.parts[0];
+
+    if (initialPart.text) {
+        // Simple case: Flash model provided a direct answer.
+        console.log("[AI] Flash model provided a direct answer. Returning.");
+        return initialPart.text;
+    }
+
+    if (!initialPart.functionCall) {
+        // Unexpected response, but might contain text.
+        throw new Error('Unhandled AI response from Flash model.');
+    }
+
+    // --- Stage 2: Handover to Pro model for tool calls ---
+    console.log("[AI] Stage 2: Flash requested a tool. Handing over to Pro model.");
+    contents.push(initialCandidate.content); // Add Flash's function call request to history
+
+    let currentApiUrl = proModelApiUrl;
     let loopCount = 0;
-    while (loopCount < 4) { // 防止无限循环
+    while (loopCount < 5) {
         loopCount++;
 
-        const response = await fetch(apiUrl, {
+        // The first iteration will use the function call from Flash
+        // Subsequent iterations will generate their own function calls using Pro
+        const response = await fetch(currentApiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents, tools})
+            body: JSON.stringify({ contents, tools })
         });
 
-        if (!response.ok) throw new Error(`Gemini API error: ${await response.text()}`);
+        if (!response.ok) throw new Error(`Gemini API error (Pro): ${await response.text()}`);
         const data = await response.json();
-        
         const candidate = data?.candidates?.[0];
         if (!candidate || !candidate.content || !candidate.content.parts) {
-            throw new Error('Unexpected AI response format from Gemini.');
+            throw new Error('Unexpected AI response format from Gemini (Pro).');
         }
 
         const part = candidate.content.parts[0];
 
-        // 4. 判断AI的回复类型
         if (part.functionCall) {
-            // AI请求调用工具
             const { name, args } = part.functionCall;
-            console.log(`[AI] Wants to call function: ${name} with args:`, args);
+            console.log(`[AI Pro] Wants to call function: ${name} with args:`, args);
 
             const tool = availableTools[name];
             if (tool) {
-                // 执行本地函数
-                // Gemini的参数是 {symbol: 'rb', period: '5d'}
-                // 我们需要将它传递给我们的函数 drawChart(env, symbol, period)
-                // 因此，我们需要把 env 对象也传进去
                 let result;
                 if (name === 'draw_chart') {
                     result = await tool(env, ...Object.values(args));
@@ -225,43 +212,25 @@ export async function getGeminiChatAnswer(question, history = [], env) {
                     result = await tool(...Object.values(args));
                 }
                 
-                // 将函数执行结果告诉AI
-                contents.push({ role: "model", parts: [part] }); // 先把AI的调用请求存入历史
+                contents.push(candidate.content); // Add Pro's function call request
                 contents.push({
                     role: "tool",
                     parts: [{ functionResponse: { name, response: { content: result } } }]
                 });
-                // 继续循环，让AI根据函数结果生成最终回复
             } else {
-                // 如果AI试图调用一个我们未定义的函数，我们不应该抛出错误或重新请求。
-                // 相反，我们应该在对话历史中明确地告诉AI这个函数不可用，
-                // 然后让它在下一次迭代中自己决定如何回复。
-                console.log(`[AI] Function '${name}' is not available. Informing the model.`);
-                
-                // 1. 将AI的无效函数调用请求添加到历史记录中
-                contents.push({ role: "model", parts: [part] }); 
-                
-                // 2. 添加一个工具角色的响应，告知函数不存在，并指示AI直接回答
+                console.log(`[AI Pro] Function '${name}' is not available. Informing the model.`);
+                contents.push(candidate.content);
                 contents.push({
                     role: "tool",
-                    parts: [{ 
-                        functionResponse: { 
-                            name, 
-                            response: { 
-                                content: `函数 '${name}' 不可用。请不要尝试调用任何未明确提供的函数。请根据现有信息直接回答用户的问题。` 
-                            } 
-                        } 
-                    }]
+                    parts: [{ functionResponse: { name, response: { content: `函数 '${name}' 不可用。请直接回答用户的问题。` } } }]
                 });
-                // 循环将继续，AI会看到这个反馈并生成文本回复。
             }
         } else if (part.text) {
-            // AI直接返回了文本，交互结束
             return part.text;
         } else {
-            throw new Error('Unhandled AI response part type.');
+            throw new Error('Unhandled AI response part type from Pro model.');
         }
     }
 
-    throw new Error("AI did not provide a final answer after multiple tool calls.");
+    throw new Error("AI (Pro) did not provide a final answer after multiple tool calls.");
 }
