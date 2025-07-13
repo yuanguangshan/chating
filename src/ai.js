@@ -11,64 +11,66 @@ const availableTools = {
     draw_chart: drawChart,
 };
 
-const systemInstruction = {
-        role: "user",
-        parts: [{
-            text: "你是一个全能的AI助手。你的主要能力是作为金融期货助手，可以使用工具查询价格、新闻和绘制图表。但是，如果用户的问题与金融无关，你也应该利用你的通用知识库来回答，而不是拒绝。请始终友好、乐于助人地回答所有类型的问题。"
-        }]
-    };
-
+// =================================================================
+//  核心 Gemini API 调用函数 (重构后)
+// =================================================================
 /**
- * 调用 Google Gemini API 获取文本解释。(Restored for /ai-explain endpoint)
+ * 统一调用Google Gemini API的函数，内置密钥切换和模型回退逻辑。
+ * @param {string} modelUrl - 要调用的模型URL (不含API Key)。
+ * @param {object} payload - 发送给API的请求体。
+ * @param {object} env - 环境变量，包含GEMINI_API_KEY和可选的GEMINI_API_KEY2。
+ * @returns {Promise<object>} - 返回API的JSON响应。
+ * @throws {Error} - 如果所有尝试都失败，则抛出错误。
  */
-export async function getGeminiExplanation(text, env) {
-    const apiKey = env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Server config error: GEMINI_API_KEY is not set.');
-    
-    const proModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
-    const flashModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-    let response = await fetch(proModelApiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: text }] }]
-        })
-    });
-
-    let data;
-    if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 429 && errorText.includes("RESOURCE_EXHAUSTED")) {
-            console.log("[AI] Gemini Explanation Pro model quota exceeded. Falling back to Flash model.");
-            response = await fetch(flashModelApiUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: text }] }]
-                })
-            });
-            if (!response.ok) {
-                throw new Error(`Gemini API error (Flash fallback for explanation): ${await response.text()}`);
-            }
-            data = await response.json();
-            if (data.candidates === undefined || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
-                return "抱歉，当前AI服务请求量过大，已超出配额限制，且备用模型也未能提供有效回复。请稍后再试。";
-            }
-            // Add user notification for fallback
-            return `当前AI服务请求量过大，已超出配额限制，已降级使用备用模型。回复质量可能有所下降。\n\n${data?.candidates?.[0]?.content?.parts?.[0]?.text}`;
-        } else {
-            throw new Error(`Gemini API error (Explanation Pro): ${errorText}`);
-        }
-    } else {
-        data = await response.json();
+async function callGeminiApi(modelUrl, payload, env) {
+    const keys = [env.GEMINI_API_KEY, env.GEMINI_API_KEY2].filter(Boolean);
+    if (keys.length === 0) {
+        throw new Error('Server config error: No GEMINI_API_KEY is set.');
     }
 
-    const explanation = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!explanation) throw new Error('Unexpected AI response format from Gemini.');
-    return explanation;
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        const urlWithKey = `${modelUrl}?key=${key}`;
+        
+        try {
+            const response = await fetch(urlWithKey, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                return await response.json();
+            }
+
+            const errorText = await response.text();
+            // 如果是配额用尽错误，并且还有其他密钥，则继续尝试下一个
+            if (response.status === 429 && errorText.includes("RESOURCE_EXHAUSTED") && i < keys.length - 1) {
+                console.log(`[AI] API Key ${i + 1} quota exceeded. Trying next key.`);
+                continue; 
+            }
+            
+            // 对于其他错误或这是最后一个密钥，则直接抛出错误
+            throw new Error(`Gemini API error (Key ${i + 1}): ${errorText}`);
+
+        } catch (error) {
+            // 如果是网络错误等，并且还有其他密钥，也尝试下一个
+            if (i < keys.length - 1) {
+                console.error(`[AI] Error with API Key ${i + 1}:`, error.message, "Trying next key.");
+                continue;
+            }
+            // 这是最后一个密钥了，重新抛出错误
+            throw error;
+        }
+    }
+    // 如果所有密钥都因配额问题失败，则抛出最终错误
+    throw new Error("All available Gemini API keys have exceeded their quota.");
 }
 
+
+// =================================================================
+//  导出的公共函数 (保持接口不变)
+// =================================================================
 
 /**
  * 调用 DeepSeek API 获取文本解释。
@@ -123,80 +125,62 @@ async function fetchImageAsBase64(imageUrl) {
  * 调用 Google Gemini API 获取图片描述。
  */
 export async function getGeminiImageDescription(imageUrl, env) {
-    const apiKey = env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Server config error: GEMINI_API_KEY is not set.');
-
     const { base64, contentType } = await fetchImageAsBase64(imageUrl);
-    const proModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
-    const flashModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const proModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent`;
     const prompt = "请仔细描述图片的内容，如果图片中识别出有文字，则在回复的内容中返回这些文字，并且这些文字支持复制，之后是对文字的仔细描述，格式为：图片中包含文字：{文字内容}；图片的描述：{图片描述}";
+    
+    const payload = {
+        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: contentType, data: base64 } }] }]
+    };
 
-    let response = await fetch(proModelApiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: contentType, data: base64 } }] }]
-        })
-    });
-
-    let data;
-    if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 429 && errorText.includes("RESOURCE_EXHAUSTED")) {
-            console.log("[AI] Gemini Image Description Pro model quota exceeded. Falling back to Flash model.");
-            response = await fetch(flashModelApiUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: contentType, data: base64 } }] }]
-                })
-            });
-            if (!response.ok) {
-                throw new Error(`Gemini Vision API error (Flash fallback for image description): ${await response.text()}`);
-            }
-            data = await response.json();
-            if (data.candidates === undefined || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
-                return "抱歉，当前AI服务请求量过大，已超出配额限制，且备用模型也未能提供有效回复。请稍后再试。";
-            }
-            // Add user notification for fallback
-            return `当前AI服务请求量过大，已超出配额限制，已降级使用备用模型。回复质量可能有所下降。\n\n${data?.candidates?.[0]?.content?.parts?.[0]?.text}`;
-        } else {
-            throw new Error(`Gemini Vision API error (Pro): ${errorText}`);
-        }
-    } else {
-        data = await response.json();
+    try {
+        const data = await callGeminiApi(proModelUrl, payload, env);
+        const description = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!description) throw new Error('Unexpected AI response format from Gemini Vision.');
+        return description;
+    } catch (error) {
+        console.error("[AI] getGeminiImageDescription failed:", error);
+        return "抱歉，图片描述服务暂时无法使用。";
     }
-
-    const description = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!description) throw new Error('Unexpected AI response format from Gemini Vision.');
-    return description;
 }
 
 /**
+ * 调用 Google Gemini API 获取文本解释。
+ */
+export async function getGeminiExplanation(text, env) {
+    const proModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent`;
+    const payload = { contents: [{ parts: [{ text: text }] }] };
+
+    try {
+        const data = await callGeminiApi(proModelUrl, payload, env);
+        const explanation = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!explanation) throw new Error('Unexpected AI response format from Gemini.');
+        return explanation;
+    } catch (error) {
+        console.error("[AI] getGeminiExplanation failed:", error);
+        return "抱歉，文本解释服务暂时无法使用。";
+    }
+}
+
+
+/**
  * 调用 Google Gemini API 获取聊天回复（支持多轮函数调用）。
- * @param {string} question - The user's latest question.
- * @param {Array} history - The conversation history.
- * @param {object} env - The environment variables.
- * @returns {string} The AI's final text answer.
  */
 export async function getGeminiChatAnswer(question, history = [], env) {
-    const apiKey = env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Server config error: GEMINI_API_KEY is not set.');
-
-    const flashModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const proModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
+    const flashModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
+    const proModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent`;
 
     const tools = [{
         functionDeclarations: [
-            { name: "get_price", description: "获取指定期货品种的详细信息，包括最新价(price)、今日涨跌幅(change_percent)、5日涨幅(zdf5)、20日涨幅(zdf20)、年初至今涨幅(zdfly)、250日涨幅(zdf250)、成交量(volume)和成交额(amount)", parameters: { type: "OBJECT", properties: { name: { type: "STRING", description: "期货品种的中文名称, 例如 '螺纹钢', '黄金', '原油'" } }, required: ["name"] } },
-            { name: "get_news", description: "获取关于某个关键词的最新新闻", parameters: { type: "OBJECT", properties: { keyword: { type: "STRING", description: "要查询新闻的关键词, 例如 '原油'" } }, required: ["keyword"] } },
-            { name: "draw_chart", description: "根据指定的合约代码和周期绘制K线图", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码, 例如 'ag' (白银)" }, period: { type: "STRING", description: "图表周期, 例如 '5d' (5日), '1h' (1小时), 'daily' (日线)" } }, required: ["symbol", "period"] } }
+            { name: "get_price", description: "获取指定期货品种的详细信息", parameters: { type: "OBJECT", properties: { name: { type: "STRING", description: "期货品种的中文名称, 例如 '螺纹钢', '黄金'" } }, required: ["name"] } },
+            { name: "get_news", description: "获取某个关键词的最新新闻", parameters: { type: "OBJECT", properties: { keyword: { type: "STRING", description: "要查询新闻的关键词, 例如 '原油'" } }, required: ["keyword"] } },
+            { name: "draw_chart", description: "根据代码和周期绘制K线图", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码, 例如 'ag'" }, period: { type: "STRING", description: "图表周期, 例如 'daily'" } }, required: ["symbol", "period"] } }
         ]
     }];
 
     const contents = [
-        { role: "user", parts: [{ text: "你是一个全能的AI助手。你的主要能力是作为金融期货助手，可以使用工具查询价格、新闻和绘制图表。但是，如果用户的问题与金融无关，你也应该利用你的通用知识库来回答，而不是拒绝。请始终友好、乐于助人地回答所有类型的问题。" }] },
-        { role: "model", parts: [{ text: "好的，我已理解我的角色和能力范围。请提出您的问题。" }] },
+        { role: "user", parts: [{ text: "你是一个全能的AI助手..." }] }, // System prompt
+        { role: "model", parts: [{ text: "好的，我已理解..." }] },   // System prompt ack
         ...history,
         { role: "user", parts: [{ text: question }] }
     ];
@@ -205,49 +189,33 @@ export async function getGeminiChatAnswer(question, history = [], env) {
     while (loopCount < 5) {
         loopCount++;
 
-        let modelUsed = 'Pro'; // 默认使用Pro模型
-        let response = await fetch(proModelApiUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents, tools })
-        });
-
+        let modelUsed = 'Pro';
         let data;
-        if (!response.ok) {
-            const errorText = await response.text();
-            if (response.status === 429 && errorText.includes("RESOURCE_EXHAUSTED")) {
-                console.log("[AI] Pro model quota exceeded. Falling back to Flash model for this turn.");
-                modelUsed = 'Flash (Fallback)'; // 标记使用了备用模型
-                response = await fetch(flashModelApiUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ contents, tools })
-                });
-
-                if (!response.ok) {
-                    console.error(`[AI] Flash fallback also failed: ${await response.text()}`);
+        try {
+            data = await callGeminiApi(proModelUrl, { contents, tools }, env);
+        } catch (error) {
+            if (error.message.includes("quota")) {
+                console.log("[AI] Pro model failed, falling back to Flash for this turn.");
+                modelUsed = 'Flash (Fallback)';
+                try {
+                    data = await callGeminiApi(flashModelUrl, { contents, tools }, env);
+                } catch (fallbackError) {
+                    console.error("[AI] Flash fallback also failed:", fallbackError);
                     return "抱歉，AI服务暂时遇到问题，请稍后再试。";
                 }
-                console.log("[AI] Successfully used Flash as fallback.");
-                data = await response.json();
             } else {
-                throw new Error(`Gemini API error (Pro): ${errorText}`);
+                throw error; // Re-throw other errors
             }
-        } else {
-            data = await response.json();
         }
 
         if (!data.candidates) {
             const blockReason = data?.promptFeedback?.blockReason;
-            if (blockReason) {
-                return `抱歉，我无法回答这个问题，因为它可能涉及到了敏感内容 (${blockReason})。`;
-            }
-            return "抱歉，AI未能生成有效回复。";
+            return `抱歉，请求可能因安全原因被阻止 (${blockReason || '未知原因'})。`;
         }
 
         const candidate = data.candidates[0];
         if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
-             return "抱歉，AI返回了空内容。";
+            return "抱歉，AI返回了空内容。";
         }
 
         const functionCallParts = candidate.content.parts.filter(p => p.functionCall);
@@ -270,17 +238,15 @@ export async function getGeminiChatAnswer(question, history = [], env) {
                         return { functionResponse: { name, response: { content: result } } };
                     } catch (e) {
                         console.error(`[AI] Error executing tool '${name}':`, e);
-                        return { functionResponse: { name, response: { content: `工具 '${name}' 执行失败: ${e.message}` } } };
+                        return { functionResponse: { name, response: { content: `工具执行失败: ${e.message}` } } };
                     }
                 } else {
-                    console.log(`[AI] Function '${name}' is not available.`);
                     return { functionResponse: { name, response: { content: `函数 '${name}' 不可用。` } } };
                 }
             }));
             contents.push({ role: "tool", parts: toolResponseParts });
-        } else if (candidate.content.parts[0] && candidate.content.parts[0].text) {
+        } else if (candidate.content.parts[0]?.text) {
             const finalText = candidate.content.parts[0].text;
-            // 在最终回复中添加模型来源标记
             return `(由 ${modelUsed} 模型生成)\n\n${finalText}`;
         } else {
             return "抱歉，收到了无法解析的AI回复。";
