@@ -305,10 +305,11 @@ export async function getGeminiChatAnswer(question, history = [], env) {
             const tool = availableTools[name];
             if (tool) {
                 let result;
-                if (name === 'draw_chart') {
-                    result = await tool(env, ...Object.values(args));
+                // 统一调用方式，始终传递env
+                if (name === 'get_price') {
+                    result = await tool(...Object.values(args)); // getPrice不需要env
                 } else {
-                    result = await tool(...Object.values(args));
+                    result = await tool(env, ...Object.values(args));
                 }
                 
                 contents.push(candidate.content);
