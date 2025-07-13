@@ -126,7 +126,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         functionDeclarations: [
             {
                 name: "get_price",
-                description: "获取指定期货合约的最新价格",
+                description: "获取指定期货合约的详细信息，包括最新价(price)、今日涨跌幅(change_percent)、5日涨幅(zdf5)、20日涨幅(zdf20)、年初至今涨幅(zdfly)、250日涨幅(zdf250)、成交量(volume)和成交额(amount)",
                 parameters: {
                     type: "OBJECT",
                     properties: {

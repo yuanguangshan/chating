@@ -117,10 +117,14 @@ const getPrice = async (symbol) => {
         high: contract.h,
         low: contract.l, // <-- Bug fix: was 'l' string
         prev_close: contract.qrspj,
-        change_percent: contract.zdf,
+        change_percent: contract.zdf, // 涨幅
         change_value: contract.zde,
-        volume: contract.vol,
-        amount: contract.cje,
+        volume: contract.vol, // 成交量
+        amount: contract.cje, // 成交额
+        zdf5: contract.zdf5, // 5日涨幅
+        zdf20: contract.zdf20, // 20日涨幅
+        zdfly: contract.zdfly, // 年初至今涨幅
+        zdf250: contract.zdf250, // 250日涨幅
         timestamp: contract.utime
       };
       return JSON.stringify(priceInfo);

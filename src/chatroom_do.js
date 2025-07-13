@@ -901,46 +901,66 @@ async handleSessionInitialization(ws, url) {
     }
 
     async handleGeminiChatMessage(session, payload) {
-        this.debugLog(`💬 正在处理用户：👦 ${session.username} 的Gemini聊天消息`, 'INFO', payload);
+        this.debugLog(`💬 [AI] Processing Gemini chat from 👦 ${session.username}`, 'INFO', payload);
 
-        // First, post the user's original message to the chat
-        const userMessage = {
+        // 1. Post the user's original question immediately, with a "thinking" indicator.
+        const thinkingMessage = {
             id: payload.id || crypto.randomUUID(),
             username: session.username,
             timestamp: payload.timestamp || Date.now(),
-            text: `@机器人小助手 ${payload.text}❤️小助手正在思考…稍后回复您❤️`,
-            type: 'text'
+            text: `@机器人小助手 ${payload.text}\n\n> ❤️ 小助手正在思考，请稍候...`,
+            type: 'text',
+            original_user: session.username, // Keep track of who asked
         };
-        await this.addAndBroadcastMessage(userMessage);
+        await this.addAndBroadcastMessage(thinkingMessage);
 
-        // Then, get the bot's answer and post it
         try {
-            // ✨ 修正: 正确传递参数，包括历史记录(暂为空)和env对象
+            // 2. Prepare history and call the AI (which may involve tool calls)
             const history = this.messages
-                .filter(m => m.type === 'text') // 只考虑文本消息
-                .slice(-10) // 最近10条
+                .filter(m => m.type === 'text')
+                .slice(-10)
                 .map(m => ({
                     role: m.username === '机器人小助手' ? 'model' : 'user',
                     parts: [{ text: m.text }]
                 }));
 
             const answer = await getGeminiChatAnswer(payload.text, history, this.env);
-            const botMessage = {
-                id: crypto.randomUUID(),
-                username: "机器人小助手",
-                timestamp: Date.now(),
-                text: `@${payload.original_user} ${answer}`,
-                type: 'text'
-            };
-            await this.addAndBroadcastMessage(botMessage);
+
+            // 3. Find the original "thinking" message
+            const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+            if (messageIndex !== -1) {
+                // 4. Update the message with the final answer
+                this.messages[messageIndex].text = `@${thinkingMessage.original_user} ${payload.text}\n\n**机器人小助手**:\n${answer}`;
+                this.messages[messageIndex].timestamp = Date.now(); // Update timestamp to reflect final answer time
+
+                this.debugLog(`💬 [AI] Final answer generated. Updating message ${thinkingMessage.id}`);
+
+                // 5. Save and broadcast the *updated* message
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+
+            } else {
+                 this.debugLog(`❌ [AI] Could not find original message ${thinkingMessage.id} to update.`, 'ERROR');
+                 // Fallback: send a new message if the original is gone
+                 const botMessage = {
+                    id: crypto.randomUUID(),
+                    username: "机器人小助手",
+                    timestamp: Date.now(),
+                    text: `@${session.username} ${answer}`,
+                    type: 'text'
+                };
+                await this.addAndBroadcastMessage(botMessage);
+            }
+
         } catch (error) {
-            this.debugLog(`❌ Gemini聊天消息处理失败: ${error.message}`, 'ERROR');
-            try {
-                session.ws.send(JSON.stringify({
-                    type: MSG_TYPE_ERROR,
-                    payload: { message: "机器人小助手暂时无法回答你的问题，请稍后再试。" }
-                }));
-            } catch (e) { /* silently fail */ }
+            this.debugLog(`❌ [AI] Gemini chat processing failed: ${error.message}`, 'ERROR', error);
+            // Also update the original message with an error
+            const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+            if (messageIndex !== -1) {
+                this.messages[messageIndex].text += `\n\n> ❌ 抱歉，小助手出错了，请稍后再试。`;
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            }
         }
     }
 
