@@ -11,14 +11,17 @@ import { getFuturesData } from './futuresDataService.js';
  *    与 wrangler.toml 中的 [triggers].crons 保持一致
  */
 const CRON_TRIGGERS = {
-    // 假设每天早上8点发送文本消息 (注意：这里的时间可以自定义)
-    DAILY_TEXT_MESSAGE: "0 9 * * *",  
-    // 盘中和夜盘时段，每小时整点生成图表
-    HOURLY_CHART_GENERATION:   "0 0-7 * * 1-6", // 周一到周五的指定小时
-    // 每10分钟获取一次新闻
-    FETCH_NEWS: "*/10 * * * *",
-    // 临时测试任务
-    TEST_FUTURES_DATA: "*/1 * * * *"
+    // 规则一: 每日问候 (北京时间 08:00 -> UTC 00:00)
+    DAILY_TEXT_MESSAGE: "0 0 * * *",
+    
+    // 规则二: 图表生成 (北京时间 周一至周五, 09:00-15:00 和 21:00-03:00)
+    HOURLY_CHART_GENERATION: "0 1-7,13-19 * * 1-5",
+
+    // 规则三: 新闻获取 (同上时间段, 每10分钟一次)
+    FETCH_NEWS: "*/10 1-7,13-19 * * 1-5",
+
+    // 规则四: 期货数据 (同上时间段, 每小时的第15分钟, 用于测试)
+    TEST_FUTURES_DATA: "15 1-7,13-19 * * 1-5"
 };
 
 /**
@@ -160,8 +163,8 @@ async function executeFuturesTestTask(env, ctx) {
         // 或者在这里添加逻辑，只在特定条件下运行
         
         // 可以在这里将结果发送到特定房间进行验证
-        const roomName = 'test'; // 发送到 'test' 房间
-        const content = `## 期货数据测试成功\n\n成功获取到 ${futuresData.length} 条数据。\n\n\`\`\`json\n${JSON.stringify(futuresData.slice(0, 2), null, 2)}\n\`\`\``;
+        const roomName = 'future'; // 发送到 'future' 房间
+        const content = `## 期货数据测试成功\n\n成功获取到 ${futuresData.length} 条数据。\n\n\`\`\`json\n${JSON.stringify(futuresData, null, 2)}\n\`\`\``;
 
         if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
         
