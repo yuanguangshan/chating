@@ -212,7 +212,29 @@ export async function getGeminiChatAnswer(question, history = [], env) {
                 });
                 // 继续循环，让AI根据函数结果生成最终回复
             } else {
-                throw new Error(`Function ${name} is not defined.`);
+                // 如果AI试图调用一个我们未定义的函数，我们不应该抛出错误，
+                // 而是假设这是一个常规的聊天查询。我们将再次调用API，
+                // 但这次不提供任何工具，以强制生成文本回复。
+                console.log(`[AI] Function '${name}' not found. Falling back to standard text generation.`);
+
+                const fallbackResponse = await fetch(apiUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents }) // Re-send without tools
+                });
+
+                if (!fallbackResponse.ok) {
+                    throw new Error(`Gemini API error on fallback: ${await fallbackResponse.text()}`);
+                }
+
+                const fallbackData = await fallbackResponse.json();
+                const fallbackText = fallbackData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (fallbackText) {
+                    return fallbackText; // Return the text response, exiting the loop.
+                } else {
+                    throw new Error('Unexpected AI response format on fallback.');
+                }
             }
         } else if (part.text) {
             // AI直接返回了文本，交互结束
