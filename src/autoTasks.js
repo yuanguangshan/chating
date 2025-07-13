@@ -4,6 +4,7 @@
 import { generateAndPostCharts } from './chart_generator.js';
 import { getDeepSeekExplanation } from './ai.js';
 import { fetchNewsFromTongHuaShun, fetchNewsFromDongFangCaiFu } from './newsService.js';
+import { getFuturesData } from './futuresDataService.js';
 
 /**
  * 1. 定义 Cron 表达式常量
@@ -15,7 +16,9 @@ const CRON_TRIGGERS = {
     // 盘中和夜盘时段，每小时整点生成图表
     HOURLY_CHART_GENERATION:   "0 0-7 * * 1-6", // 周一到周五的指定小时
     // 每10分钟获取一次新闻
-    FETCH_NEWS: "*/2 * * * *"
+    FETCH_NEWS: "*/10 * * * *",
+    // 临时测试任务
+    TEST_FUTURES_DATA: "*/1 * * * *"
 };
 
 /**
@@ -135,5 +138,39 @@ async function executeNewsTask(env, ctx) {
 export const taskMap = new Map([
     [CRON_TRIGGERS.DAILY_TEXT_MESSAGE, executeTextTask],
     [CRON_TRIGGERS.HOURLY_CHART_GENERATION, executeChartTask],
-    [CRON_TRIGGERS.FETCH_NEWS, executeNewsTask]
+    [CRON_TRIGGERS.FETCH_NEWS, executeNewsTask],
+    [CRON_TRIGGERS.TEST_FUTURES_DATA, executeFuturesTestTask]
 ]);
+
+
+/**
+ * 任务：测试获取期货数据
+ * @param {object} env - 环境变量
+ * @param {object} ctx - 执行上下文
+ */
+async function executeFuturesTestTask(env, ctx) {
+    console.log(`[Cron Task] Executing futures data test task...`);
+    try {
+        const futuresData = await getFuturesData();
+        console.log('--- Futures Data Test Result ---');
+        console.log(JSON.stringify(futuresData, null, 2));
+        console.log('--- End of Futures Data Test ---');
+        
+        // 为了防止重复执行，这个任务成功后可以考虑从 wrangler.toml 中移除
+        // 或者在这里添加逻辑，只在特定条件下运行
+        
+        // 可以在这里将结果发送到特定房间进行验证
+        const roomName = 'test'; // 发送到 'test' 房间
+        const content = `## 期货数据测试成功\n\n成功获取到 ${futuresData.length} 条数据。\n\n\`\`\`json\n${JSON.stringify(futuresData.slice(0, 2), null, 2)}\n\`\`\``;
+
+        if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+        
+        const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+        const stub = env.CHAT_ROOM_DO.get(doId);
+        
+        ctx.waitUntil(stub.cronPost(content, env.CRON_SECRET));
+
+    } catch (error) {
+        console.error(`CRON ERROR (futures test task):`, error.stack || error);
+    }
+}
