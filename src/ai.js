@@ -12,7 +12,7 @@ const availableTools = {
 };
 
 const systemInstruction = {
-        role: "system",
+        role: "user",
         parts: [{
             text: "你是一个全能的AI助手。你的主要能力是作为金融期货助手，可以使用工具查询价格、新闻和绘制图表。但是，如果用户的问题与金融无关，你也应该利用你的通用知识库来回答，而不是拒绝。请始终友好、乐于助人地回答所有类型的问题。"
         }]
@@ -169,7 +169,21 @@ export async function getGeminiChatAnswer(question, history = [], env) {
     }];
 
     // 2. 构建请求历史
-    const contents = [systemInstruction,...history, { role: "user", parts: [{ text: question }] }];
+    const contents = [
+        // 将系统提示词转换为 user 角色发送
+        { 
+            role: "user", 
+            parts: [{ 
+                text: "你是一个全能的AI助手。你的主要能力是作为金融期货助手，可以使用工具查询价格、新闻和绘制图表。但是，如果用户的问题与金融无关，你也应该利用你的通用知识库来回答，而不是拒绝。请始终友好、乐于助人地回答所有类型的问题。" 
+            }] 
+        },
+        // 然后添加一条空的 model 回复表示AI已接受指令
+        { 
+            role: "model", 
+            parts: [{ 
+                text: "好的，我已理解我的角色和能力范围。请提出您的问题。" 
+            }] 
+        },...history, { role: "user", parts: [{ text: question }] }];
 
     // 3. 进入与AI的多轮交互循环
     let loopCount = 0;
