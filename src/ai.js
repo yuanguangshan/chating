@@ -212,29 +212,27 @@ export async function getGeminiChatAnswer(question, history = [], env) {
                 });
                 // 继续循环，让AI根据函数结果生成最终回复
             } else {
-                // 如果AI试图调用一个我们未定义的函数，我们不应该抛出错误，
-                // 而是假设这是一个常规的聊天查询。我们将再次调用API，
-                // 但这次不提供任何工具，以强制生成文本回复。
-                console.log(`[AI] Function '${name}' not found. Falling back to standard text generation.`);
-
-                const fallbackResponse = await fetch(apiUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ contents }) // Re-send without tools
+                // 如果AI试图调用一个我们未定义的函数，我们不应该抛出错误或重新请求。
+                // 相反，我们应该在对话历史中明确地告诉AI这个函数不可用，
+                // 然后让它在下一次迭代中自己决定如何回复。
+                console.log(`[AI] Function '${name}' is not available. Informing the model.`);
+                
+                // 1. 将AI的无效函数调用请求添加到历史记录中
+                contents.push({ role: "model", parts: [part] }); 
+                
+                // 2. 添加一个工具角色的响应，告知函数不存在，并指示AI直接回答
+                contents.push({
+                    role: "tool",
+                    parts: [{ 
+                        functionResponse: { 
+                            name, 
+                            response: { 
+                                content: `函数 '${name}' 不可用。请不要尝试调用任何未明确提供的函数。请根据现有信息直接回答用户的问题。` 
+                            } 
+                        } 
+                    }]
                 });
-
-                if (!fallbackResponse.ok) {
-                    throw new Error(`Gemini API error on fallback: ${await fallbackResponse.text()}`);
-                }
-
-                const fallbackData = await fallbackResponse.json();
-                const fallbackText = fallbackData?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                if (fallbackText) {
-                    return fallbackText; // Return the text response, exiting the loop.
-                } else {
-                    throw new Error('Unexpected AI response format on fallback.');
-                }
+                // 循环将继续，AI会看到这个反馈并生成文本回复。
             }
         } else if (part.text) {
             // AI直接返回了文本，交互结束
