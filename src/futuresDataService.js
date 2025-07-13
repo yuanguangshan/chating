@@ -1,5 +1,64 @@
 // src/services/futuresDataService.js
 
+// 名称到代码的映射表
+const nameToSymbolMap = {
+    "螺纹钢": "rb",
+    "黄金": "au",
+    "原油": "sc",
+    "白银": "ag",
+    "铜": "cu",
+    "铝": "al",
+    "锌": "zn",
+    "铅": "pb",
+    "镍": "ni",
+    "锡": "sn",
+    "铁矿石": "i",
+    "焦炭": "j",
+    "焦煤": "jm",
+    "动力煤": "ZC",
+    "甲醇": "MA",
+    "乙二醇": "eg",
+    "聚丙烯": "pp",
+    "塑料": "l",
+    "PVC": "v",
+    "苯乙烯": "eb",
+    "纯碱": "SA",
+    "尿素": "UR",
+    "PTA": "TA",
+    "短纤": "PF",
+    "橡胶": "ru",
+    "20号胶": "nr",
+    "纸浆": "sp",
+    "沥青": "bu",
+    "���料油": "fu",
+    "低硫燃料油": "lu",
+    "LPG": "pg",
+    "豆一": "a",
+    "豆二": "b",
+    "豆粕": "m",
+    "豆油": "y",
+    "棕榈油": "p",
+    "菜籽油": "OI",
+    "菜粕": "RM",
+    "玉米": "c",
+    "玉米淀粉": "cs",
+    "棉花": "CF",
+    "棉纱": "CY",
+    "白糖": "SR",
+    "苹果": "AP",
+    "红枣": "CJ",
+    "鸡蛋": "jd",
+    "生猪": "LH",
+    "玻璃": "FG",
+    "硅铁": "SF",
+    "锰硅": "SM",
+    "花生": "PK",
+    "碳酸锂": "lc",
+    "工业硅": "si",
+    "集运指数": "ec",
+};
+
+
 const fetchData = async (url) => {
   try {
     const response = await fetch(url, {
@@ -77,18 +136,22 @@ const getFuturesData = async () => {
 
 /**
  * 获取单个期货合约的最新价格信息。
- * @param {string} symbol - 期货合约代码 (e.g., 'rb', 'au').
+ * @param {string} name - 期货品种的中文名称 (e.g., '螺纹钢', '黄金').
  * @returns {Promise<string>} - 包含价格信息的JSON字符串，如果找不到则返回错误信息。
  */
-const getPrice = async (symbol) => {
+const getPrice = async (name) => {
   try {
-    console.log(`[getPrice] Searching for symbol: "${symbol}"`);
+    console.log(`[getPrice] Received name: "${name}"`);
+    if (!name) {
+        return JSON.stringify({ error: "Name parameter is missing." });
+    }
+
+    // 从映射中查找代码，如果找不到，则直接使用输入（以支持直接输入代码）
+    const symbol = nameToSymbolMap[name] || name;
+    console.log(`[getPrice] Mapped name "${name}" to symbol: "${symbol}"`);
+
     const response = await fetchData('https://q.889.ink/');
     const allData = response.list;
-    
-    if (!symbol) {
-        return JSON.stringify({ error: "Symbol parameter is missing." });
-    }
     
     const lowerSymbol = symbol.toLowerCase();
 
@@ -115,7 +178,7 @@ const getPrice = async (symbol) => {
         price: contract.p, // 最新价
         open: contract.o,
         high: contract.h,
-        low: contract.l, // <-- Bug fix: was 'l' string
+        low: contract.l,
         prev_close: contract.qrspj,
         change_percent: contract.zdf, // 涨幅
         change_value: contract.zde,
@@ -129,15 +192,15 @@ const getPrice = async (symbol) => {
       };
       return JSON.stringify(priceInfo);
     } else {
-      return JSON.stringify({ error: `Contract with symbol '${symbol}' not found.` });
+      return JSON.stringify({ error: `Contract with name '${name}' (symbol '${symbol}') not found.` });
     }
   } catch (error) {
-    console.error(`Failed to get price for ${symbol}:`, error);
-    return JSON.stringify({ error: `Failed to fetch price data for ${symbol}.` });
+    console.error(`Failed to get price for ${name}:`, error);
+    return JSON.stringify({ error: `Failed to fetch price data for ${name}.` });
   }
 };
 
-// 辅助函数，用于从合约名称中提取代码 (例如 "螺纹钢2410" -> "螺纹钢")
+// 辅助函数，用于从合约名称中提取代码 (���如 "螺纹钢2410" -> "螺纹钢")
 // 这个函数应该与 chart_generator.js 中的保持一致
 function getSimplifiedName(fullName) {
     const match = fullName.match(/^([^\d]+)/);
@@ -149,3 +212,4 @@ export {
   getFuturesData,
   getPrice
 }
+

@@ -25,16 +25,45 @@ export async function getGeminiExplanation(text, env) {
     const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) throw new Error('Server config error: GEMINI_API_KEY is not set.');
     
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
-    const response = await fetch(apiUrl, {
+    const proModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
+    const flashModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+    let response = await fetch(proModelApiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             contents: [{ parts: [{ text: text }] }]
         })
     });
-    if (!response.ok) throw new Error(`Gemini API error: ${await response.text()}`);
-    const data = await response.json();
+
+    let data;
+    if (!response.ok) {
+        const errorText = await response.text();
+        if (response.status === 429 && errorText.includes("RESOURCE_EXHAUSTED")) {
+            console.log("[AI] Gemini Explanation Pro model quota exceeded. Falling back to Flash model.");
+            response = await fetch(flashModelApiUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: text }] }]
+                })
+            });
+            if (!response.ok) {
+                throw new Error(`Gemini API error (Flash fallback for explanation): ${await response.text()}`);
+            }
+            data = await response.json();
+            if (data.candidates === undefined || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
+                return "抱歉，当前AI服务请求量过大，已超出配额限制，且备用模型也未能提供有效回复。请稍后再试。";
+            }
+            // Add user notification for fallback
+            return `当前AI服务请求量过大，已超出配额限制，已降级使用备用模型。回复质量可能有所下降。\n\n${data?.candidates?.[0]?.content?.parts?.[0]?.text}`;
+        } else {
+            throw new Error(`Gemini API error (Explanation Pro): ${errorText}`);
+        }
+    } else {
+        data = await response.json();
+    }
+
     const explanation = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!explanation) throw new Error('Unexpected AI response format from Gemini.');
     return explanation;
@@ -98,18 +127,46 @@ export async function getGeminiImageDescription(imageUrl, env) {
     if (!apiKey) throw new Error('Server config error: GEMINI_API_KEY is not set.');
 
     const { base64, contentType } = await fetchImageAsBase64(imageUrl);
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
+    const proModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
+    const flashModelApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const prompt = "请仔细描述图片的内容，如果图片中识别出有文字，则在回复的内容中返回这些文字，并且这些文字支持复制，之后是对文字的仔细描述，格式为：图片中包含文字：{文字内容}；图片的描述：{图片描述}";
 
-    const response = await fetch(apiUrl, {
+    let response = await fetch(proModelApiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: contentType, data: base64 } }] }]
         })
     });
-    if (!response.ok) throw new Error(`Gemini Vision API error: ${await response.text()}`);
-    const data = await response.json();
+
+    let data;
+    if (!response.ok) {
+        const errorText = await response.text();
+        if (response.status === 429 && errorText.includes("RESOURCE_EXHAUSTED")) {
+            console.log("[AI] Gemini Image Description Pro model quota exceeded. Falling back to Flash model.");
+            response = await fetch(flashModelApiUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: contentType, data: base64 } }] }]
+                })
+            });
+            if (!response.ok) {
+                throw new Error(`Gemini Vision API error (Flash fallback for image description): ${await response.text()}`);
+            }
+            data = await response.json();
+            if (data.candidates === undefined || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
+                return "抱歉，当前AI服务请求量过大，已超出配额限制，且备用模型也未能提供有效回复。请稍后再试。";
+            }
+            // Add user notification for fallback
+            return `当前AI服务请求量过大，已超出配额限制，已降级使用备用模型。回复质量可能有所下降。\n\n${data?.candidates?.[0]?.content?.parts?.[0]?.text}`;
+        } else {
+            throw new Error(`Gemini Vision API error (Pro): ${errorText}`);
+        }
+    } else {
+        data = await response.json();
+    }
+
     const description = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!description) throw new Error('Unexpected AI response format from Gemini Vision.');
     return description;
@@ -131,7 +188,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
 
     const tools = [{
         functionDeclarations: [
-            { name: "get_price", description: "获取指定期货合约的详细信息，包括最新价(price)、今日涨跌幅(change_percent)、5日涨幅(zdf5)、20日涨幅(zdf20)、年初至今涨幅(zdfly)、250日涨幅(zdf250)、成交量(volume)和成交额(amount)", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码, 例如 'rb' (螺纹钢), 'au' (黄金)" } }, required: ["symbol"] } },
+            { name: "get_price", description: "获取指定期货品种的详细信息，包括最新价(price)、今日涨跌幅(change_percent)、5日涨幅(zdf5)、20日涨幅(zdf20)、年初至今涨幅(zdfly)、250日涨幅(zdf250)、成交量(volume)和成交额(amount)", parameters: { type: "OBJECT", properties: { name: { type: "STRING", description: "期货品��的中文名称, 例如 '螺纹钢', '黄金', '原油'" } }, required: ["name"] } },
             { name: "get_news", description: "获取关于某个关键词的最新新闻", parameters: { type: "OBJECT", properties: { keyword: { type: "STRING", description: "要查询新闻的关键词, 例如 '原油'" } }, required: ["keyword"] } },
             { name: "draw_chart", description: "根据指定的合约代码和周期绘制K线图", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码, 例如 'ag' (白银)" }, period: { type: "STRING", description: "图表周期, 例如 '5d' (5日), '1h' (1小时), 'daily' (日线)" } }, required: ["symbol", "period"] } }
         ]
@@ -192,20 +249,39 @@ export async function getGeminiChatAnswer(question, history = [], env) {
     while (loopCount < 5) {
         loopCount++;
 
-        const response = await fetch(proModelApiUrl, {
+        let response = await fetch(proModelApiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ contents, tools })
         });
 
+        let data;
         if (!response.ok) {
             const errorText = await response.text();
             if (response.status === 429 && errorText.includes("RESOURCE_EXHAUSTED")) {
-                return "抱歉，当前AI服务请求量过大，已超出配额限制。请稍后再试，或联系管理员。";
+                console.log("[AI] Pro model quota exceeded. Falling back to Flash model.");
+                // Fallback to Flash model
+                response = await fetch(flashModelApiUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents, tools })
+                });
+                if (!response.ok) {
+                    throw new Error(`Gemini API error (Flash fallback): ${await response.text()}`);
+                }
+                data = await response.json();
+                // If Flash model also fails or doesn't provide a candidate, return a specific message
+                if (data.candidates === undefined || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
+                    return "抱歉，当前AI服务请求量过大，已超出配额限制，且备用模型也未能提供有效回复。请稍后再试。";
+                }
+                // Add user notification for fallback
+                return `当前AI服务请求量过大，已超出配额限制，已降级使用备用模型。回复质量可能有所下降。\n\n${data?.candidates?.[0]?.content?.parts?.[0]?.text}`;
+            } else {
+                throw new Error(`Gemini API error (Pro): ${errorText}`);
             }
-            throw new Error(`Gemini API error (Pro): ${errorText}`);
+        } else {
+            data = await response.json();
         }
-        const data = await response.json();
 
         if (data.candidates === undefined) {
             const blockReason = data?.promptFeedback?.blockReason;
