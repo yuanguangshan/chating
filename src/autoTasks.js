@@ -18,10 +18,10 @@ const CRON_TRIGGERS = {
     HOURLY_CHART_GENERATION: "0 1-7,13-19 * * 1-5",
 
     // 规则三: 新闻获取 (同上时间段, 每10分钟一次)
-    FETCH_NEWS: "*/10 1-7,13-19 * * 1-5",
+    FETCH_NEWS: "0 1-7,13-19 * * 1-5",
 
     // 规则四: 期货数据 (同上时间段, 每小时的第15分钟, 用于测试)
-    TEST_FUTURES_DATA: "15 1-7,13-19 * * 1-5"
+    TEST_FUTURES_DATA: "0 1-7,13-19 * * 1-5"
 };
 
 /**
