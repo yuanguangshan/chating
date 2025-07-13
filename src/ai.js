@@ -169,7 +169,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
     }];
 
     // 2. 构建请求历史
-    const contents = [...history, { role: "user", parts: [{ text: question }] }];
+    const contents = [systemInstruction,...history, { role: "user", parts: [{ text: question }] }];
 
     // 3. 进入与AI的多轮交互循环
     let loopCount = 0;
@@ -179,7 +179,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         const response = await fetch(apiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents, tools, systemInstruction})
+            body: JSON.stringify({ contents, tools})
         });
 
         if (!response.ok) throw new Error(`Gemini API error: ${await response.text()}`);
