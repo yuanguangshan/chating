@@ -11,6 +11,13 @@ const availableTools = {
     draw_chart: drawChart,
 };
 
+const systemInstruction = {
+        role: "system",
+        parts: [{
+            text: "你是一个全能的AI助手。你的主要能力是作为金融期货助手，可以使用工具查询价格、新闻和绘制图表。但是，如果用户的问题与金融无关，你也应该利用你的通用知识库来回答，而不是拒绝。请始终友好、乐于助人地回答所有类型的问题。"
+        }]
+    };
+
 /**
  * 调用 Google Gemini API 获取文本解释。(Restored for /ai-explain endpoint)
  */
@@ -172,7 +179,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         const response = await fetch(apiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents, tools })
+            body: JSON.stringify({ contents, tools, systemInstruction})
         });
 
         if (!response.ok) throw new Error(`Gemini API error: ${await response.text()}`);
