@@ -205,7 +205,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
     while (loopCount < 5) {
         loopCount++;
 
-        // 优先尝试 Pro 模型
+        let modelUsed = 'Pro'; // 默认使用Pro模型
         let response = await fetch(proModelApiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -215,9 +215,9 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         let data;
         if (!response.ok) {
             const errorText = await response.text();
-            // 如果Pro模型超出配额，则无缝切换到Flash模型
             if (response.status === 429 && errorText.includes("RESOURCE_EXHAUSTED")) {
                 console.log("[AI] Pro model quota exceeded. Falling back to Flash model for this turn.");
+                modelUsed = 'Flash (Fallback)'; // 标记使用了备用模型
                 response = await fetch(flashModelApiUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -231,14 +231,12 @@ export async function getGeminiChatAnswer(question, history = [], env) {
                 console.log("[AI] Successfully used Flash as fallback.");
                 data = await response.json();
             } else {
-                // 对于其他API错误，直接抛出
                 throw new Error(`Gemini API error (Pro): ${errorText}`);
             }
         } else {
             data = await response.json();
         }
 
-        // 检查是否有候选内容或被安全策略阻止
         if (!data.candidates) {
             const blockReason = data?.promptFeedback?.blockReason;
             if (blockReason) {
@@ -252,34 +250,22 @@ export async function getGeminiChatAnswer(question, history = [], env) {
              return "抱歉，AI返回了空内容。";
         }
 
-        // 检查是函数调用还是文本回复
         const functionCallParts = candidate.content.parts.filter(p => p.functionCall);
 
         if (functionCallParts.length > 0) {
-            // 将模型的函数调用请求添加到历史记录中
             contents.push(candidate.content);
-
-            // 并行执行所有工具调用
             const toolResponseParts = await Promise.all(functionCallParts.map(async (part) => {
                 const { name, args } = part.functionCall;
                 console.log(`[AI] Calling tool: ${name} with args:`, args);
                 const tool = availableTools[name];
-
                 if (tool) {
                     try {
                         let result;
                         switch (name) {
-                            case 'get_price':
-                                result = await getPrice(args.name);
-                                break;
-                            case 'get_news':
-                                result = await getNews(args.keyword);
-                                break;
-                            case 'draw_chart':
-                                result = await drawChart(env, args.symbol, args.period);
-								break;
-                            default:
-                                throw new Error(`Unknown tool: ${name}`);
+                            case 'get_price': result = await getPrice(args.name); break;
+                            case 'get_news': result = await getNews(args.keyword); break;
+                            case 'draw_chart': result = await drawChart(env, args.symbol, args.period); break;
+                            default: throw new Error(`Unknown tool: ${name}`);
                         }
                         return { functionResponse: { name, response: { content: result } } };
                     } catch (e) {
@@ -291,22 +277,15 @@ export async function getGeminiChatAnswer(question, history = [], env) {
                     return { functionResponse: { name, response: { content: `函数 '${name}' 不可用。` } } };
                 }
             }));
-
-            // 将所有工具的执行结果添加到历史记录中，以供模型进行下一步处理
-            contents.push({
-                role: "tool",
-                parts: toolResponseParts
-            });
-
+            contents.push({ role: "tool", parts: toolResponseParts });
         } else if (candidate.content.parts[0] && candidate.content.parts[0].text) {
-            // 如果是纯文本回复，直接返回
-            return candidate.content.parts[0].text;
+            const finalText = candidate.content.parts[0].text;
+            // 在最终回复中添加模型来源标记
+            return `(由 ${modelUsed} 模型生成)\n\n${finalText}`;
         } else {
-            // 其他未知情况
             return "抱歉，收到了无法解析的AI回复。";
         }
     }
 
-    // 如果循环5次后仍未得到最终答案，则返回错误
     throw new Error("AI did not provide a final answer after multiple tool calls.");
 }
