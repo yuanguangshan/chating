@@ -388,6 +388,60 @@ async function generateAndUploadChart(env, chartTitle, option, width, height) {
 }
 
 /**
+ * 【新增导出函数 for AI】
+ * 根据指定参数绘制单个图表并返回URL，专用于AI函数调用。
+ * @param {object} env - The environment variables.
+ * @param {string} symbol - The futures contract symbol (e.g., 'rb', 'au').
+ * @param {string} period - The chart period (e.g., 'daily', '1h', '5d').
+ * @returns {Promise<string>} A JSON string containing the image URL and description.
+ */
+export async function drawChart(env, symbol, period = 'daily') {
+    console.log(`[drawChart] Received request for ${symbol} (${period})`);
+    try {
+        // 1. 获取K线数据 (注意：这里需要一个能提供历史K线数据的API)
+        // 假设有这样一个API: `https://k.want.biz/api/kline?code=...`
+        const klineApiUrl = `https://k.want.biz/api/kline?code=${symbol.toUpperCase()}&period=${period}`;
+        const klineResponse = await fetch(klineApiUrl);
+        if (!klineResponse.ok) {
+            throw new Error(`Failed to fetch k-line data for ${symbol}: ${klineResponse.statusText}`);
+        }
+        const klineData = await klineResponse.json(); // 假设返回格式: [ [time, open, high, low, close, volume], ... ]
+
+        if (!klineData || klineData.length === 0) {
+            return JSON.stringify({ error: `No k-line data found for ${symbol} with period ${period}.` });
+        }
+
+        // 2. 准备 ECharts Option
+        const option = {
+            title: { text: `${symbol.toUpperCase()} ${period} K-Line Chart`, left: 'center' },
+            xAxis: { type: 'category', data: klineData.map(item => item[0]) }, // Timestamps
+            yAxis: { type: 'value', scale: true },
+            series: [{
+                type: 'candlestick',
+                data: klineData.map(item => [item[1], item[4], item[3], item[2]]), // [open, close, low, high]
+                itemStyle: { color: '#ef4444', color0: '#22c55e', borderColor: '#ef4444', borderColor0: '#22c55e' }
+            }]
+        };
+
+        // 3. 生成并上传图表
+        const chartTitle = `${symbol}_${period}_kline`;
+        const { url } = await generateAndUploadChart(env, chartTitle, option, 800, 600);
+
+        // 4. 返回结果
+        const result = {
+            imageUrl: url,
+            description: `成功生成 ${symbol.toUpperCase()} 的 ${period} 周期K线图。`
+        };
+        return JSON.stringify(result);
+
+    } catch (error) {
+        console.error(`[drawChart] Failed to generate chart for ${symbol}:`, error);
+        return JSON.stringify({ error: `Failed to generate chart for ${symbol}. See logs for details.` });
+    }
+}
+
+
+/**
  * 【核心导出函数】
  * 生成所有图表，并将它们作为图片消息发送到指定的聊天室。
  */

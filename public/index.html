@@ -1366,10 +1366,11 @@ function appendChatMessage(msg) {
         return;
     }
     
-    if (messageIdSet.has(msg.id)) {
-        logDebug(`❗ 收到重复消息 (ID: ${msg.id})，已忽略`, LOG_LEVELS.INFO);
-        return;
-    }
+    //小助理回复时使用相同id，这里不再忽略
+    //if (messageIdSet.has(msg.id)) {
+        //logDebug(`❗ 收到重复消息 (ID: ${msg.id})，已忽略`, LOG_LEVELS.INFO);
+        //return;
+    //}
 
     messageQueue.push(msg);
     logDebug(`📫 消息入队 (ID: ${msg.id}). 队列长度: ${messageQueue.length}`, LOG_LEVELS.INFO);

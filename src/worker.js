@@ -22,6 +22,7 @@ import managementHtml from '../public/management.html';
 import { generateAndPostCharts } from './chart_generator.js';
 import { taskMap } from './autoTasks.js';
 import { getDeepSeekExplanation, getGeminiExplanation, getGeminiImageDescription } from './ai.js';
+import { getPrice } from './futuresDataService.js';
 
 // 导出Durable Object类，以便Cloudflare平台能够识别和实例化它。
 export { HibernatingChating };
@@ -201,9 +202,25 @@ export default {
                 return new Response(JSON.stringify({ description }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
             }
 
-            // --- 路由 2: 需要转发给 DO 的 API ---
-            // 明确列出所有需要转发的API路径前缀
+            // --- 路由 2: /api/ 路由处理 ---
             if (pathname.startsWith('/api/')) {
+                // 全局API，不转发给DO
+                if (pathname === '/api/price') {
+                    const symbol = url.searchParams.get('symbol');
+                    if (!symbol) {
+                        return new Response(JSON.stringify({ error: 'Missing symbol parameter' }), {
+                            status: 400,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                    const priceDataString = await getPrice(symbol);
+                    const priceData = JSON.parse(priceDataString);
+                    return new Response(JSON.stringify(priceData), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
+
+                // 需要转发给DO的API
                 let roomName;
                 // 对于这些API，房间名在查询参数里
                 if (pathname.startsWith('/api/messages') || pathname.startsWith('/api/reset-room')|| pathname.startsWith('/api/debug')|| pathname.startsWith('/api/room')) {
