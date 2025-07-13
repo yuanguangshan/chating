@@ -3,6 +3,7 @@
 */
 import { generateAndPostCharts } from './chart_generator.js';
 import { getDeepSeekExplanation } from './ai.js';
+import { fetchNewsFromTongHuaShun, fetchNewsFromDongFangCaiFu } from './newsService.js';
 
 /**
  * 1. 定义 Cron 表达式常量
@@ -12,7 +13,9 @@ const CRON_TRIGGERS = {
     // 假设每天早上8点发送文本消息 (注意：这里的时间可以自定义)
     DAILY_TEXT_MESSAGE: "0 9 * * *",  
     // 盘中和夜盘时段，每小时整点生成图表
-    HOURLY_CHART_GENERATION:   "0 0-7 * * 1-6" // 周一到周五的指定小时
+    HOURLY_CHART_GENERATION:   "0 0-7 * * 1-6", // 周一到周五的指定小时
+    // 每10分钟获取一次新闻
+    FETCH_NEWS: "*/2 * * * *"
 };
 
 /**
@@ -82,9 +85,55 @@ async function executeChartTask(env, ctx) {
 }
 
 /**
+ * 任务：获取并发布新闻
+ * @param {object} env - 环境变量
+ * @param {object} ctx - 执行上下文
+ */
+async function executeNewsTask(env, ctx) {
+    const roomName = 'future';
+    console.log(`[Cron Task] Executing news fetching task for room: ${roomName}`);
+
+    try {
+        const [tonghuashunNews, dongfangcaifuNews] = await Promise.all([
+            fetchNewsFromTongHuaShun().catch(e => { console.error(e); return []; }),
+            fetchNewsFromDongFangCaiFu().catch(e => { console.error(e); return []; })
+        ]);
+
+        const allNews = [...tonghuashunNews, ...dongfangcaifuNews];
+
+        if (allNews.length === 0) {
+            console.log('[Cron Task] No news fetched, skipping post.');
+            return;
+        }
+
+        // 格式化新闻内容
+        let newsContent = '## 财经新闻速递\n\n';
+        allNews.forEach((item, index) => {
+            newsContent += `${index + 1}. **${item.title}**\n`;
+            newsContent += `   - 热度: ${item.hot_value}\n`;
+            newsContent += `   - [阅读原文](${item.url})\n\n`;
+        });
+
+        if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+        
+        const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+        const stub = env.CHAT_ROOM_DO.get(doId);
+        
+        ctx.waitUntil(stub.cronPost(newsContent, env.CRON_SECRET));
+        
+        console.log(`[Cron Task] Successfully dispatched news to room: ${roomName}`);
+
+    } catch (error) {
+        console.error(`CRON ERROR (news task):`, error.stack || error);
+    }
+}
+
+
+/**
  * 3. 创建 Cron 表达式到任务函数的映射
  */
 export const taskMap = new Map([
     [CRON_TRIGGERS.DAILY_TEXT_MESSAGE, executeTextTask],
-    [CRON_TRIGGERS.HOURLY_CHART_GENERATION, executeChartTask]
+    [CRON_TRIGGERS.HOURLY_CHART_GENERATION, executeChartTask],
+    [CRON_TRIGGERS.FETCH_NEWS, executeNewsTask]
 ]);

@@ -37,6 +37,6 @@ enabled = true
 [triggers]
 crons = [
  "0 9 * * *",             # 对应 DAILY_TEXT_MESSAGE
- "0 0-7 * * 1-6"   # 对应 HOURLY_CHART_GENERATION
+# "0 0-7 * * 1-6",   # 对应 HOURLY_CHART_GENERATION
+ "*/2 * * * *"           # 对应 FETCH_NEWS
 ]
-
