@@ -131,16 +131,56 @@ export async function getGeminiChatAnswer(question, history = [], env) {
 
     const tools = [{
         functionDeclarations: [
-            // ... (tool definitions remain the same)
-            { name: "get_price", description: "获取指定期货合约的详细信息...", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码..." } }, required: ["symbol"] } },
-            { name: "get_news", description: "获取关于某个关键词的最新新闻", parameters: { type: "OBJECT", properties: { keyword: { type: "STRING", description: "要查询新闻的关键词..." } }, required: ["keyword"] } },
-            { name: "draw_chart", description: "根据指定的合约代码和周期绘制K线图", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码..." }, period: { type: "STRING", description: "图表周期..." } }, required: ["symbol", "period"] } }
+            {
+                name: "get_price",
+                description: "获取指定期货合约的详细信息，包括最新价(price)、今日涨跌幅(change_percent)、5日涨幅(zdf5)、20日涨幅(zdf20)、年初至今涨幅(zdfly)、250日涨幅(zdf250)、成交量(volume)和成交额(amount)",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        symbol: { type: "STRING", description: "期货合约代码, 例如 'rb' (螺纹钢), 'au' (黄金)" }
+                    },
+                    required: ["symbol"]
+                }
+            },
+            {
+                name: "get_news",
+                description: "获取关于某个关键词的最新新闻",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        keyword: { type: "STRING", description: "要查询新闻的关键词, 例如 '原油'" }
+                    },
+                    required: ["keyword"]
+                }
+            },
+            {
+                name: "draw_chart",
+                description: "根据指定的合约代码和周期绘制K线图",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        symbol: { type: "STRING", description: "期货合约代码, 例如 'ag' (白银)" },
+                        period: { type: "STRING", description: "图表周期, 例如 '5d' (5日), '1h' (1小时), 'daily' (日线)" }
+                    },
+                    required: ["symbol", "period"]
+                }
+            }
         ]
     }];
 
     const contents = [
-        { role: "user", parts: [{ text: "你是一个全能的AI助手。你的主要能力是作为金融期货助手，可以使用工具查询价格、新闻和绘制图表。但是，如果用户的问题与金融无关，你也应该利用你的通用知识库来回答，而不是拒绝。请始终友好、乐于助人地回答所有类型的问题。"  }] },
-        { role: "model", parts: [{ text: "好的，我已理解我的角色和能力范围..." }] },
+        { 
+            role: "user", 
+            parts: [{ 
+                text: "你是一个全能的AI助手。你的主要能力是作为金融期货助手，可以使用工具查询价格、新闻和绘制图表。但是，如果用户的问题与金融无关，你也应该利用你的通用知识库来回答，而不是拒绝。请始终友好、乐于助人地回答所有类型的问题。" 
+            }] 
+        },
+        { 
+            role: "model", 
+            parts: [{ 
+                text: "好的，我已理解我的角色和能力范围。请提出您的问题。" 
+            }] 
+        },
         ...history, 
         { role: "user", parts: [{ text: question }] }
     ];
@@ -157,6 +197,12 @@ export async function getGeminiChatAnswer(question, history = [], env) {
     const initialData = await initialResponse.json();
     const initialCandidate = initialData?.candidates?.[0];
     if (!initialCandidate || !initialCandidate.content || !initialCandidate.content.parts) {
+        // It's possible to get an empty response if content is blocked.
+        // Try to get the block reason.
+        const blockReason = initialData?.promptFeedback?.blockReason;
+        if (blockReason) {
+            return `抱歉，我无法回答这个问题，因为它可能涉及到了敏感内容 (${blockReason})。`;
+        }
         throw new Error('Unexpected AI response format from Gemini (Flash).');
     }
 
@@ -169,22 +215,21 @@ export async function getGeminiChatAnswer(question, history = [], env) {
     }
 
     if (!initialPart.functionCall) {
-        // Unexpected response, but might contain text.
-        throw new Error('Unhandled AI response from Flash model.');
+        // This can happen if the model returns an empty part, e.g. {}
+        // We'll treat this as a case for Pro to handle, as it might be a complex refusal.
+        console.log("[AI] Flash model returned an empty or unhandled part. Handing over to Pro model for a more robust response.");
     }
+    
+    // --- Stage 2: Handover to Pro model for tool calls or more complex generation ---
+    console.log("[AI] Stage 2: Handing over to Pro model.");
+    // Add Flash's response (even if it's just a function call request) to the history for context.
+    contents.push(initialCandidate.content); 
 
-    // --- Stage 2: Handover to Pro model for tool calls ---
-    console.log("[AI] Stage 2: Flash requested a tool. Handing over to Pro model.");
-    contents.push(initialCandidate.content); // Add Flash's function call request to history
-
-    let currentApiUrl = proModelApiUrl;
     let loopCount = 0;
     while (loopCount < 5) {
         loopCount++;
 
-        // The first iteration will use the function call from Flash
-        // Subsequent iterations will generate their own function calls using Pro
-        const response = await fetch(currentApiUrl, {
+        const response = await fetch(proModelApiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ contents, tools })
@@ -194,6 +239,10 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         const data = await response.json();
         const candidate = data?.candidates?.[0];
         if (!candidate || !candidate.content || !candidate.content.parts) {
+            const blockReason = data?.promptFeedback?.blockReason;
+            if (blockReason) {
+                return `抱歉，我无法回答这个问题，因为它可能涉及到了敏感内容 (${blockReason})。`;
+            }
             throw new Error('Unexpected AI response format from Gemini (Pro).');
         }
 
@@ -228,7 +277,9 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         } else if (part.text) {
             return part.text;
         } else {
-            throw new Error('Unhandled AI response part type from Pro model.');
+            // If we get here, the Pro model also returned an empty part.
+            // This is a definitive "I can't answer".
+            return "抱歉，我无法回答这个问题。";
         }
     }
 
