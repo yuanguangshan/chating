@@ -809,7 +809,8 @@ let rafScheduled = false; // requestAnimationFrame 调度标志
 let messageProcessTimeoutId = null; // 用于 appendChatMessage 的防抖定时器ID
 const MESSAGE_BATCH_DEBOUNCE_MS = 50; // 批量处理消息的防抖时间 (保持批处理，即便人数少，也能让UI更流畅)
 
-let historicalMessagesLoading = false; // 标志位，表示历史消息是否正在加载
+let hasMoreHistory = false; // 【新增】标志位，表示服务器是否还有更多历史消息
+let isLoadingHistory = false; // 【新增】标志位，防止重复加载
     
 let shouldReconnect = true; // 【新增】一个全局标志，控制是否允许重连
 let reconnectIntervalId = null; // 【新增】用于存储重连定时器ID
@@ -1186,11 +1187,14 @@ function initChatDisplay() {
     // 清空所有旧消息
     chatWindowEl.innerHTML = ''; 
     logDebug('✅ 聊天显示初始化完成', LOG_LEVELS.SUCCESS);
-    // 对于非虚拟滚动，滚动事件监听器通常不需要复杂的渲染逻辑
-    // 如果未来需要“加载更多”等功能，可以再完善此处的滚动处理
-    chatWindowEl.addEventListener('scroll', throttle(() => {
-        // 可以在这里添加滚动到顶部时加载更多历史消息的逻辑
-    }, 150)); 
+    
+    // 添加滚动事件监听器，用于加载更多历史消息
+    chatWindowEl.addEventListener('scroll', throttle(async () => {
+        // 当滚动到顶部，且有更多历史记录，且当前未在加载时
+        if (chatWindowEl.scrollTop === 0 && hasMoreHistory && !isLoadingHistory) {
+            await fetchMoreHistory();
+        }
+    }, 200)); // 使用 200ms 的节流延迟
 }
 
 
@@ -1236,7 +1240,7 @@ function createMessageElement(msg) {
 
 // 消息队列处理函数，在 requestAnimationFrame 中执行
 function processMessageQueue() {
-    if (historicalMessagesLoading) {
+    if (isLoadingHistory) { // 【修改】使用新的加载标志
         logDebug("❗ 历史消息加载中，暂停处理新消息队列。", LOG_LEVELS.INFO);
         rafScheduled = false; // 取消RAF调度，等待历史加载完成
         return;
@@ -1763,78 +1767,113 @@ async function sendAudioMessage(audioBlob, mimeType) {
     }
 }
 
-// 优化后的历史消息处理函数 (移除虚拟滚动相关逻辑)
-async function processHistoryMessages(history) {
+// 【新增】加载更多历史消息的函数
+async function fetchMoreHistory() {
+    if (!hasMoreHistory || isLoadingHistory) return;
+
+    logDebug('📜 滚动到顶部，开始加载更多历史消息...', LOG_LEVELS.INFO);
+    isLoadingHistory = true;
+    const loader = document.getElementById('history-loader');
+    if (loader) {
+        loader.textContent = '加载中...';
+        loader.style.display = 'block';
+    }
+
+    try {
+        const oldestMessage = allMessages[0];
+        if (!oldestMessage) {
+            logDebug('❗ 没有找到最旧的消息，无法加载更多历史。', LOG_LEVELS.WARNING);
+            hasMoreHistory = false;
+            return;
+        }
+
+        const beforeId = oldestMessage.id;
+        const response = await fetch(`/api/messages/history?roomName=${roomName}&beforeId=${beforeId}`);
+        
+        if (!response.ok) {
+            throw new Error(`API请求失败: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const newHistory = data.messages;
+        hasMoreHistory = data.hasMore;
+
+        if (newHistory && newHistory.length > 0) {
+            logDebug(`✅ 成功获取 ${newHistory.length} 条更早的历史消息。`, LOG_LEVELS.SUCCESS);
+            
+            const oldScrollHeight = chatWindowEl.scrollHeight;
+            
+            for (let i = newHistory.length - 1; i >= 0; i--) {
+                const msg = newHistory[i];
+                if (!messageIdSet.has(msg.id)) {
+                    allMessages.unshift(msg);
+                    messageIdSet.add(msg.id);
+                    const msgEl = createMessageElement(msg);
+                    chatWindowEl.insertBefore(msgEl, loader.nextSibling);
+                }
+            }
+
+            requestAnimationFrame(() => {
+                chatWindowEl.scrollTop = chatWindowEl.scrollHeight - oldScrollHeight;
+            });
+
+        } else {
+            logDebug('ℹ️ API返回了0条消息，没有更多历史了。', LOG_LEVELS.INFO);
+            hasMoreHistory = false;
+        }
+
+    } catch (error) {
+        logDebug(`❗ 加载历史消息失败: ${error.message}`, LOG_LEVELS.ERROR, error);
+        showAppNotification('加载历史消息失败', 3000, true);
+    } finally {
+        isLoadingHistory = false;
+        if (loader) {
+            if (!hasMoreHistory) {
+                loader.textContent = '已加载所有历史记录';
+                loader.style.display = 'block';
+            } else {
+                loader.style.display = 'none';
+            }
+        }
+    }
+}
+
+// 【简化】处理初始历史消息的函数
+function processHistoryMessages(history) {
     if (!Array.isArray(history)) {
-        logDebug("❗ 历史记录格式不正确，已忽略。", LOG_LEVELS.WARNING);
-        historicalMessagesLoading = false;
-        processMessageQueue(); 
+        logDebug("❗ 初始历史记录格式不正确，已忽略。", LOG_LEVELS.WARNING);
         return;
     }
     
-    logDebug(`🧮 开始处理 ${history.length} 条历史记录...`);
-    historicalMessagesLoading = true; 
+    logDebug(`🧮 开始处理 ${history.length} 条初始历史记录...`);
     
-    // 重置状态：直接清空聊天窗口和消息数据
     allMessages = [];
     messageIdSet.clear(); 
     chatWindowEl.innerHTML = ''; 
     
-    const CHUNK_SIZE = 50; // 每次处理50条消息
-    let processedCount = 0;
+    const loader = document.createElement('div');
+    loader.id = 'history-loader';
+    loader.style.cssText = 'text-align: center; padding: 10px; font-size: 0.8em; color: #6c757d; display: none;';
+    loader.textContent = '加载中...';
+    chatWindowEl.appendChild(loader);
 
-    const processChunk = (deadline) => {
-        const messagesInChunk = [];
-        let i = 0;
-        // 在空闲时间内处理 CHUNK_SIZE 条消息，或者直到空闲时间耗尽
-        // `i === 0` 确保在没有空闲时间时至少处理第一条消息，避免无限等待
-        while (i < CHUNK_SIZE && processedCount < history.length && (deadline.timeRemaining() > 0 || i === 0)) {
-            const msg = history[processedCount];
-            if (msg && msg.id && !messageIdSet.has(msg.id)) {
-                allMessages.push(msg);
-                messageIdSet.add(msg.id);
-                messagesInChunk.push(msg);
-            } else if (msg && msg.id && messageIdSet.has(msg.id)) {
-                //logDebug(`历史消息中发现重复ID: ${msg.id}, 已跳过。`, LOG_LEVELS.INFO);
-            } else {
-                logDebug(`❗ 历史消息中发现无效消息，已跳过。`, LOG_LEVELS.WARNING, msg);
-            }
-            processedCount++;
-            i++;
+    const validHistory = history.filter(msg => {
+        if (msg && msg.id && !messageIdSet.has(msg.id)) {
+            messageIdSet.add(msg.id);
+            return true;
         }
+        return false;
+    });
 
-        appendMessagesToChatWindow(messagesInChunk, false); // 追加这批消息，但不强制滚动到底部
-        // 用户列表更新可以在历史消息全部加载完成后进行，避免频繁更新
-        // throttledUpdateActivityStats(); // 不在分批加载过程中调用
-
-        if (processedCount < history.length) {
-            //logDebug(`✅ 处理历史中... 已完成 ${processedCount}/${history.length} 条。`, LOG_LEVELS.INFO);
-            requestIdleCallback(processChunk, { timeout: 1000 });
-        } else {
-            logDebug("所有历史记录处理完毕。", LOG_LEVELS.SUCCESS);
-            historicalMessagesLoading = false;
-            // 历史加载完成后，滚动到底部
-            requestAnimationFrame(() => {
-                chatWindowEl.scrollTop = chatWindowEl.scrollHeight;
-            });
-            processMessageQueue(); // 历史消息处理完毕后，开始处理消息队列中积压的新消息
-        }
-    };
-
-    if (history.length > 0 && 'requestIdleCallback' in window) {
-        requestIdleCallback(processChunk, { timeout: 1000 });
-    } else {
-        // Fallback: synchronous processing if requestIdleCallback is not available or no history
-        logDebug("❗ requestIdleCallback 不可用或无历史消息，同步处理历史。", LOG_LEVELS.INFO); 
-        history.forEach(msg => {
-            if (msg && msg.id && !messageIdSet.has(msg.id)) {
-                allMessages.push(msg);
-                messageIdSet.add(msg.id);
-            }
-        });
-        appendMessagesToChatWindow(allMessages, true); // 同步加载则直接追加所有并滚动到底部
-        historicalMessagesLoading = false;
-        processMessageQueue(); 
+    allMessages = validHistory;
+    
+    appendMessagesToChatWindow(allMessages, true);
+    throttledUpdateActivityStats();
+    logDebug("✅ 初始历史记录处理完毕。", LOG_LEVELS.SUCCESS);
+    
+    if (!hasMoreHistory && loader) {
+        loader.textContent = '已加载所有历史记录';
+        loader.style.display = 'block';
     }
 }
 
@@ -1898,6 +1937,8 @@ const messageHandlers = {
     },
     welcome: (payload) => {
         const history = payload?.history;
+        hasMoreHistory = payload?.hasMoreHistory || false; 
+        
         if (Array.isArray(history)) {
             processHistoryMessages(history);
         } else {
