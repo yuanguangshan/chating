@@ -23,7 +23,7 @@ const availableTools = {
  * @throws {Error} - 如果所有尝试都失败，则抛出错误。
  */
 async function callGeminiApi(modelUrl, payload, env) {
-    const keys = [env.GEMINI_API_KEY, env.GEMINI_API_KEY2].filter(Boolean);
+    const keys = [env.GEMINI_API_KEY, env.GEMINI_API_KEY2,env.GEMINI_API_KEY3].filter(Boolean);
     if (keys.length === 0) {
         throw new Error('Server config error: No GEMINI_API_KEY is set.');
     }
