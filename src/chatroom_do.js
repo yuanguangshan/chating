@@ -1,7 +1,7 @@
 // 文件: src/chatroom_do.js (实现了"白名单即房间授权"的最终版)
 
 import { DurableObject } from "cloudflare:workers";
-import { getGeminiChatAnswer } from './ai.js';
+import { getGeminiChatAnswer, getKimiChatAnswer } from './ai.js';
 
 // 消息类型常量
 const MSG_TYPE_CHAT = 'chat';
@@ -901,7 +901,8 @@ async handleSessionInitialization(ws, url) {
     }
 
     async handleGeminiChatMessage(session, payload) {
-        this.debugLog(`💬 [AI] Processing Gemini chat from 👦 ${session.username}`, 'INFO', payload);
+        const model = payload.model || 'gemini';
+        this.debugLog(`💬 [AI] Processing ${model} chat from 👦 ${session.username}`, 'INFO', payload);
 
         // 1. Post the user's original question immediately, with a "thinking" indicator.
         const thinkingMessage = {
@@ -920,11 +921,21 @@ async handleSessionInitialization(ws, url) {
                 .filter(m => m.type === 'text')
                 .slice(-10)
                 .map(m => ({
-                    role: m.username === '机器人小助手' ? 'model' : 'user',
-                    parts: [{ text: m.text }]
+                    role: m.username === '机器人小助手' ? 'assistant' : 'user',
+                    content: m.text
                 }));
 
-            const answer = await getGeminiChatAnswer(payload.text, history, this.env);
+            let answer;
+            if (model === 'kimi') {
+                answer = await getKimiChatAnswer(payload.text, history, this.env);
+            } else {
+                // 将历史记录转换为Gemini格式
+                const geminiHistory = history.map(h => ({
+                    role: h.role === 'assistant' ? 'model' : 'user',
+                    parts: [{ text: h.content }]
+                }));
+                answer = await getGeminiChatAnswer(payload.text, geminiHistory, this.env);
+            }
 
             // 3. Find the original "thinking" message
             const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
@@ -953,7 +964,7 @@ async handleSessionInitialization(ws, url) {
             }
 
         } catch (error) {
-            this.debugLog(`❌ [AI] Gemini chat processing failed: ${error.message}`, 'ERROR', error);
+            this.debugLog(`❌ [AI] ${model} chat processing failed: ${error.message}`, 'ERROR', error);
             // Also update the original message with an error
             const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
             if (messageIndex !== -1) {

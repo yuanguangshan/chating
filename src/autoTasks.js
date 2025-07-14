@@ -2,7 +2,7 @@
 * 自动化任务均在此撰写  
 */
 import { generateAndPostCharts } from './chart_generator.js';
-import { getDeepSeekExplanation } from './ai.js';
+import { getDeepSeekExplanation, getKimiExplanation } from './ai.js';
 import { fetchNewsFromTongHuaShun, fetchNewsFromDongFangCaiFu } from './newsService.js';
 import { getFuturesData } from './futuresDataService.js';
 
@@ -56,9 +56,8 @@ async function executeTextTask(env, ctx) {
     try {
         if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
         
-        // 调用 getDeepSeekExplanation，并传入修改后的独特提示词
-        // 确保你的 getDeepSeekExplanation 内部也设置了合适的 temperature (例如 0.7-0.9)
-        const content = await getDeepSeekExplanation(finalPrompt, env); 
+        // 调用 Kimi API 获取解释，可以配置使用不同的模型
+        const content = await getKimiExplanation(finalPrompt, env);
         
         const doId = env.CHAT_ROOM_DO.idFromName(roomName);
         const stub = env.CHAT_ROOM_DO.get(doId);
