@@ -384,3 +384,23 @@ async scheduled(event, env, ctx) {
         }
     },
 };
+
+
+const API_BASE_URL = 'http://43.153.67.212:5000';
+
+async function fetchFuturesData() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/futures/hqdata`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    
+    const { data, columns } = await response.json();
+    // 处理数据...
+    console.log('成功获取期货数据:', data);
+    return data;
+  } catch (error) {
+    console.error('获取期货数据失败:', error);
+    throw error;
+  }
+}
+
+// 其他数据库的类似方法...
