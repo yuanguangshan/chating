@@ -4,3 +4,4 @@ node_modules/
 public/index.html
 install_coturn.sh
 merge2main.sh
+*.db
