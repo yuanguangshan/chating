@@ -11,6 +11,9 @@ This is a feature-rich, real-time, multi-room chat application deployed on the C
 *   **AI-Powered Assistance**:
     *   **Text Explanation**: Integrates both Google Gemini and DeepSeek models to provide users with in-depth text analysis and explanations.
     *   **Image Recognition**: Capable of describing image content and extracting text from images.
+    * 
+    * 
+    * 
 *   **Data Visualization**: Integrates the ECharts library, driven by scheduled tasks, to periodically generate charts and post them to the chat room.
 *   **File Sharing**: Users can upload files (like images), which are stored in Cloudflare R2 and shared as links within the chat.
 *   **User & Permission Management**: Features a fine-grained, whitelist-based room authorization system, complete with a management API.
