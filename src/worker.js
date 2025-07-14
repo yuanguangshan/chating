@@ -52,8 +52,10 @@ function handleOptions(request) {
         request.headers.get('Access-Control-Request-Method') !== null &&
         request.headers.get('Access-Control-Request-Headers') !== null
     ) {
+        console.log(`[Worker] Handling CORS preflight request from Origin: ${request.headers.get('Origin')}`);
         return new Response(null, { headers: corsHeaders });
     } else {
+        console.log(`[Worker] Handling non-CORS OPTIONS request.`);
         return new Response(null, { headers: { Allow: 'GET, HEAD, POST, OPTIONS' } });
     }
 }
@@ -108,6 +110,7 @@ export default {
                 
             // --- ✨ 新增：管理页面路由 ---
             if (pathname === '/management') {
+                console.log(`[Worker] Handling /management request.`);
                 // 从环境变量中获取房间列表，如果未设置则提供默认值
                 const roomsListString = env.MANAGEMENT_ROOMS_LIST || 'general,test,future,admin,kerry';
                 const roomsArray = roomsListString.split(',').map(room => room.trim()); // 分割并去除空格
@@ -130,8 +133,10 @@ export default {
 
             // --- ✨ 新增：用户管理API路由转发 ---
             if (pathname.startsWith('/api/users/')) {
+                console.log(`[Worker] Handling /api/users/ request.`);
                 const roomName = url.searchParams.get('roomName');
                 if (!roomName) {
+                    console.warn(`[Worker] /api/users/ request missing roomName parameter.`);
                     return new Response('API request requires a roomName parameter', { status: 400 });
                 }
                 const doId = env.CHAT_ROOM_DO.idFromName(roomName);
@@ -174,12 +179,13 @@ export default {
                     const r2PublicDomain = "https://pic.want.biz";
                     const publicUrl = `${r2PublicDomain}/${object.key}`; // object.key 现在是 "chating/..."
                     
+                    console.log(`[Worker] File uploaded successfully to R2: ${publicUrl}`);
                     return new Response(JSON.stringify({ url: publicUrl }), {
                         headers: { 'Content-Type': 'application/json', ...corsHeaders },
                     });
 
                 } catch (error) {
-                    console.error('R2 Upload error:', error.stack || error);
+                    console.error('[Worker] R2 Upload error:', error.stack || error);
                     return new Response(`Error uploading file: ${error.message}`, { 
                         status: 500, 
                         headers: corsHeaders 
@@ -187,11 +193,15 @@ export default {
                 }
 
             } else if (pathname === '/ai-explain') {
-                // ... /ai-explain 的逻辑 ...
-                const { text, model = 'gemini' } = await request.json();
+                const { text, model = 'gemini', roomName } = await request.json();
                 if (!text) return new Response('Missing "text"', { status: 400, headers: corsHeaders });
 
-                // 修正：移除硬编码的prompt，直接使用传入的text
+                if (roomName) {
+                    const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+                    const stub = env.CHAT_ROOM_DO.get(doId);
+                    ctx.waitUntil(stub.logAndBroadcast(`[AI] 用户请求文本解释，使用模型: ${model}`, 'INFO'));
+                }
+
                 const fullPrompt = `你是一位非常耐心的小学老师，专门给小学生讲解新知识。  我是一名小学三年级学生，我特别渴望弄明白事物的含义。  请你用精准、详细的语言解释（Markdown 格式）：1. 用通俗易懂的语言解释下面这段文字。2. 给出关键概念的定义。3. 用生活中的比喻或小故事帮助理解。4. 举一个具体例子，并示范"举一反三"的思考方法。5. 最后用一至两个问题来引导我延伸思考。:\n\n${text}`;
                 
                 let explanation;
@@ -211,9 +221,14 @@ export default {
                 return new Response(JSON.stringify({ explanation }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
 
             } else if (pathname === '/ai-describe-image') {
-                // ... /ai-describe-image 的逻辑 ...
-                const { imageUrl, model = 'gemini' } = await request.json();
+                const { imageUrl, model = 'gemini', roomName } = await request.json();
                 if (!imageUrl) return new Response('Missing "imageUrl"', { status: 400, headers: corsHeaders });
+
+                if (roomName) {
+                    const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+                    const stub = env.CHAT_ROOM_DO.get(doId);
+                    ctx.waitUntil(stub.logAndBroadcast(`[AI] 用户请求图片描述，使用模型: ${model}`, 'INFO'));
+                }
                 
                 let description;
                 switch (model) {
@@ -233,8 +248,10 @@ export default {
             if (pathname.startsWith('/api/')) {
                 // 全局API，不转发给DO
                 if (pathname === '/api/price') {
+                    console.log(`[Worker] Handling /api/price request for symbol: ${url.searchParams.get('symbol')}`);
                     const symbol = url.searchParams.get('symbol');
                     if (!symbol) {
+                        console.warn(`[Worker] /api/price request missing symbol parameter.`);
                         return new Response(JSON.stringify({ error: 'Missing symbol parameter' }), {
                             status: 400,
                             headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -242,6 +259,7 @@ export default {
                     }
                     const priceDataString = await getPrice(symbol);
                     const priceData = JSON.parse(priceDataString);
+                    console.log(`[Worker] Successfully fetched price for ${symbol}.`);
                     return new Response(JSON.stringify(priceData), {
                         headers: { 'Content-Type': 'application/json', ...corsHeaders },
                     });

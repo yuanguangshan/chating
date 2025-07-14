@@ -68,11 +68,13 @@ const fetchData = async (url) => {
       }
     });
     if (!response.ok) {
+      console.error(`[FuturesData] API request to ${url} failed with status ${response.status}`);
       throw new Error(`API request failed with status ${response.status}`);
     }
+    console.log(`[FuturesData] Successfully fetched data from ${url}`);
     return response.json();
   } catch (error) {
-    console.error(`Error fetching data from ${url}:`, error);
+    console.error(`[FuturesData] Error fetching data from ${url}:`, error);
     throw error;
   }
 }
@@ -128,9 +130,11 @@ const getFuturesData = async () => {
         }
       })
       .filter(Boolean)
+    console.log(`[FuturesData] Successfully fetched and processed ${zdfData.length} futures data entries.`);
+    return processedData;
   } catch (error) {
-    console.error('Failed to fetch futures data:', error)
-    throw error
+    console.error('[FuturesData] Failed to fetch futures data:', error);
+    throw error;
   }
 }
 
@@ -143,6 +147,7 @@ const getPrice = async (name) => {
   try {
     console.log(`[getPrice] Received name: "${name}"`);
     if (!name) {
+        console.warn(`[getPrice] Name parameter is missing.`);
         return JSON.stringify({ error: "Name parameter is missing." });
     }
 
@@ -190,12 +195,14 @@ const getPrice = async (name) => {
         zdf250: contract.zdf250, // 250日涨幅
         timestamp: contract.utime
       };
+      console.log(`[getPrice] Found contract for "${name}" (symbol "${symbol}"):`, priceInfo);
       return JSON.stringify(priceInfo);
     } else {
+      console.warn(`[getPrice] Contract with name '${name}' (symbol '${symbol}') not found.`);
       return JSON.stringify({ error: `Contract with name '${name}' (symbol '${symbol}') not found.` });
     }
   } catch (error) {
-    console.error(`Failed to get price for ${name}:`, error);
+    console.error(`[getPrice] Failed to get price for ${name}:`, error);
     return JSON.stringify({ error: `Failed to fetch price data for ${name}.` });
   }
 };
@@ -212,4 +219,3 @@ export {
   getFuturesData,
   getPrice
 }
-

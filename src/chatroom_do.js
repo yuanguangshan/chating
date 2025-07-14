@@ -171,7 +171,7 @@ export class HibernatingChating extends DurableObject {
         });
 
         const now = Date.now();
-        const timeout = 65000; // 65秒超时 (略大于两个心跳周期)
+        const timeout = 120000; // 120秒超时 (增加容错时间)
         let activeSessions = 0;
         const disconnectedSessions = [];
 
@@ -239,6 +239,24 @@ export class HibernatingChating extends DurableObject {
     async cronPost(text, secret) {
         this.debugLog(`🤖 收到定时任务, 自动发送文本消息: ${text}`);
         await this.postBotMessage({ text, type: 'text' }, secret);
+    }
+
+    // 【新增】RPC方法，用于从外部（如worker）记录日志
+    async logAndBroadcast(message, level = 'INFO', data = null) {
+        // 确保DO已初始化，以便可以访问到会话
+        await this.initialize();
+        this.debugLog(message, level, data);
+    }
+
+    // 【新增】RPC方法，用于从外部（如worker）广播系统消息
+    async broadcastSystemMessage(payload, secret) {
+        if (this.env.CRON_SECRET && secret !== this.env.CRON_SECRET) {
+            this.debugLog("SYSTEM MESSAGE: Unauthorized attempt!", 'ERROR');
+            return;
+        }
+        await this.initialize();
+        this.debugLog(`📢 收到系统消息: ${payload.message}`, payload.level || 'INFO', payload.data);
+        this.broadcast({ type: MSG_TYPE_DEBUG_LOG, payload: { message: payload.message, level: payload.level, data: payload.data, timestamp: new Date().toISOString(), id: crypto.randomUUID().substring(0, 8) } });
     }
 
     // ============ 主要入口点 ============
@@ -323,6 +341,7 @@ async handleSessionInitialization(ws, url) {
             }));
 
         } catch(e) {
+            this.debugLog(`💥 发送授权失败消息到用户 ${username} 失败: ${e.message}`, 'ERROR', e);
             // 如果在发送消息时就出错了，直接关闭
             ws.close(1011, "Internal server error during auth check.");
         }
@@ -360,6 +379,7 @@ async handleSessionInitialization(ws, url) {
             }
         }
         
+        this.debugLog(`❓ 未找到API路由: ${url.pathname}`, 'WARN');
         return new Response("Not Found", { status: 404 });
     }
     
@@ -414,8 +434,10 @@ async handleSessionInitialization(ws, url) {
                     active: true
                 }), { headers: JSON_HEADERS });
             }
+            this.debugLog(`❌ 添加用户失败: 缺少或空用户名`, 'WARN');
             return new Response('Missing or empty username', { status: 400 });
         } catch (e) {
+            this.debugLog(`❌ 添加用户失败: 无效JSON: ${e.message}`, 'ERROR', e);
             return new Response('Invalid JSON', { status: 400 });
         }
     }
@@ -460,11 +482,14 @@ async handleSessionInitialization(ws, url) {
                         totalUsers: this.allowedUsers.size
                     }), { headers: JSON_HEADERS });
                 } else {
+                    this.debugLog(`❌ 移除用户失败: 用户 ${cleanUsername} 不在白名单中`, 'WARN');
                     return new Response('User not found in allowed list', { status: 404 });
                 }
             }
+            this.debugLog(`❌ 移除用户失败: 缺少或空用户名`, 'WARN');
             return new Response('Missing or empty username', { status: 400 });
         } catch (e) {
+            this.debugLog(`❌ 移除用户失败: 无效JSON: ${e.message}`, 'ERROR', e);
             return new Response('Invalid JSON', { status: 400 });
         }
     }
@@ -482,6 +507,7 @@ async handleSessionInitialization(ws, url) {
         }
         
         if (this.allowedUsers === undefined) {
+            this.debugLog(`❌ 清空白名单失败: 白名单未激活`, 'WARN');
             return new Response('Whitelist not active for this room', { status: 404 });
         }
         

@@ -42,9 +42,10 @@ async function callKimiApi(model, payload, env) {
 
     if (!response.ok) {
         const errorText = await response.text();
+        console.error(`[AI] Kimi API call failed with status ${response.status}: ${errorText}`);
         throw new Error(`Kimi API error: ${errorText}`);
     }
-
+    console.log(`[AI] Kimi API call successful.`);
     return await response.json();
 }
 
@@ -97,10 +98,12 @@ async function callGeminiApi(modelUrl, payload, env) {
                 continue;
             }
             // 这是最后一个密钥了，重新抛出错误
+            console.error(`[AI] All Gemini API keys failed or last key failed:`, error.message);
             throw error;
         }
     }
     // 如果所有密钥都因配额问题失败，则抛出最终错误
+    console.error("[AI] All available Gemini API keys have exceeded their quota.");
     throw new Error("All available Gemini API keys have exceeded their quota.");
 }
 
@@ -138,10 +141,18 @@ export async function getDeepSeekExplanation(text, env) {
         })
     });
 
-    if (!response.ok) throw new Error(`DeepSeek API error: ${await response.text()}`);
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[AI] DeepSeek API error: ${errorText}`);
+        throw new Error(`DeepSeek API error: ${errorText}`);
+    }
     const data = await response.json();
     const explanation = data?.choices?.[0]?.message?.content;
-    if (!explanation) throw new Error('Unexpected AI response format from DeepSeek.');
+    if (!explanation) {
+        console.error('[AI] Unexpected AI response format from DeepSeek:', data);
+        throw new Error('Unexpected AI response format from DeepSeek.');
+    }
+    console.log(`[AI] DeepSeek explanation generated.`);
     return explanation;
 }
 
@@ -149,12 +160,21 @@ export async function getDeepSeekExplanation(text, env) {
  * 【修正版】从URL获取图片并高效地转换为Base64编码。
  */
 async function fetchImageAsBase64(imageUrl) {
-    const response = await fetch(imageUrl);
-    if (!response.ok) throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    const buffer = await response.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-    return { base64, contentType };
+    try {
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+            console.error(`[AI] Failed to fetch image from ${imageUrl}: ${response.status} ${response.statusText}`);
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        const contentType = response.headers.get('content-type') || 'image/jpeg';
+        const buffer = await response.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        console.log(`[AI] Image fetched and converted to Base64: ${imageUrl}`);
+        return { base64, contentType };
+    } catch (e) {
+        console.error(`[AI] Error fetching or converting image ${imageUrl} to Base64: ${e.message}`, e);
+        throw e;
+    }
 }
 
 /**
@@ -172,7 +192,11 @@ export async function getGeminiImageDescription(imageUrl, env) {
     try {
         const data = await callGeminiApi(proModelUrl, payload, env);
         const description = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!description) throw new Error('Unexpected AI response format from Gemini Vision.');
+        if (!description) {
+            console.error('[AI] Unexpected AI response format from Gemini Vision:', data);
+            throw new Error('Unexpected AI response format from Gemini Vision.');
+        }
+        console.log(`[AI] Gemini image description generated.`);
         return description;
     } catch (error) {
         console.error("[AI] getGeminiImageDescription failed:", error);
@@ -190,7 +214,11 @@ export async function getGeminiExplanation(text, env) {
     try {
         const data = await callGeminiApi(proModelUrl, payload, env);
         const explanation = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!explanation) throw new Error('Unexpected AI response format from Gemini.');
+        if (!explanation) {
+            console.error('[AI] Unexpected AI response format from Gemini Explanation:', data);
+            throw new Error('Unexpected AI response format from Gemini.');
+        }
+        console.log(`[AI] Gemini explanation generated.`);
         return explanation;
     } catch (error) {
         console.error("[AI] getGeminiExplanation failed:", error);
@@ -439,13 +467,14 @@ export async function getKimiChatAnswer(question, history = [], env) {
                         case 'draw_chart': result = await drawChart(env, args.symbol, args.period); break;
                         default: throw new Error(`Unknown tool: ${name}`);
                     }
+                    console.log(`[AI] Kimi tool '${name}' executed successfully.`);
                     return {
                         tool_call_id: toolCall.id,
                         role: "tool",
                         content: JSON.stringify({ content: result })
                     };
                 } catch (e) {
-                    console.error(`[AI] Error executing Kimi tool '${name}':`, e);
+                    console.error(`[AI] Error executing Kimi tool '${name}': ${e.message}`, e);
                     return {
                         tool_call_id: toolCall.id,
                         role: "tool",
