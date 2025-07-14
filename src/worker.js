@@ -386,7 +386,7 @@ async scheduled(event, env, ctx) {
 };
 
 
-const API_BASE_URL = 'http://43.153.67.212:5000';
+const API_BASE_URL = 'https://api.yuangs.cc';
 
 async function fetchFuturesData() {
   try {
