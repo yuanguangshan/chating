@@ -288,6 +288,36 @@
       border: 1px solid color-mix(in srgb, #3498db 20%, transparent);
     }
 
+    /* ====== Kimi 查询 ====== */
+    .kimi-search-section {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+    .kimi-search-section h2 {
+      margin: 0 0 16px;
+      font-size: 1.3em;
+      color: var(--text);
+      font-weight: 600;
+    }
+    #kimi-result-section {
+      margin-top: 16px;
+      background: var(--bg);
+      padding: 16px;
+      border-radius: 8px;
+      min-height: 50px;
+    }
+    #kimi-result {
+      color: var(--text-sub);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: 'Courier New', Courier, monospace;
+      margin: 0;
+    }
+
     /* ====== API快速链接 ====== */
     .api-quick-links {
       margin-top: 20px;
@@ -504,6 +534,18 @@
       <input type="text" id="new-user-input" placeholder="输入要添加的用户名">
       <button id="add-user-btn">添加</button>
     </div>
+
+    <!-- Kimi 查询 -->
+    <div class="kimi-search-section">
+      <h2>Kimi 查询</h2>
+      <div class="form-group">
+        <input type="text" id="kimi-query-input" placeholder="输入查询内容">
+        <button id="kimi-search-btn">查询</button>
+      </div>
+      <div id="kimi-result-section">
+        <pre id="kimi-result"></pre>
+      </div>
+    </div>
    
     <!-- API 快速链接区域 -->
     <div class="api-quick-links">
@@ -558,6 +600,13 @@
             <p class="description">清空房间的所有调试日志</p>
           </div>
         </a>
+        <a data-template="/api/ai/kimi?roomName={roomName}&query=你好" href="#" target="_blank" class="list-item">
+          <span class="item-icon">🤖</span>
+          <div class="item-content">
+            <h3>Kimi AI</h3>
+            <p class="description">使用 Kimi 进行查询</p>
+          </div>
+        </a>
       </div>
     </div>
   </div>
@@ -599,6 +648,9 @@
     const statusMessage      = document.getElementById('status-message');
     const activatedRoomList  = document.getElementById('activated-room-list');
     const apiLinks           = document.querySelectorAll('.api-quick-links-grid a');
+    const kimiQueryInput     = document.getElementById('kimi-query-input');
+    const kimiSearchBtn      = document.getElementById('kimi-search-btn');
+    const kimiResult         = document.getElementById('kimi-result');
 
     function showStatus(msg, type='info') {
       statusMessage.textContent = msg;
@@ -734,6 +786,51 @@
       }
     }
 
+    async function queryKimi() {
+      const room = roomNameInput.value.trim();
+      const query = kimiQueryInput.value.trim();
+
+      if (!room) {
+        return showStatus('请输入房间名！', 'error');
+      }
+      if (!query) {
+        return showStatus('请输入查询内容！', 'error');
+      }
+
+      kimiSearchBtn.disabled = true;
+      kimiSearchBtn.textContent = '查询中…';
+      showStatus(`正在使用 Kimi 查询: "${query}"...`, 'info');
+      kimiResult.textContent = '正在查询...';
+
+      try {
+        const domain = `https://${apiDomain || 'chating.want.biz'}`;
+        const res = await fetch(`${domain}/api/ai/kimi?roomName=${encodeURIComponent(room)}`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'secret': adminSecret 
+          },
+          body: JSON.stringify({ query: query })
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Kimi API 错误: ${errorText}`);
+        }
+
+        const data = await res.json();
+        kimiResult.textContent = data.result || JSON.stringify(data, null, 2);
+        showStatus('Kimi 查询成功。', 'success');
+
+      } catch (e) {
+        showStatus(`错误: ${e.message}`, 'error');
+        kimiResult.textContent = `查询失败: ${e.message}`;
+      } finally {
+        kimiSearchBtn.disabled = false;
+        kimiSearchBtn.textContent = '查询';
+      }
+    }
+
     // ====== API 链接更新 ======
     function updateApiLinks() {
       const room = roomNameInput.value.trim() || 'test';
@@ -755,6 +852,7 @@
       updateApiLinks();
       loadUsersBtn.onclick = fetchUsers;
       addUserBtn.onclick  = addUser;
+      kimiSearchBtn.onclick = queryKimi;
       roomNameInput.addEventListener('input', updateApiLinks);
     });
   </script>

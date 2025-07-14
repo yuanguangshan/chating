@@ -12,6 +12,43 @@ const availableTools = {
 };
 
 // =================================================================
+//  Kimi API 调用函数 (新增)
+// =================================================================
+/**
+ * 调用Kimi API的函数，兼容OpenAI接口格式
+ * @param {string} model - 要调用的模型名称
+ * @param {object} payload - 发送给API的请求体
+ * @param {object} env - 环境变量，包含KIMI_API_KEY
+ * @returns {Promise<object>} - 返回API的JSON响应
+ * @throws {Error} - 如果调用失败，则抛出错误
+ */
+async function callKimiApi(model, payload, env) {
+    const apiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
+    if (!apiKey) {
+        throw new Error('Server config error: No KIMI_API_KEY is set.');
+    }
+
+    const response = await fetch("https://api.moonshot.cn/v1/chat/completions", {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: model,
+            ...payload
+        })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Kimi API error: ${errorText}`);
+    }
+
+    return await response.json();
+}
+
+// =================================================================
 //  核心 Gemini API 调用函数 (重构后)
 // =================================================================
 /**
@@ -66,7 +103,6 @@ async function callGeminiApi(modelUrl, payload, env) {
     // 如果所有密钥都因配额问题失败，则抛出最终错误
     throw new Error("All available Gemini API keys have exceeded their quota.");
 }
-
 
 // =================================================================
 //  导出的公共函数 (保持接口不变)
@@ -254,4 +290,189 @@ export async function getGeminiChatAnswer(question, history = [], env) {
     }
 
     throw new Error("AI did not provide a final answer after multiple tool calls.");
+}
+
+// =================================================================
+//  Kimi API 公共函数 (新增)
+// =================================================================
+
+/**
+ * 调用 Kimi API 获取文本解释
+ */
+export async function getKimiExplanation(text, env) {
+    const apiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
+    if (!apiKey) throw new Error('Server config error: No KIMI_API_KEY is set.');
+
+    try {
+        const data = await callKimiApi("moonshot-v1-8k", {
+            messages: [
+                { role: "system", content: "你是一个有用的助手，善于用简洁的markdown语言来解释文本。" },
+                { role: "user", content: text }
+            ],
+            temperature: 0.3,
+        }, env);
+        
+        const explanation = data?.choices?.[0]?.message?.content;
+        if (!explanation) throw new Error('Unexpected AI response format from Kimi.');
+        return explanation;
+    } catch (error) {
+        console.error("[AI] getKimiExplanation failed:", error);
+        return "抱歉，Kimi文本解释服务暂时无法使用。";
+    }
+}
+
+/**
+ * 调用 Kimi API 获取图片描述
+ */
+export async function getKimiImageDescription(imageUrl, env) {
+    const { base64, contentType } = await fetchImageAsBase64(imageUrl);
+    const apiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
+    if (!apiKey) throw new Error('Server config error: No KIMI_API_KEY is set.');
+
+    try {
+        const data = await callKimiApi("moonshot-v1-8k-vision-preview", {
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: `data:${contentType};base64,${base64}`
+                            }
+                        },
+                        {
+                            type: "text",
+                            text: "请仔细描述图片的内容，如果图片中识别出有文字，则在回复的内容中返回这些文字，并且这些文字支持复制，之后是对文字的仔细描述，格式为：图片中包含文字：{文字内容}；图片的描述：{图片描述}"
+                        }
+                    ]
+                }
+            ],
+            temperature: 0.3,
+        }, env);
+        
+        const description = data?.choices?.[0]?.message?.content;
+        if (!description) throw new Error('Unexpected AI response format from Kimi Vision.');
+        return description;
+    } catch (error) {
+        console.error("[AI] getKimiImageDescription failed:", error);
+        return "抱歉，Kimi图片描述服务暂时无法使用。";
+    }
+}
+
+/**
+ * 调用 Kimi API 获取聊天回复（支持多轮对话和工具调用）
+ */
+export async function getKimiChatAnswer(question, history = [], env) {
+    const apiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
+    if (!apiKey) throw new Error('Server config error: No KIMI_API_KEY is set.');
+
+    const tools = [{
+        type: "function",
+        function: {
+            name: "get_price",
+            description: "获取指定期货品种的详细信息",
+            parameters: {
+                type: "object",
+                properties: {
+                    name: { type: "string", description: "期货品种的中文名称, 例如 '螺纹钢', '黄金'" }
+                },
+                required: ["name"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "get_news",
+            description: "获取某个关键词的最新新闻",
+            parameters: {
+                type: "object",
+                properties: {
+                    keyword: { type: "string", description: "要查询新闻的关键词, 例如 '原油'" }
+                },
+                required: ["keyword"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "draw_chart",
+            description: "根据代码和周期绘制K线图",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string", description: "期货合约代码, 例如 'ag'" },
+                    period: { type: "string", description: "图表周期, 例如 'daily'" }
+                },
+                required: ["symbol", "period"]
+            }
+        }
+    }];
+
+    const messages = [
+        { role: "system", content: "你是一个全能的AI助手，专门帮助用户解答期货相关问题。你可以获取实时行情、最新新闻和生成图表。请用中文回答，并保持回答简洁明了。" },
+        ...history,
+        { role: "user", content: question }
+    ];
+
+    try {
+        const data = await callKimiApi("moonshot-v1-8k", {
+            messages: messages,
+            temperature: 0.3,
+            tools: tools,
+            tool_choice: "auto"
+        }, env);
+
+        const choice = data.choices[0];
+        
+        if (choice.finish_reason === "tool_calls" && choice.message.tool_calls) {
+            // 处理工具调用
+            const toolResults = await Promise.all(choice.message.tool_calls.map(async (toolCall) => {
+                const { name, arguments: args } = toolCall.function;
+                console.log(`[AI] Kimi calling tool: ${name} with args:`, args);
+                
+                try {
+                    let result;
+                    switch (name) {
+                        case 'get_price': result = await getPrice(args.name); break;
+                        case 'get_news': result = await getNews(args.keyword); break;
+                        case 'draw_chart': result = await drawChart(env, args.symbol, args.period); break;
+                        default: throw new Error(`Unknown tool: ${name}`);
+                    }
+                    return {
+                        tool_call_id: toolCall.id,
+                        role: "tool",
+                        content: JSON.stringify({ content: result })
+                    };
+                } catch (e) {
+                    console.error(`[AI] Error executing Kimi tool '${name}':`, e);
+                    return {
+                        tool_call_id: toolCall.id,
+                        role: "tool",
+                        content: JSON.stringify({ error: `工具执行失败: ${e.message}` })
+                    };
+                }
+            }));
+
+            // 将工具结果发送回Kimi
+            const finalMessages = [
+                ...messages,
+                choice.message,
+                ...toolResults
+            ];
+
+            const finalData = await callKimiApi("moonshot-v1-8k", {
+                messages: finalMessages,
+                temperature: 0.3
+            }, env);
+
+            return finalData.choices[0].message.content;
+        } else {
+            // 直接返回文本回复
+            return choice.message.content;
+        }
+    } catch (error) {
+        console.error("[AI] getKimiChatAnswer failed:", error);
+        return "抱歉，Kimi聊天服务暂时遇到问题，请稍后再试。";
+    }
 }

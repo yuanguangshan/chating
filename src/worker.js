@@ -1,7 +1,7 @@
 // src/worker.js (Merged, Final Version - CORRECTED)
 
 /*
- * 这个 `worker.js` 文件是 Cloudflare Worker 的入口点，它扮演着“前台总机”的角色。
+ * 这个 `worker.js` 文件是 Cloudflare Worker 的入口点，它扮演着"前台总机"的角色。
  * 它的主要职责是：
  * 1. 处理全局性的、与特定聊天室无关的API请求（如AI服务、文件上传）。
  * 2. 识别出与特定聊天室相关的请求（无论是API还是WebSocket），并将它们准确地转发给对应的Durable Object实例。
@@ -21,7 +21,14 @@ import html from '../public/index.html';
 import managementHtml from '../public/management.html';
 import { generateAndPostCharts } from './chart_generator.js';
 import { taskMap } from './autoTasks.js';
-import { getDeepSeekExplanation, getGeminiExplanation, getGeminiImageDescription } from './ai.js';
+import { 
+    getDeepSeekExplanation, 
+    getGeminiExplanation, 
+    getGeminiImageDescription,
+    getKimiExplanation,
+    getKimiImageDescription,
+    getKimiChatAnswer
+} from './ai.js';
 import { getPrice } from './futuresDataService.js';
 
 // 导出Durable Object类，以便Cloudflare平台能够识别和实例化它。
@@ -83,7 +90,6 @@ async function sendAutoPost(env, roomName, text, ctx) {
 
 
 
-
 // --- 主Worker入口点 ---
 // 在 worker.js 的 fetch 函数中
 
@@ -138,7 +144,7 @@ export default {
             // 将所有全局API的判断合并到一个if/else if结构中
             if (pathname === '/upload') {
                 // --- ✨ 这是唯一且正确的 /upload 处理逻辑 ✨ ---
-                // (基于您提供的“改进版”代码，并修正了key的使用)
+                // (基于您提供的"改进版"代码，并修正了key的使用)
                 if (request.method !== 'POST') {
                     return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
                 }
@@ -186,19 +192,40 @@ export default {
                 if (!text) return new Response('Missing "text"', { status: 400, headers: corsHeaders });
 
                 // 修正：移除硬编码的prompt，直接使用传入的text
-                const fullPrompt = `你是一位非常耐心的小学老师，专门给小学生讲解新知识。  我是一名小学三年级学生，我特别渴望弄明白事物的含义。  请你用精准、详细的语言解释（Markdown 格式）：1. 用通俗易懂的语言解释下面这段文字。2. 给出关键概念的定义。3. 用生活中的比喻或小故事帮助理解。4. 举一个具体例子，并示范“举一反三”的思考方法。5. 最后用一至两个问题来引导我延伸思考。:\n\n${text}`;
+                const fullPrompt = `你是一位非常耐心的小学老师，专门给小学生讲解新知识。  我是一名小学三年级学生，我特别渴望弄明白事物的含义。  请你用精准、详细的语言解释（Markdown 格式）：1. 用通俗易懂的语言解释下面这段文字。2. 给出关键概念的定义。3. 用生活中的比喻或小故事帮助理解。4. 举一个具体例子，并示范"举一反三"的思考方法。5. 最后用一至两个问题来引导我延伸思考。:\n\n${text}`;
                 
-                const explanation = model === 'gemini' 
-                    ? await getGeminiExplanation(fullPrompt, env) 
-                    : await getDeepSeekExplanation(fullPrompt, env);
+                let explanation;
+                switch (model) {
+                    case 'kimi':
+                        explanation = await getKimiExplanation(fullPrompt, env);
+                        break;
+                    case 'deepseek':
+                        explanation = await getDeepSeekExplanation(fullPrompt, env);
+                        break;
+                    case 'gemini':
+                    default:
+                        explanation = await getGeminiExplanation(fullPrompt, env);
+                        break;
+                }
 
                 return new Response(JSON.stringify({ explanation }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
 
             } else if (pathname === '/ai-describe-image') {
                 // ... /ai-describe-image 的逻辑 ...
-                const { imageUrl } = await request.json();
+                const { imageUrl, model = 'gemini' } = await request.json();
                 if (!imageUrl) return new Response('Missing "imageUrl"', { status: 400, headers: corsHeaders });
-                const description = await getGeminiImageDescription(imageUrl, env);
+                
+                let description;
+                switch (model) {
+                    case 'kimi':
+                        description = await getKimiImageDescription(imageUrl, env);
+                        break;
+                    case 'gemini':
+                    default:
+                        description = await getGeminiImageDescription(imageUrl, env);
+                        break;
+                }
+                
                 return new Response(JSON.stringify({ description }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
             }
 
@@ -226,6 +253,40 @@ export default {
                 if (pathname.startsWith('/api/messages') || pathname.startsWith('/api/reset-room')|| pathname.startsWith('/api/debug')|| pathname.startsWith('/api/room')) {
                     roomName = url.searchParams.get('roomName');
                 }
+                // 新增：处理 /api/ai/kimi 路由
+                if (pathname === '/api/ai/kimi') {
+                    const roomName = url.searchParams.get('roomName');
+                    if (!roomName) {
+                        return new Response(JSON.stringify({ error: 'Missing roomName parameter' }), {
+                            status: 400,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                    if (request.method !== 'POST') {
+                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                    }
+                    try {
+                        const { query } = await request.json();
+                        if (!query) {
+                            return new Response(JSON.stringify({ error: 'Missing query in request body' }), {
+                                status: 400,
+                                headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                            });
+                        }
+                        // 注意：getKimiChatAnswer 可能需要一个 history 参数，这里我们传递一个空数组
+                        const result = await getKimiChatAnswer(query, [], env);
+                        return new Response(JSON.stringify({ result }), {
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    } catch (error) {
+                        console.error('Kimi API error in worker:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                }
+
                 // (未来可以为其他API在这里添加 roomName 的获取逻辑)
 
                 if (!roomName) {
