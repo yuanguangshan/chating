@@ -2112,10 +2112,6 @@ messageInput.addEventListener('input', () => {
 });
 
 async function onSocketMessage(event) {
-    if (event.data.startsWith('{"type":"heartbeat"') && event.data.endsWith('}}')) { 
-        return;
-    }
-
     let data;
     try {
         data = JSON.parse(event.data);
