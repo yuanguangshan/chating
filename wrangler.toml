@@ -18,7 +18,7 @@ class_name = "HibernatingChating"
 # R2 存储桶绑定 (聊天媒体和图表共用)
 [[r2_buckets]]
 binding     = "R2_BUCKET"
-bucket_name = "yuangs" # ✨ 请确保这是您正确的R2桶名
+bucket_name = "yuangs" # ✨ 请确保这是您正确的R2桶名称
 
 [[migrations]]
 tag = "v1"
