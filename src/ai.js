@@ -3,12 +3,19 @@
 import { getPrice } from './futuresDataService.js';
 import { getNews } from './newsService.js';
 import { drawChart } from './chart_generator.js';
+import * as fq from './futuresToolkit.js';
 
 // 绑定AI可用的工具函数
 const availableTools = {
     get_price: getPrice,
     get_news: getNews,
     draw_chart: drawChart,
+    
+    // 新增
+    query_fut_daily: (args, env) => fq.queryFuturesDaily(args.symbol, args.limit),
+    query_minutely: (args, env) => fq.queryMinutelyHistory(args.symbol, args.days),
+    query_option: (args, env) => fq.queryOptionQuote(args.symbol, args.limit),
+    query_lhb: (args, env) => fq.queryLHB(args.symbol, args.limit)
 };
 
 // =================================================================
@@ -238,7 +245,12 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         functionDeclarations: [
             { name: "get_price", description: "获取指定期货品种的详细信息", parameters: { type: "OBJECT", properties: { name: { type: "STRING", description: "期货品种的中文名称, 例如 '螺纹钢', '黄金'" } }, required: ["name"] } },
             { name: "get_news", description: "获取某个关键词的最新新闻", parameters: { type: "OBJECT", properties: { keyword: { type: "STRING", description: "要查询新闻的关键词, 例如 '原油'" } }, required: ["keyword"] } },
-            { name: "draw_chart", description: "根据代码和周期绘制K线图", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码, 例如 'ag'" }, period: { type: "STRING", description: "图表周期, 例如 'daily'" } }, required: ["symbol", "period"] } }
+            { name: "draw_chart", description: "根据代码和周期绘制K线图", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "期货合约代码, 例如 'ag'" }, period: { type: "STRING", description: "图表周期, 例如 'daily'" } }, required: ["symbol", "period"] } },
+            // 新增
+            { name: "query_fut_daily", description: "获取期货品种日线行情", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "如 rb、cu" }, limit: { type: "INTEGER", description: "条数，默认100" } }, required: ["symbol"] } },
+            { name: "query_minutely", description: "获取期货品种最近 N 天的 1 分钟 K 线", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, days: { type: "INTEGER", description: "最近 N 天", default: 1 } }, required: ["symbol", "days"] } },
+            { name: "query_option", description: "获取期权日线行情", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, limit: { type: "INTEGER", default: 100 } }, required: ["symbol"] } },
+            { name: "query_lhb", description: "获取期货龙虎榜数据", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, limit: { type: "INTEGER", default: 100 } }, required: ["symbol"] } }
         ]
     }];
 
@@ -297,6 +309,11 @@ export async function getGeminiChatAnswer(question, history = [], env) {
                             case 'get_price': result = await getPrice(args.name); break;
                             case 'get_news': result = await getNews(args.keyword); break;
                             case 'draw_chart': result = await drawChart(env, args.symbol, args.period); break;
+                            // 追加
+                            case 'query_fut_daily': result = await fq.queryFuturesDaily(args.symbol, args.limit); break;
+                            case 'query_minutely': result = await fq.queryMinutelyHistory(args.symbol, args.days); break;
+                            case 'query_option': result = await fq.queryOptionQuote(args.symbol, args.limit); break;
+                            case 'query_lhb': result = await fq.queryLHB(args.symbol, args.limit); break;
                             default: throw new Error(`未知工具: ${name}`);
                         }
                         return { functionResponse: { name, response: { content: result } } };
@@ -435,6 +452,62 @@ export async function getKimiChatAnswer(question, history = [], env) {
                 required: ["symbol", "period"]
             }
         }
+    }, {
+        type: "function",
+        function: {
+            name: "query_fut_daily",
+            description: "获取期货品种日线行情",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string", description: "如 rb、cu" },
+                    limit: { type: "integer", description: "条数，默认100" }
+                },
+                required: ["symbol"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "query_minutely",
+            description: "获取期货品种最近 N 天的 1 分钟 K 线",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string" },
+                    days: { type: "integer", description: "最近 N 天", default: 1 }
+                },
+                required: ["symbol", "days"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "query_option",
+            description: "获取期权日线行情",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string" },
+                    limit: { type: "integer", default: 100 }
+                },
+                required: ["symbol"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "query_lhb",
+            description: "获取期货龙虎榜数据",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string" },
+                    limit: { type: "integer", default: 100 }
+                },
+                required: ["symbol"]
+            }
+        }
     }];
 
     const messages = [
@@ -465,6 +538,11 @@ export async function getKimiChatAnswer(question, history = [], env) {
                         case 'get_price': result = await getPrice(args.name); break;
                         case 'get_news': result = await getNews(args.keyword); break;
                         case 'draw_chart': result = await drawChart(env, args.symbol, args.period); break;
+                        // 追加
+                        case 'query_fut_daily': result = await fq.queryFuturesDaily(args.symbol, args.limit); break;
+                        case 'query_minutely': result = await fq.queryMinutelyHistory(args.symbol, args.days); break;
+                        case 'query_option': result = await fq.queryOptionQuote(args.symbol, args.limit); break;
+                        case 'query_lhb': result = await fq.queryLHB(args.symbol, args.limit); break;
                         default: throw new Error(`未知工具: ${name}`);
                     }
                     console.log(`[AI] Kimi工具 '${name}' 执行成功。`);
