@@ -25,7 +25,7 @@ const availableTools = {
 async function callKimiApi(model, payload, env) {
     const apiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
     if (!apiKey) {
-        throw new Error('Server config error: No KIMI_API_KEY is set.');
+        throw new Error('服务器配置错误：未设置KIMI_API_KEY。');
     }
 
     const response = await fetch("https://api.moonshot.cn/v1/chat/completions", {
@@ -42,10 +42,10 @@ async function callKimiApi(model, payload, env) {
 
     if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[AI] Kimi API call failed with status ${response.status}: ${errorText}`);
-        throw new Error(`Kimi API error: ${errorText}`);
+        console.error(`[AI] Kimi API调用失败，状态码 ${response.status}: ${errorText}`);
+        throw new Error(`Kimi API错误: ${errorText}`);
     }
-    console.log(`[AI] Kimi API call successful.`);
+    console.log(`[AI] Kimi API调用成功。`);
     return await response.json();
 }
 
@@ -63,7 +63,7 @@ async function callKimiApi(model, payload, env) {
 async function callGeminiApi(modelUrl, payload, env) {
     const keys = [env.GEMINI_API_KEY, env.GEMINI_API_KEY2,env.GEMINI_API_KEY3].filter(Boolean);
     if (keys.length === 0) {
-        throw new Error('Server config error: No GEMINI_API_KEY is set.');
+        throw new Error('服务器配置错误：未设置GEMINI_API_KEY。');
     }
 
     for (let i = 0; i < keys.length; i++) {
@@ -84,27 +84,27 @@ async function callGeminiApi(modelUrl, payload, env) {
             const errorText = await response.text();
             // 如果是配额用尽错误，并且还有其他密钥，则继续尝试下一个
             if (response.status === 429 && errorText.includes("RESOURCE_EXHAUSTED") && i < keys.length - 1) {
-                console.log(`[AI] API Key ${i + 1} quota exceeded. Trying next key.`);
+                console.log(`[AI] API密钥 ${i + 1} 配额已用尽，正在尝试下一个密钥。`);
                 continue; 
             }
             
             // 对于其他错误或这是最后一个密钥，则直接抛出错误
-            throw new Error(`Gemini API error (Key ${i + 1}): ${errorText}`);
+            throw new Error(`Gemini API错误 (密钥 ${i + 1}): ${errorText}`);
 
         } catch (error) {
             // 如果是网络错误等，并且还有其他密钥，也尝试下一个
             if (i < keys.length - 1) {
-                console.error(`[AI] Error with API Key ${i + 1}:`, error.message, "Trying next key.");
+                console.error(`[AI] API密钥 ${i + 1} 出错:`, error.message, "正在尝试下一个密钥。");
                 continue;
             }
             // 这是最后一个密钥了，重新抛出错误
-            console.error(`[AI] All Gemini API keys failed or last key failed:`, error.message);
+            console.error(`[AI] 所有Gemini API密钥均失败或最后一个密钥失败:`, error.message);
             throw error;
         }
     }
     // 如果所有密钥都因配额问题失败，则抛出最终错误
-    console.error("[AI] All available Gemini API keys have exceeded their quota.");
-    throw new Error("All available Gemini API keys have exceeded their quota.");
+    console.error("[AI] 所有可用的Gemini API密钥配额均已用尽。");
+    throw new Error("所有可用的Gemini API密钥配额均已用尽。");
 }
 
 // =================================================================
@@ -116,7 +116,7 @@ async function callGeminiApi(modelUrl, payload, env) {
  */
 export async function getDeepSeekExplanation(text, env) {
     const apiKey = env.DEEPSEEK_API_KEY;
-    if (!apiKey) throw new Error('Server config error: DEEPSEEK_API_KEY is not set.');
+    if (!apiKey) throw new Error('服务器配置错误：未设置DEEPSEEK_API_KEY。');
 
     const now = new Date();
     const beijingTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -143,16 +143,16 @@ export async function getDeepSeekExplanation(text, env) {
 
     if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[AI] DeepSeek API error: ${errorText}`);
-        throw new Error(`DeepSeek API error: ${errorText}`);
+        console.error(`[AI] DeepSeek API错误: ${errorText}`);
+        throw new Error(`DeepSeek API错误: ${errorText}`);
     }
     const data = await response.json();
     const explanation = data?.choices?.[0]?.message?.content;
     if (!explanation) {
-        console.error('[AI] Unexpected AI response format from DeepSeek:', data);
-        throw new Error('Unexpected AI response format from DeepSeek.');
+        console.error('[AI] DeepSeek返回了意外的AI响应格式:', data);
+        throw new Error('DeepSeek返回了意外的AI响应格式。');
     }
-    console.log(`[AI] DeepSeek explanation generated.`);
+    console.log(`[AI] DeepSeek解释已生成。`);
     return explanation;
 }
 
@@ -163,16 +163,16 @@ async function fetchImageAsBase64(imageUrl) {
     try {
         const response = await fetch(imageUrl);
         if (!response.ok) {
-            console.error(`[AI] Failed to fetch image from ${imageUrl}: ${response.status} ${response.statusText}`);
-            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+            console.error(`[AI] 从 ${imageUrl} 获取图片失败: ${response.status} ${response.statusText}`);
+            throw new Error(`获取图片失败: ${response.status} ${response.statusText}`);
         }
         const contentType = response.headers.get('content-type') || 'image/jpeg';
         const buffer = await response.arrayBuffer();
         const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-        console.log(`[AI] Image fetched and converted to Base64: ${imageUrl}`);
+        console.log(`[AI] 图片已获取并转换为Base64: ${imageUrl}`);
         return { base64, contentType };
     } catch (e) {
-        console.error(`[AI] Error fetching or converting image ${imageUrl} to Base64: ${e.message}`, e);
+        console.error(`[AI] 获取或转换图片 ${imageUrl} 为Base64时出错: ${e.message}`, e);
         throw e;
     }
 }
@@ -193,13 +193,13 @@ export async function getGeminiImageDescription(imageUrl, env) {
         const data = await callGeminiApi(proModelUrl, payload, env);
         const description = data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!description) {
-            console.error('[AI] Unexpected AI response format from Gemini Vision:', data);
-            throw new Error('Unexpected AI response format from Gemini Vision.');
+            console.error('[AI] Gemini Vision返回了意外的AI响应格式:', data);
+            throw new Error('Gemini Vision返回了意外的AI响应格式。');
         }
-        console.log(`[AI] Gemini image description generated.`);
+        console.log(`[AI] Gemini图片描述已生成。`);
         return description;
     } catch (error) {
-        console.error("[AI] getGeminiImageDescription failed:", error);
+        console.error("[AI] getGeminiImageDescription失败:", error);
         return "抱歉，图片描述服务暂时无法使用。";
     }
 }
@@ -215,13 +215,13 @@ export async function getGeminiExplanation(text, env) {
         const data = await callGeminiApi(proModelUrl, payload, env);
         const explanation = data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!explanation) {
-            console.error('[AI] Unexpected AI response format from Gemini Explanation:', data);
-            throw new Error('Unexpected AI response format from Gemini.');
+            console.error('[AI] Gemini Explanation返回了意外的AI响应格式:', data);
+            throw new Error('Gemini返回了意外的AI响应格式。');
         }
-        console.log(`[AI] Gemini explanation generated.`);
+        console.log(`[AI] Gemini解释已生成。`);
         return explanation;
     } catch (error) {
-        console.error("[AI] getGeminiExplanation failed:", error);
+        console.error("[AI] getGeminiExplanation失败:", error);
         return "抱歉，文本解释服务暂时无法使用。";
     }
 }
@@ -259,12 +259,12 @@ export async function getGeminiChatAnswer(question, history = [], env) {
             data = await callGeminiApi(proModelUrl, { contents, tools }, env);
         } catch (error) {
             if (error.message.includes("quota")) {
-                console.log("[AI] Pro model failed, falling back to Flash for this turn.");
-                modelUsed = 'Flash (Fallback)';
+                console.log("[AI] Pro模型失败，本轮回退到Flash模型。");
+                modelUsed = 'Flash (回退)';
                 try {
                     data = await callGeminiApi(flashModelUrl, { contents, tools }, env);
                 } catch (fallbackError) {
-                    console.error("[AI] Flash fallback also failed:", fallbackError);
+                    console.error("[AI] Flash回退也失败了:", fallbackError);
                     return "抱歉，AI服务暂时遇到问题，请稍后再试。";
                 }
             } else {
@@ -288,7 +288,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
             contents.push(candidate.content);
             const toolResponseParts = await Promise.all(functionCallParts.map(async (part) => {
                 const { name, args } = part.functionCall;
-                console.log(`[AI] Calling tool: ${name} with args:`, args);
+                console.log(`[AI] 调用工具: ${name}，参数:`, args);
                 const tool = availableTools[name];
                 if (tool) {
                     try {
@@ -297,11 +297,11 @@ export async function getGeminiChatAnswer(question, history = [], env) {
                             case 'get_price': result = await getPrice(args.name); break;
                             case 'get_news': result = await getNews(args.keyword); break;
                             case 'draw_chart': result = await drawChart(env, args.symbol, args.period); break;
-                            default: throw new Error(`Unknown tool: ${name}`);
+                            default: throw new Error(`未知工具: ${name}`);
                         }
                         return { functionResponse: { name, response: { content: result } } };
                     } catch (e) {
-                        console.error(`[AI] Error executing tool '${name}':`, e);
+                        console.error(`[AI] 执行工具 '${name}' 时出错:`, e);
                         return { functionResponse: { name, response: { content: `工具执行失败: ${e.message}` } } };
                     }
                 } else {
@@ -317,7 +317,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         }
     }
 
-    throw new Error("AI did not provide a final answer after multiple tool calls.");
+    throw new Error("AI在多次工具调用后未提供最终答案。");
 }
 
 // =================================================================
@@ -329,7 +329,7 @@ export async function getGeminiChatAnswer(question, history = [], env) {
  */
 export async function getKimiExplanation(text, env) {
     const apiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
-    if (!apiKey) throw new Error('Server config error: No KIMI_API_KEY is set.');
+    if (!apiKey) throw new Error('服务器配置错误：未设置KIMI_API_KEY。');
 
     try {
         const data = await callKimiApi("moonshot-v1-8k", {
@@ -341,10 +341,10 @@ export async function getKimiExplanation(text, env) {
         }, env);
         
         const explanation = data?.choices?.[0]?.message?.content;
-        if (!explanation) throw new Error('Unexpected AI response format from Kimi.');
+        if (!explanation) throw new Error('Kimi返回了意外的AI响应格式。');
         return explanation;
     } catch (error) {
-        console.error("[AI] getKimiExplanation failed:", error);
+        console.error("[AI] getKimiExplanation失败:", error);
         return "抱歉，Kimi文本解释服务暂时无法使用。";
     }
 }
@@ -355,7 +355,7 @@ export async function getKimiExplanation(text, env) {
 export async function getKimiImageDescription(imageUrl, env) {
     const { base64, contentType } = await fetchImageAsBase64(imageUrl);
     const apiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
-    if (!apiKey) throw new Error('Server config error: No KIMI_API_KEY is set.');
+    if (!apiKey) throw new Error('服务器配置错误：未设置KIMI_API_KEY。');
 
     try {
         const data = await callKimiApi("moonshot-v1-8k-vision-preview", {
@@ -380,10 +380,10 @@ export async function getKimiImageDescription(imageUrl, env) {
         }, env);
         
         const description = data?.choices?.[0]?.message?.content;
-        if (!description) throw new Error('Unexpected AI response format from Kimi Vision.');
+        if (!description) throw new Error('Kimi Vision返回了意外的AI响应格式。');
         return description;
     } catch (error) {
-        console.error("[AI] getKimiImageDescription failed:", error);
+        console.error("[AI] getKimiImageDescription失败:", error);
         return "抱歉，Kimi图片描述服务暂时无法使用。";
     }
 }
@@ -393,7 +393,7 @@ export async function getKimiImageDescription(imageUrl, env) {
  */
 export async function getKimiChatAnswer(question, history = [], env) {
     const apiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
-    if (!apiKey) throw new Error('Server config error: No KIMI_API_KEY is set.');
+    if (!apiKey) throw new Error('服务器配置错误：未设置KIMI_API_KEY。');
 
     const tools = [{
         type: "function",
@@ -457,7 +457,7 @@ export async function getKimiChatAnswer(question, history = [], env) {
             // 处理工具调用
             const toolResults = await Promise.all(choice.message.tool_calls.map(async (toolCall) => {
                 const { name, arguments: args } = toolCall.function;
-                console.log(`[AI] Kimi calling tool: ${name} with args:`, args);
+                console.log(`[AI] Kimi调用工具: ${name}，参数:`, args);
                 
                 try {
                     let result;
@@ -465,16 +465,16 @@ export async function getKimiChatAnswer(question, history = [], env) {
                         case 'get_price': result = await getPrice(args.name); break;
                         case 'get_news': result = await getNews(args.keyword); break;
                         case 'draw_chart': result = await drawChart(env, args.symbol, args.period); break;
-                        default: throw new Error(`Unknown tool: ${name}`);
+                        default: throw new Error(`未知工具: ${name}`);
                     }
-                    console.log(`[AI] Kimi tool '${name}' executed successfully.`);
+                    console.log(`[AI] Kimi工具 '${name}' 执行成功。`);
                     return {
                         tool_call_id: toolCall.id,
                         role: "tool",
                         content: JSON.stringify({ content: result })
                     };
                 } catch (e) {
-                    console.error(`[AI] Error executing Kimi tool '${name}': ${e.message}`, e);
+                    console.error(`[AI] 执行Kimi工具 '${name}' 时出错: ${e.message}`, e);
                     return {
                         tool_call_id: toolCall.id,
                         role: "tool",
@@ -501,7 +501,7 @@ export async function getKimiChatAnswer(question, history = [], env) {
             return choice.message.content;
         }
     } catch (error) {
-        console.error("[AI] getKimiChatAnswer failed:", error);
+        console.error("[AI] getKimiChatAnswer失败:", error);
         return "抱歉，Kimi聊天服务暂时遇到问题，请稍后再试。";
     }
 }

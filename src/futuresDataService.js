@@ -68,13 +68,13 @@ const fetchData = async (url) => {
       }
     });
     if (!response.ok) {
-      console.error(`[FuturesData] API request to ${url} failed with status ${response.status}`);
-      throw new Error(`API request failed with status ${response.status}`);
+      console.error(`[期货数据] 对 ${url} 的API请求失败，状态码 ${response.status}`);
+      throw new Error(`API请求失败，状态码 ${response.status}`);
     }
-    console.log(`[FuturesData] Successfully fetched data from ${url}`);
+    console.log(`[期货数据] 成功从 ${url} 获取数据`);
     return response.json();
   } catch (error) {
-    console.error(`[FuturesData] Error fetching data from ${url}:`, error);
+    console.error(`[期货数据] 从 ${url} 获取数据时出错:`, error);
     throw error;
   }
 }
@@ -99,7 +99,7 @@ const getFuturesData = async () => {
         const marginItem = marginDataMap.get(zdfItem.dm)
 
         if (!marginItem) {
-          console.warn(`No matching margin data for dm ${zdfItem.dm}`)
+          console.warn(`未找到代码 ${zdfItem.dm} 匹配的保证金数据`)
           return null
         }
 
@@ -130,10 +130,10 @@ const getFuturesData = async () => {
         }
       })
       .filter(Boolean)
-    console.log(`[FuturesData] Successfully fetched and processed ${zdfData.length} futures data entries.`);
+    console.log(`[期货数据] 成功获取并处理了 ${zdfData.length} 条期货数据。`);
     return processedData;
   } catch (error) {
-    console.error('[FuturesData] Failed to fetch futures data:', error);
+    console.error('[期货数据] 获取期货数据失败:', error);
     throw error;
   }
 }
@@ -145,15 +145,15 @@ const getFuturesData = async () => {
  */
 const getPrice = async (name) => {
   try {
-    console.log(`[getPrice] Received name: "${name}"`);
+    console.log(`[获取价格] 收到名称: "${name}"`);
     if (!name) {
-        console.warn(`[getPrice] Name parameter is missing.`);
-        return JSON.stringify({ error: "Name parameter is missing." });
+        console.warn(`[获取价格] 缺少名称参数。`);
+        return JSON.stringify({ error: "缺少名称参数。" });
     }
 
     // 从映射中查找代码，如果找不到，则直接使用输入（以支持直接输入代码）
     const symbol = nameToSymbolMap[name] || name;
-    console.log(`[getPrice] Mapped name "${name}" to symbol: "${symbol}"`);
+    console.log(`[获取价格] 将名称 "${name}" 映射到代码: "${symbol}"`);
 
     const response = await fetchData('https://q.889.ink/');
     const allData = response.list;
@@ -175,7 +175,7 @@ const getPrice = async (name) => {
     });
 
     if (contract) {
-      console.log(`[getPrice] Found contract:`, contract);
+      console.log(`[获取价格] 找到合约:`, contract);
       // 提取关键价格信息
       const priceInfo = {
         symbol: contract.dm,
@@ -195,15 +195,15 @@ const getPrice = async (name) => {
         zdf250: contract.zdf250, // 250日涨幅
         timestamp: contract.utime
       };
-      console.log(`[getPrice] Found contract for "${name}" (symbol "${symbol}"):`, priceInfo);
+      console.log(`[获取价格] 找到合约 "${name}" (代码 "${symbol}"):`, priceInfo);
       return JSON.stringify(priceInfo);
     } else {
-      console.warn(`[getPrice] Contract with name '${name}' (symbol '${symbol}') not found.`);
-      return JSON.stringify({ error: `Contract with name '${name}' (symbol '${symbol}') not found.` });
+      console.warn(`[获取价格] 未找到名为 '${name}' (代码 '${symbol}') 的合约。`);
+      return JSON.stringify({ error: `未找到名为 '${name}' (代码 '${symbol}') 的合约。` });
     }
   } catch (error) {
-    console.error(`[getPrice] Failed to get price for ${name}:`, error);
-    return JSON.stringify({ error: `Failed to fetch price data for ${name}.` });
+    console.error(`[获取价格] 获取 ${name} 的价格失败:`, error);
+    return JSON.stringify({ error: `获取 ${name} 的价格数据失败。` });
   }
 };
 
