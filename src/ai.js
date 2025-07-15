@@ -581,7 +581,7 @@ export async function getKimiChatAnswer(question, history = [], env, logCallback
     }];
 
     const messages = [
-        { role: "system", content: "你是一个全能的AI助手，专门帮助用户解答期货相关问题。你可以获取实时行情、最新新闻和生成图表。请用中文回答，并保持回答简洁明了。" },
+        { role: "system", content: "你是一个全能的AI助手，专门帮助用户解答期货相关问题。你可以获取实时行情、最新新闻和生成图表。请用中文回答，并保持回答简洁明了。如果用户问了期货无关的问题，也不要拒绝回答，此时给一个通用回答即可。" },
         ...history,
         { role: "user", content: question }
     ];
