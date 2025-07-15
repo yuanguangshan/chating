@@ -260,10 +260,8 @@ export async function getGeminiChatAnswer(question, history = [], env) {
             { name: "smart_query", description: "智能期货查询，支持自然语言如'螺纹钢过去5天最高价'", parameters: { type: "OBJECT", properties: { query: { type: "STRING", description: "自然语言查询，例如'螺纹钢过去5天最高价'或'帮我看看铜的行情'" } }, required: ["query"] } },
             { name: "get_highest_price", description: "获取指定期货品种过去N天的最高价", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, days: { type: "INTEGER", default: 5 } }, required: ["symbol"] } },
             { name: "get_lowest_price", description: "获取指定期货品种过去N天的最低价", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, days: { type: "INTEGER", default: 5 } }, required: ["symbol"] } },
-            { name: "smart_query", description: "智能期货查询，支持自然语言查询如'螺纹钢过去5天最高价'", parameters: { type: "OBJECT", properties: { query: { type: "STRING", description: "自然语言查询，例如'帮我查询过去5天螺纹钢rb的最高价' } }, required: ["query"] } }
         ]
     }];
-
     const contents = [
         { role: "user", parts: [{ text: "你是一个全能的AI助手..." }] }, // System prompt
         { role: "model", parts: [{ text: "好的，我已理解..." }] },   // System prompt ack
