@@ -3,7 +3,7 @@
  * 封装对后端API的调用
  */
 
-const API_BASE_URL = 'http://localhost:5001';
+const API_BASE_URL = 'https://api.yuangs.cc';
 
 /**
  * 通用API调用函数
