@@ -8,19 +8,19 @@ import { smartQuery } from './dataApiService.js';
 
 // 绑定AI可用的工具函数
 const availableTools = {
-    get_price: getPrice,
-    get_news: getNews,
-    draw_chart: drawChart,
+    get_price: (args) => getPrice(args.name),
+    get_news: (args) => getNews(args.keyword),
+    draw_chart: (args, env) => drawChart(env, args.symbol, args.period),
     
     // 新增
-    query_fut_daily: (args, env) => fq.queryFuturesDaily(args.symbol, args.limit),
-    query_minutely: (args, env) => fq.queryMinutelyHistory(args.symbol, args.days),
-    query_option: (args, env) => fq.queryOptionQuote(args.symbol, args.limit),
-    query_lhb: (args, env) => fq.queryLHB(args.symbol, args.limit),
-    query_aggregate: (args, env) => fq.queryAggregate(args.symbol, args.days, args.aggFunc, args.column),
-    smart_query: (args, env) => fq.smartQuery(args.query),
-    get_highest_price: (args, env) => fq.getHighestPrice(args.symbol, args.days),
-    get_lowest_price: (args, env) => fq.getLowestPrice(args.symbol, args.days)
+    query_fut_daily: (args) => fq.queryFuturesDaily(args.symbol, args.limit),
+    query_minutely: (args) => fq.queryMinutelyHistory(args.symbol, args.days),
+    query_option: (args) => fq.queryOptionQuote(args.symbol, args.limit),
+    query_lhb: (args) => fq.queryLHB(args.symbol, args.limit),
+    query_aggregate: (args) => fq.queryAggregate(args.symbol, args.days, args.aggFunc, args.column),
+    smart_query: (args) => fq.smartQuery(args.query),
+    get_highest_price: (args) => fq.getHighestPrice(args.symbol, args.days),
+    get_lowest_price: (args) => fq.getLowestPrice(args.symbol, args.days)
 };
 
 // =================================================================
@@ -308,25 +308,14 @@ export async function getGeminiChatAnswer(question, history = [], env) {
             contents.push(candidate.content);
             const toolResponseParts = await Promise.all(functionCallParts.map(async (part) => {
                 const { name, args } = part.functionCall;
-                console.log(`[AI] 调用工具: ${name}，参数:`, args);
+                console.log(`[AI] Gemini 调用工具: ${name}，参数:`, args);
                 const tool = availableTools[name];
                 if (tool) {
                     try {
-                        let result;
-                        switch (name) {
-                            case 'get_price': result = await getPrice(args.name); break;
-                            case 'get_news': result = await getNews(args.keyword); break;
-                            case 'draw_chart': result = await drawChart(env, args.symbol, args.period); break;
-                            // 追加
-                            case 'query_fut_daily': result = await fq.queryFuturesDaily(args.symbol, args.limit); break;
-                            case 'query_minutely': result = await fq.queryMinutelyHistory(args.symbol, args.days); break;
-                            case 'query_option': result = await fq.queryOptionQuote(args.symbol, args.limit); break;
-                            case 'query_lhb': result = await fq.queryLHB(args.symbol, args.limit); break;
-                            default: throw new Error(`未知工具: ${name}`);
-                        }
+                        const result = await tool(args, env);
                         return { functionResponse: { name, response: { content: result } } };
                     } catch (e) {
-                        console.error(`[AI] 执行工具 '${name}' 时出错:`, e);
+                        console.error(`[AI] 执行Gemini工具 '${name}' 时出错:`, e);
                         return { functionResponse: { name, response: { content: `工具执行失败: ${e.message}` } } };
                     }
                 } else {
@@ -594,26 +583,28 @@ export async function getKimiChatAnswer(question, history = [], env) {
         if (choice.finish_reason === "tool_calls" && choice.message.tool_calls) {
             // 处理工具调用
             const toolResults = await Promise.all(choice.message.tool_calls.map(async (toolCall) => {
-                const { name, arguments: args } = toolCall.function;
-                console.log(`[AI] Kimi调用工具: ${name}，参数:`, args);
-                
+                const { name, arguments: argsString } = toolCall.function;
+                let args;
                 try {
-                    let result;
-                    switch (name) {
-                        case 'get_price': result = await getPrice(args.name); break;
-                        case 'get_news': result = await getNews(args.keyword); break;
-                        case 'draw_chart': result = await drawChart(env, args.symbol, args.period); break;
-                        // 追加
-                        case 'query_fut_daily': result = await fq.queryFuturesDaily(args.symbol, args.limit); break;
-                        case 'query_minutely': result = await fq.queryMinutelyHistory(args.symbol, args.days); break;
-                        case 'query_option': result = await fq.queryOptionQuote(args.symbol, args.limit); break;
-                        case 'query_lhb': result = await fq.queryLHB(args.symbol, args.limit); break;
-                        case 'query_aggregate': result = await fq.queryAggregate(args.symbol, args.days, args.aggFunc, args.column); break;
-                        case 'smart_query': result = await fq.smartQuery(args.query); break;
-                        case 'get_highest_price': result = await fq.getHighestPrice(args.symbol, args.days); break;
-                        case 'get_lowest_price': result = await fq.getLowestPrice(args.symbol, args.days); break;
-                        default: throw new Error(`未知工具: ${name}`);
+                    // Kimi/Moonshot 返回的参数是字符串，需要解析
+                    args = JSON.parse(argsString);
+                } catch (e) {
+                    console.error(`[AI] Kimi工具 '${name}' 参数解析失败:`, argsString, e);
+                    return {
+                        tool_call_id: toolCall.id,
+                        role: "tool",
+                        content: JSON.stringify({ error: `工具参数解析失败: ${e.message}` })
+                    };
+                }
+
+                console.log(`[AI] Kimi调用工具: ${name}，参数:`, args);
+                const tool = availableTools[name];
+
+                try {
+                    if (!tool) {
+                        throw new Error(`未知工具: ${name}`);
                     }
+                    const result = await tool(args, env);
                     console.log(`[AI] Kimi工具 '${name}' 执行成功。`);
                     return {
                         tool_call_id: toolCall.id,
