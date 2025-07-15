@@ -4,6 +4,7 @@ import { getPrice } from './futuresDataService.js';
 import { getNews } from './newsService.js';
 import { drawChart } from './chart_generator.js';
 import * as fq from './futuresToolkit.js';
+import { smartQuery } from './dataApiService.js';
 
 // 绑定AI可用的工具函数
 const availableTools = {
@@ -15,7 +16,11 @@ const availableTools = {
     query_fut_daily: (args, env) => fq.queryFuturesDaily(args.symbol, args.limit),
     query_minutely: (args, env) => fq.queryMinutelyHistory(args.symbol, args.days),
     query_option: (args, env) => fq.queryOptionQuote(args.symbol, args.limit),
-    query_lhb: (args, env) => fq.queryLHB(args.symbol, args.limit)
+    query_lhb: (args, env) => fq.queryLHB(args.symbol, args.limit),
+    query_aggregate: (args, env) => fq.queryAggregate(args.symbol, args.days, args.aggFunc, args.column),
+    smart_query: (args, env) => fq.smartQuery(args.query),
+    get_highest_price: (args, env) => fq.getHighestPrice(args.symbol, args.days),
+    get_lowest_price: (args, env) => fq.getLowestPrice(args.symbol, args.days)
 };
 
 // =================================================================
@@ -250,7 +255,12 @@ export async function getGeminiChatAnswer(question, history = [], env) {
             { name: "query_fut_daily", description: "获取期货品种日线行情", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "如 rb、cu" }, limit: { type: "INTEGER", description: "条数，默认100" } }, required: ["symbol"] } },
             { name: "query_minutely", description: "获取期货品种最近 N 天的 1 分钟 K 线", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, days: { type: "INTEGER", description: "最近 N 天", default: 1 } }, required: ["symbol", "days"] } },
             { name: "query_option", description: "获取期权日线行情", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, limit: { type: "INTEGER", default: 100 } }, required: ["symbol"] } },
-            { name: "query_lhb", description: "获取期货龙虎榜数据", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, limit: { type: "INTEGER", default: 100 } }, required: ["symbol"] } }
+            { name: "query_lhb", description: "获取期货龙虎榜数据", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, limit: { type: "INTEGER", default: 100 } }, required: ["symbol"] } },
+            { name: "query_aggregate", description: "聚合查询期货数据（如最高价、最低价、平均成交量等）", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING", description: "品种代码如rb、cu等" }, days: { type: "INTEGER", description: "查询天数，默认5天" }, aggFunc: { type: "STRING", description: "聚合函数：MAX、MIN、AVG、SUM" }, column: { type: "STRING", description: "字段名：最高、最低、成交量等" } }, required: ["symbol"] } },
+            { name: "smart_query", description: "智能期货查询，支持自然语言如'螺纹钢过去5天最高价'", parameters: { type: "OBJECT", properties: { query: { type: "STRING", description: "自然语言查询，例如'螺纹钢过去5天最高价'或'帮我看看铜的行情'" } }, required: ["query"] } },
+            { name: "get_highest_price", description: "获取指定期货品种过去N天的最高价", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, days: { type: "INTEGER", default: 5 } }, required: ["symbol"] } },
+            { name: "get_lowest_price", description: "获取指定期货品种过去N天的最低价", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, days: { type: "INTEGER", default: 5 } }, required: ["symbol"] } },
+            { name: "smart_query", description: "智能期货查询，支持自然语言查询如'螺纹钢过去5天最高价'", parameters: { type: "OBJECT", properties: { query: { type: "STRING", description: "自然语言查询，例如'帮我查询过去5天螺纹钢rb的最高价' } }, required: ["query"] } }
         ]
     }];
 
@@ -508,6 +518,63 @@ export async function getKimiChatAnswer(question, history = [], env) {
                 required: ["symbol"]
             }
         }
+    }, {
+        type: "function",
+        function: {
+            name: "query_aggregate",
+            description: "聚合查询期货数据（如最高价、最低价、平均成交量等）",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string", description: "品种代码如rb、cu等" },
+                    days: { type: "integer", description: "查询天数，默认5天" },
+                    aggFunc: { type: "string", description: "聚合函数：MAX、MIN、AVG、SUM" },
+                    column: { type: "string", description: "字段名：最高、最低、成交量等" }
+                },
+                required: ["symbol", "aggFunc", "column"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "smart_query",
+            description: "智能期货查询，支持自然语言如'螺纹钢过去5天最高价'",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: { type: "string", description: "自然语言查询，例如'螺纹钢过去5天最高价'或'帮我看看铜的行情'" }
+                },
+                required: ["query"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "get_highest_price",
+            description: "获取指定期货品种过去N天的最高价",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string", description: "品种代码如rb、cu等" },
+                    days: { type: "integer", default: 5, description: "查询天数" }
+                },
+                required: ["symbol"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "get_lowest_price",
+            description: "获取指定期货品种过去N天的最低价",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string", description: "品种代码如rb、cu等" },
+                    days: { type: "integer", default: 5, description: "查询天数" }
+                },
+                required: ["symbol"]
+            }
+        }
     }];
 
     const messages = [
@@ -543,6 +610,10 @@ export async function getKimiChatAnswer(question, history = [], env) {
                         case 'query_minutely': result = await fq.queryMinutelyHistory(args.symbol, args.days); break;
                         case 'query_option': result = await fq.queryOptionQuote(args.symbol, args.limit); break;
                         case 'query_lhb': result = await fq.queryLHB(args.symbol, args.limit); break;
+                        case 'query_aggregate': result = await fq.queryAggregate(args.symbol, args.days, args.aggFunc, args.column); break;
+                        case 'smart_query': result = await fq.smartQuery(args.query); break;
+                        case 'get_highest_price': result = await fq.getHighestPrice(args.symbol, args.days); break;
+                        case 'get_lowest_price': result = await fq.getLowestPrice(args.symbol, args.days); break;
                         default: throw new Error(`未知工具: ${name}`);
                     }
                     console.log(`[AI] Kimi工具 '${name}' 执行成功。`);
