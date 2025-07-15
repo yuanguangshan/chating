@@ -380,6 +380,7 @@ async function generateAndUploadChart(env, chartTitle, option, width, height) {
     const r2Key = `${subfolder}${fileName}`;
 
     await env.R2_BUCKET.put(r2Key, svg, { httpMetadata: { contentType: 'image/svg+xml' } });
+    console.log(`[ChartGenerator] SVG chart "${fileName}" generated and uploaded to R2 at ${r2Key}.`);
     
     // ✨【重要】请将下面的URL替换为您自己R2桶的公开访问URL
     const publicUrl = `https://pub-8dfbdda6df204465aae771b4c080140b.r2.dev/${r2Key}`;
@@ -432,6 +433,7 @@ export async function drawChart(env, symbol, period = 'daily') {
             imageUrl: url,
             description: `成功生成 ${symbol.toUpperCase()} 的 ${period} 周期K线图。`
         };
+        console.log(`[drawChart] Successfully generated chart for ${symbol} (${period}): ${url}`);
         return JSON.stringify(result);
 
     } catch (error) {
@@ -449,8 +451,12 @@ export async function generateAndPostCharts(env, roomName) {
     console.log(`[ChartGenerator] Starting for room: ${roomName}`);
     try {
         const dataResponse = await fetch("https://q.want.biz/");
-        if (!dataResponse.ok) throw new Error("Failed to fetch data source.");
+        if (!dataResponse.ok) {
+            console.error("[ChartGenerator] Failed to fetch data source from https://q.want.biz/");
+            throw new Error("Failed to fetch data source.");
+        }
         const apiData = await dataResponse.json();
+        console.log(`[ChartGenerator] Successfully fetched initial data. Total items: ${apiData.list.length}`);
         
         // 确保数据过滤和前端保持一致：只保留沉淀资金大于15亿的品种
         let filteredData = apiData.list.filter(item => item.cdzj > 15 * 1e8); 
@@ -519,6 +525,6 @@ export async function generateAndPostCharts(env, roomName) {
         console.log(`[ChartGenerator] All charts posted to room: ${roomName}`);
 
     } catch (error) {
-        console.error(`[ChartGenerator] Process failed:`, error.stack || error);
+        console.error(`[ChartGenerator] Process failed: ${error.message}`, error.stack || error);
     }
 }

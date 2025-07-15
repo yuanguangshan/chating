@@ -66,8 +66,10 @@ async function executeTextTask(env, ctx) {
         ctx.waitUntil(stub.cronPost(content, env.CRON_SECRET));
         
         console.log(`[Cron Task] Successfully dispatched text message to room: ${roomName}`);
+        return { success: true, roomName: roomName, message: "文本消息已成功发送。" };
     } catch (error) {
         console.error(`CRON ERROR (text task):`, error.stack || error);
+        return { success: false, roomName: roomName, error: error.message };
     }
 }
 /**
@@ -84,8 +86,10 @@ async function executeChartTask(env, ctx) {
         ctx.waitUntil(generateAndPostCharts(env, roomName));
         
         console.log(`[Cron Task] Chart generation process dispatched for room: ${roomName}`);
+        return { success: true, roomName: roomName, message: "图表生成任务已分发。" };
     } catch (error) {
         console.error(`CRON ERROR (chart task):`, error.stack || error);
+        return { success: false, roomName: roomName, error: error.message };
     }
 }
 
@@ -127,9 +131,10 @@ async function executeNewsTask(env, ctx) {
         ctx.waitUntil(stub.cronPost(newsContent, env.CRON_SECRET));
         
         console.log(`[Cron Task] Successfully dispatched news to room: ${roomName}`);
-
+        return { success: true, roomName: roomName, message: "新闻已成功发送。" };
     } catch (error) {
         console.error(`CRON ERROR (news task):`, error.stack || error);
+        return { success: false, roomName: roomName, error: error.message };
     }
 }
 
@@ -171,8 +176,10 @@ async function executeFuturesTestTask(env, ctx) {
         const stub = env.CHAT_ROOM_DO.get(doId);
         
         ctx.waitUntil(stub.cronPost(content, env.CRON_SECRET));
-
+        console.log(`[Cron Task] Successfully dispatched futures data test result to room: ${roomName}`);
+        return { success: true, roomName: roomName, message: "期货数据测试结果已发送。" };
     } catch (error) {
         console.error(`CRON ERROR (futures test task):`, error.stack || error);
+        return { success: false, roomName: roomName, error: error.message };
     }
 }
