@@ -930,6 +930,11 @@ async handleSessionInitialization(ws, url) {
         const model = payload.model || 'gemini';
         this.debugLog(`💬 [AI] Processing ${model} chat from 👦 ${session.username}`, 'INFO', payload);
 
+        // ✨ 新增：创建一个绑定到此请求的日志记录器
+        const logCallback = (message, level = 'INFO', data = null) => {
+            this.debugLog(`[AI] ${message}`, level, data);
+        };
+
         // 1. Post the user's original question immediately, with a "thinking" indicator.
         const thinkingMessage = {
             id: payload.id || crypto.randomUUID(),
@@ -953,14 +958,14 @@ async handleSessionInitialization(ws, url) {
 
             let answer;
             if (model === 'kimi') {
-                answer = await getKimiChatAnswer(payload.text, history, this.env);
+                answer = await getKimiChatAnswer(payload.text, history, this.env, logCallback);
             } else {
                 // 将历史记录转换为Gemini格式
                 const geminiHistory = history.map(h => ({
                     role: h.role === 'assistant' ? 'model' : 'user',
                     parts: [{ text: h.content }]
                 }));
-                answer = await getGeminiChatAnswer(payload.text, geminiHistory, this.env);
+                answer = await getGeminiChatAnswer(payload.text, geminiHistory, this.env, logCallback);
             }
 
             // 3. Find the original "thinking" message

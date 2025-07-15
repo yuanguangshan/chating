@@ -31,16 +31,20 @@ const availableTools = {
  * @param {string} model - 要调用的模型名称
  * @param {object} payload - 发送给API的请求体
  * @param {object} env - 环境变量，包含KIMI_API_KEY
+ * @param {function} [logCallback] - 用于记录日志的回调函数
  * @returns {Promise<object>} - 返回API的JSON响应
  * @throws {Error} - 如果调用失败，则抛出错误
  */
-async function callKimiApi(model, payload, env) {
+async function callKimiApi(model, payload, env, logCallback = () => {}) {
     const apiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
     if (!apiKey) {
         throw new Error('服务器配置错误：未设置KIMI_API_KEY。');
     }
 
-    const response = await fetch("https://api.moonshot.cn/v1/chat/completions", {
+    const url = "https://api.moonshot.cn/v1/chat/completions";
+    logCallback(`🚀 [API Request] Calling Kimi API: POST ${url}`);
+
+    const response = await fetch(url, {
         method: "POST",
         headers: { 
             "Content-Type": "application/json",
@@ -69,10 +73,11 @@ async function callKimiApi(model, payload, env) {
  * @param {string} modelUrl - 要调用的模型URL (不含API Key)。
  * @param {object} payload - 发送给API的请求体。
  * @param {object} env - 环境变量，包含GEMINI_API_KEY和可选的GEMINI_API_KEY2。
+ * @param {function} [logCallback] - 用于记录日志的回调函数
  * @returns {Promise<object>} - 返回API的JSON响应。
  * @throws {Error} - 如果所有尝试都失败，则抛出错误。
  */
-async function callGeminiApi(modelUrl, payload, env) {
+async function callGeminiApi(modelUrl, payload, env, logCallback = () => {}) {
     const keys = [env.GEMINI_API_KEY, env.GEMINI_API_KEY2,env.GEMINI_API_KEY3].filter(Boolean);
     if (keys.length === 0) {
         throw new Error('服务器配置错误：未设置GEMINI_API_KEY。');
@@ -83,6 +88,7 @@ async function callGeminiApi(modelUrl, payload, env) {
         const urlWithKey = `${modelUrl}?key=${key}`;
         
         try {
+            logCallback(`🚀 [API Request] Calling Gemini API: POST ${modelUrl} (Key ${i + 1})`);
             const response = await fetch(urlWithKey, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -241,8 +247,12 @@ export async function getGeminiExplanation(text, env) {
 
 /**
  * 调用 Google Gemini API 获取聊天回复（支持多轮函数调用）。
+ * @param {string} question - 用户的问题
+ * @param {Array} history - 聊天历史
+ * @param {object} env - 环境变量
+ * @param {function} [logCallback] - 用于记录日志的回调函数
  */
-export async function getGeminiChatAnswer(question, history = [], env) {
+export async function getGeminiChatAnswer(question, history = [], env, logCallback = () => {}) {
     const flashModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
     const proModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent`;
 
@@ -276,15 +286,15 @@ export async function getGeminiChatAnswer(question, history = [], env) {
         let modelUsed = 'Pro';
         let data;
         try {
-            data = await callGeminiApi(proModelUrl, { contents, tools }, env);
+            data = await callGeminiApi(proModelUrl, { contents, tools }, env, logCallback);
         } catch (error) {
             if (error.message.includes("quota")) {
-                console.log("[AI] Pro模型失败，本轮回退到Flash模型。");
+                logCallback("🔄 [AI Fallback] Pro model quota exceeded, falling back to Flash model.");
                 modelUsed = 'Flash (回退)';
                 try {
-                    data = await callGeminiApi(flashModelUrl, { contents, tools }, env);
+                    data = await callGeminiApi(flashModelUrl, { contents, tools }, env, logCallback);
                 } catch (fallbackError) {
-                    console.error("[AI] Flash回退也失败了:", fallbackError);
+                    logCallback(`❌ [AI Fallback] Flash model also failed: ${fallbackError.message}`, 'ERROR');
                     return "抱歉，AI服务暂时遇到问题，请稍后再试。";
                 }
             } else {
@@ -308,17 +318,19 @@ export async function getGeminiChatAnswer(question, history = [], env) {
             contents.push(candidate.content);
             const toolResponseParts = await Promise.all(functionCallParts.map(async (part) => {
                 const { name, args } = part.functionCall;
-                console.log(`[AI] Gemini 调用工具: ${name}，参数:`, args);
+                logCallback(`🛠️ [Tool Call] Gemini is calling function: ${name}`, 'INFO', args);
                 const tool = availableTools[name];
                 if (tool) {
                     try {
                         const result = await tool(args, env);
+                        logCallback(`✅ [Tool Result] Function ${name} returned successfully.`);
                         return { functionResponse: { name, response: { content: result } } };
                     } catch (e) {
-                        console.error(`[AI] 执行Gemini工具 '${name}' 时出错:`, e);
+                        logCallback(`❌ [Tool Error] Function ${name} failed: ${e.message}`, 'ERROR', e);
                         return { functionResponse: { name, response: { content: `工具执行失败: ${e.message}` } } };
                     }
                 } else {
+                    logCallback(`❓ [Tool Error] Function ${name} is not available.`, 'WARN');
                     return { functionResponse: { name, response: { content: `函数 '${name}' 不可用。` } } };
                 }
             }));
@@ -404,8 +416,12 @@ export async function getKimiImageDescription(imageUrl, env) {
 
 /**
  * 调用 Kimi API 获取聊天回复（支持多轮对话和工具调用）
+ * @param {string} question - 用户的问题
+ * @param {Array} history - 聊天历史
+ * @param {object} env - 环境变量
+ * @param {function} [logCallback] - 用于记录日志的回调函数
  */
-export async function getKimiChatAnswer(question, history = [], env) {
+export async function getKimiChatAnswer(question, history = [], env, logCallback = () => {}) {
     const apiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
     if (!apiKey) throw new Error('服务器配置错误：未设置KIMI_API_KEY。');
 
@@ -576,7 +592,7 @@ export async function getKimiChatAnswer(question, history = [], env) {
             temperature: 0.3,
             tools: tools,
             tool_choice: "auto"
-        }, env);
+        }, env, logCallback);
 
         const choice = data.choices[0];
         
@@ -589,7 +605,7 @@ export async function getKimiChatAnswer(question, history = [], env) {
                     // Kimi/Moonshot 返回的参数是字符串，需要解析
                     args = JSON.parse(argsString);
                 } catch (e) {
-                    console.error(`[AI] Kimi工具 '${name}' 参数解析失败:`, argsString, e);
+                    logCallback(`❌ [Tool Error] Kimi function '${name}' argument parsing failed: ${e.message}`, 'ERROR', { argsString });
                     return {
                         tool_call_id: toolCall.id,
                         role: "tool",
@@ -597,7 +613,7 @@ export async function getKimiChatAnswer(question, history = [], env) {
                     };
                 }
 
-                console.log(`[AI] Kimi调用工具: ${name}，参数:`, args);
+                logCallback(`🛠️ [Tool Call] Kimi is calling function: ${name}`, 'INFO', args);
                 const tool = availableTools[name];
 
                 try {
@@ -605,14 +621,14 @@ export async function getKimiChatAnswer(question, history = [], env) {
                         throw new Error(`未知工具: ${name}`);
                     }
                     const result = await tool(args, env);
-                    console.log(`[AI] Kimi工具 '${name}' 执行成功。`);
+                    logCallback(`✅ [Tool Result] Kimi function ${name} returned successfully.`);
                     return {
                         tool_call_id: toolCall.id,
                         role: "tool",
                         content: JSON.stringify({ content: result })
                     };
                 } catch (e) {
-                    console.error(`[AI] 执行Kimi工具 '${name}' 时出错: ${e.message}`, e);
+                    logCallback(`❌ [Tool Error] Kimi function ${name} failed: ${e.message}`, 'ERROR', e);
                     return {
                         tool_call_id: toolCall.id,
                         role: "tool",
@@ -631,7 +647,7 @@ export async function getKimiChatAnswer(question, history = [], env) {
             const finalData = await callKimiApi("moonshot-v1-8k", {
                 messages: finalMessages,
                 temperature: 0.3
-            }, env);
+            }, env, logCallback);
 
             return finalData.choices[0].message.content;
         } else {
