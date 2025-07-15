@@ -1687,7 +1687,7 @@ messageForm.addEventListener('submit', async (e) => {
             const tempId = crypto.randomUUID();
             const tempTimestamp = Date.now();
 
-            if (/^\s|^@机器人小助手/.test(text)) {
+            if (/^\@|^@机器人小助手/.test(text)) {
     const question = text.replace(/^@机器人小助手/, '').trim();
     // 空格或@小助手开头
 socket.send(JSON.stringify({
