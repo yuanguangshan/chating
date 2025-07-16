@@ -1,3 +1,4 @@
+html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -756,6 +757,19 @@
             background: rgba(255,255,255,0.2);
             transform: scale(1.1);
         }
+        /* 为新的发布选项添加一些样式，使其突出 */
+        .context-menu .publish-option {
+            color: var(--accent); /* 使用主题强调色 */
+            font-weight: 600;
+            border-top: 1px solid var(--border); /* 与其他选项分隔 */
+            margin-top: 5px;
+            padding-top: 10px;
+        }
+        .context-menu .publish-option::before {
+            content: '🚀'; /* 火箭图标 */
+            margin-right: 8px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -865,7 +879,8 @@
         <li class="ai-explain-option" data-ai="deepseek" data-action="text-explain">DeepSeek</li>
         <li class="ai-explain-option" data-ai="kimi" data-action="text-explain">问Kimi</li>
         <li class="ai-explain-option" data-ai="gemini" data-action="image-describe">Gemini读图</li>
-        <li id="publish-toutiao-option">📰 发布到头条</li>
+        <!-- 修改这里，添加 class="publish-option" -->
+        <li class="publish-option" id="publish-toutiao-option">🚀 发布到头条</li>
         <li class="ai-explain-option" data-ai="kimi" data-action="image-describe">Kimi读图</li>
         <li id="copy-option">📝 复 制</li>
         <li id="delete-option">❌ 删 除</li>
@@ -924,7 +939,7 @@ const connectionDot = document.getElementById('connection-dot');
 const chatWindowEl = document.getElementById('chat-window');
 const messageForm = document.getElementById('message-form');
 const sendButton = document.getElementById('send-button');
-const contextMenu = document.getElementById('context-menu');
+const contextMenu = document.getElementById('context-menu'); // This is the fixed #context-menu element
 const copyOption = document.getElementById('copy-option');
 const deleteOption = document.getElementById('delete-option');
 const callControlsContainer = document.getElementById('call-controls-container');
@@ -936,6 +951,9 @@ const toggleLogsBtn = document.getElementById('toggle-logs-btn');
 const appNotification = document.getElementById('app-notification'); // New notification element
 const mentionsSuggestions = document.getElementById('mentions-suggestions');
 const themeToggleBtn = document.getElementById('theme-toggle-btn');
+// Add reference to the publish option
+const publishToutiaoOption = document.getElementById('publish-toutiao-option');
+
 
 // 【新增】DOM 元素引用
 const userNamesEl = document.getElementById('user-names'); // Sidebar user list
@@ -962,7 +980,9 @@ let selectedFile = null;
 let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
-let currentMessageElement = null; // 用于存储当前右键点击的消息元素
+let currentMessageElement = null; // 用于存储当前右键点击的消息DOM元素
+let currentMessageData = null; // 用于存储当前右键点击的完整消息数据对象
+
 let socket;
 let reconnectInterval = 1000;
 const maxReconnectInterval = 30000;
@@ -1346,6 +1366,7 @@ function createMessageElement(msg) {
     const msgEl = document.createElement('div');
     msgEl.className = 'message';
     
+    // Store necessary data on dataset for easy access in showContextMenu later
     msgEl.dataset.id = msg.id;
     msgEl.dataset.messageText = msg.caption || msg.text || ''; 
     msgEl.dataset.timestamp = msg.timestamp;
@@ -1379,115 +1400,133 @@ function createMessageElement(msg) {
         
     msgEl.innerHTML = contentHTML;
     
-    // 添加右键菜单支持
-    const textElement = msgEl.querySelector('.text');
-    if (textElement) {
-        textElement.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            showContextMenu(e, msg);
-        });
-    }
-    
+    // Add event listeners directly to msgEl for wider clickable area
+    msgEl.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        // Pass the DOM element, the full message data, and coordinates
+        showContextMenu(msgEl, msg, e.pageX, e.pageY); 
+    });
+
+    // Handle touch events for long press
+    msgEl.addEventListener('touchstart', (e) => {
+        // Store msg for touch context, and the full data object
+        currentTouchMsgEl = msgEl;
+        currentMessageData = msg; // Store the full data object
+        touchStartTime = Date.now(); 
+
+        touchLongPressTimer = setTimeout(() => {
+            if (currentTouchMsgEl === msgEl && (Date.now() - touchStartTime) >= 500) {
+                e.preventDefault(); // Prevent default browser context menu
+                showContextMenu(msgEl, msg, e.touches[0].pageX, e.touches[0].pageY);
+                if (navigator.vibrate) navigator.vibrate(50); 
+            }
+        }, 500); 
+    }, { passive: true }); 
+
+    // Reset on touchend or touchmove
+    msgEl.addEventListener('touchend', () => {
+        clearTimeout(touchLongPressTimer); 
+        currentTouchMsgEl = null; 
+        currentMessageData = null; // Clear to prevent stale data
+    });
+
+    msgEl.addEventListener('touchmove', () => {
+        clearTimeout(touchLongPressTimer); 
+        currentTouchMsgEl = null; 
+        currentMessageData = null; // Clear to prevent stale data
+    }, { passive: true }); 
+
     return msgEl;
 }
 
 
-
 // 发布到头条功能
-async function publishToToutiao(message) {
+async function publishToToutiao(message) { // message is the full message data object
     try {
         logDebug('尝试通过后端代理发布消息到头条...', LOG_LEVELS.INFO, { 
-            content: message.text?.substring(0, 100) + '...' 
+            messageObject: message,
+            originalTextSnippet: (message.text || message.caption || '').substring(0, 100) + '...'
         });
         
-        // 提取标题和内容
         let title = '';
         let content = '';
-        
-        // 根据消息类型获取文本内容
-        let fullText = '';
-        if (message.type === 'image') {
-            fullText = message.text || message.caption || '';
-        } else {
-            fullText = message.text || '';
-        }
-        
-        // 确保有内容可发布
-        if (!fullText.trim()) {
-            // 如果是图片但没有文字内容，使用默认标题
-            if (message.type === 'image') {
-                title = '聊天室图片分享';
-                content = '来自聊天室的图片分享';
-            } else {
-                throw new Error('消息内容为空，无法发布');
+        let fullText = message.text || message.caption || ''; // Use text or caption for main content
+
+        // 1. 尝试从AI回复中智能提取标题和内容
+        let processedContent = fullText;
+        if (message.username === '机器人小助手' && fullText.includes('**机器人小助手**:')) {
+            // 提取用户的问题作为标题
+            const userQueryMatch = fullText.match(/^@\w+\s*(.+?)(?:\n\n|\n|$)/); 
+            if (userQueryMatch && userQueryMatch[1]) {
+                title = userQueryMatch[1].trim();
             }
-        }
-        
-        // 如果是AI回复，提取格式
-        if (fullText.includes('(由 Pro 模型生成)')) {
-            // 移除开头的问候语和标识
-            const startIndex = fullText.indexOf('(由 Pro 模型生成)') + '(由 Pro 模型生成)'.length;
-            content = fullText.substring(startIndex).trim();
-            
-            // 移除开头的问候语（如"你好！"）
-            content = content.replace(/^(你好[！!]?\s*)/, '');
-            
-            // 确保内容不为空
-            if (!content.trim()) {
-                content = fullText; // 如果清理后为空，使用原始内容
+
+            // 提取AI的实际回答内容
+            const aiResponseStart = fullText.indexOf('**机器人小助手**:');
+            if (aiResponseStart !== -1) {
+                processedContent = fullText.substring(aiResponseStart + '**机器人小助手**:'.length).trim();
+            } else {
+                processedContent = fullText; // Fallback if AI marker is not found
             }
             
-            // 提取标题：从"@苑广山"开始的部分
-            const titleMatch = fullText.match(/@苑广山\s+(.+?)(?:\n|$)/);
-            if (titleMatch) {
-                title = titleMatch[1].trim();
-            } else {
-                // 如果没有@苑广山格式，取第一行或前30个字符作为标题
-                const lines = content.split('\n').filter(line => line.trim());
-                title = lines.length > 0 ? lines[0].trim().substring(0, 30) : content.substring(0, 30);
-                if (title.length >= 30) title += '...';
-            }
-        } else {
-            // 普通消息
-            const lines = fullText.split('\n').filter(line => line.trim());
-            if (lines.length > 0) {
-                title = lines[0].trim().substring(0, 30);
-                if (title.length >= 30) title += '...';
-            } else {
-                title = fullText.substring(0, 30);
-                if (title.length >= 30) title += '...';
-            }
-            content = fullText;
+            // 进一步清理AI回复中的前缀和问候语
+            processedContent = processedContent.replace(/^\s*\(\s*由\s*Pro\s*模型生成\s*\)\s*[\r\n]*/, '').trim();
+            processedContent = processedContent.replace(/^\s*你好[！!]?\s*/, '').trim(); 
+        } else if (message.type === 'image' && message.imageUrl) {
+            // 对于图片消息，文本是caption，内容需要包含图片URL
+            processedContent = fullText + `\n\n图片链接: ${message.imageUrl}`;
         }
-        
-        // 最终确保标题和内容不为空
+        // 对于普通文本消息，processedContent 就是 fullText
+
+        // 2. 确保内容不为空 (即使经过处理后)
+        if (!processedContent.trim()) {
+            processedContent = "这是一条分享。"; // 最终兜底内容
+            if (message.type === 'image' && message.imageUrl && !fullText.trim()) { // 针对无描述图片
+                 processedContent = `图片分享\n\n图片链接: ${message.imageUrl}`;
+            }
+        }
+
+        // 3. 确保标题不为空或有意义
         if (!title.trim()) {
-            title = content.substring(0, 30);
-            if (title.length >= 30) title += '...';
-            if (!title.trim()) {
-                title = message.type === 'image' ? '图片分享' : '这是一张不错的图片';
+            // 尝试从处理后的内容中提取第一行作为标题
+            const lines = processedContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            if (lines.length > 0) {
+                title = lines[0].substring(0, Math.min(lines[0].length, 50));
+                if (lines[0].length > 50) title += '...';
+            } else {
+                // 如果内容本身也无法提取出标题，使用通用默认标题
+                title = message.type === 'image' ? '聊天室图片分享' : '聊天室消息分享';
             }
         }
-        if (!content.trim()) {
-            content = title;
-        }
         
-        // 如果是图片消息，在内容中添加图片信息
-        if (message.type === 'image' && message.imageUrl) {
-            content = `${content}\n\n图片链接: ${message.imageUrl}`;
+        // 4. 最终检查和兜底
+        if (!title.trim()) { // 再次检查，确保标题绝对非空
+            title = message.type === 'image' ? '无标题图片分享' : '无标题聊天记录';
+        }
+        if (!content.trim()) { // 再次检查，确保内容绝对非空
+            content = title; // 如果内容为空，用标题兜底
+        }
+
+        // 清理Markdown标签，让标题更像纯文本
+        title = (marked.parse(title) || '').replace(/(<([^>]+)>)/gi, '').replace(/[\r\n]+/g, ' ').trim();
+        content = (marked.parse(content) || '').replace(/(<([^>]+)>)/gi, '').replace(/[\r\n]+/g, ' ').trim();
+
+        // 记录最终要发送的数据
+        logDebug('准备发送到头条的数据', LOG_LEVELS.INFO, {
+            finalTitle: title,
+            finalContentSnippet: content.substring(0, Math.min(content.length, 200)) + '...',
+            messageType: message.type,
+            extractedSuccessfully: title.trim().length > 0 && content.trim().length > 0
+        });
+
+        // 最终检查，如果因为某种极端情况导致仍然为空，则抛出错误
+        if (!title.trim() || !content.trim()) {
+            logDebug("❗ 内部错误：最终标题或内容为空，无法发送。", LOG_LEVELS.ERROR, { finalTitle: title, finalContent: content });
+            throw new Error("内部错误：无法提取有效的标题或内容。请尝试其他消息或手动复制。");
         }
         
         // 显示加载提示
         showAppNotification('正在发布到头条...', 2000);
-        
-        // 调试信息：记录实际发送的标题和内容
-        logDebug('准备发送到头条的数据', LOG_LEVELS.INFO, {
-            title: title,
-            titleLength: title.length,
-            content: content.substring(0, 100) + '...',
-            contentLength: content.length,
-            messageType: message.type
-        });
         
         // 调用后端代理接口
         const YOUR_FLASK_PROXY_API_URL = 'https://api.yuangs.cc/api/toutiaopost';
@@ -1504,8 +1543,15 @@ async function publishToToutiao(message) {
         });
         
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: '未知错误' }));
-            throw new Error(errorData.error || `HTTP ${response.status}`);
+            const errorText = await response.text();
+            let errorDetails = errorText;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorDetails = errorJson.error || errorJson.details || errorText;
+            } catch (parseErr) {
+                // Not a JSON error, use raw text
+            }
+            throw new Error(`后端代理返回错误: ${response.status} - ${errorDetails}`); 
         }
         
         const data = await response.json();
@@ -1577,7 +1623,11 @@ function processMessageQueue() {
     // 处理AI回复的语音播报
     messagesToProcess.forEach(msg => {
         if (msg.username === '机器人小助手' && msg.text) {
-            speakText(msg.text);
+            // 提取纯文本内容进行播报，避免Markdown语法干扰
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = marked.parse(msg.text || '', { gfm: true, breaks: true, sanitize: true });
+            const plainText = tempDiv.textContent || tempDiv.innerText || '';
+            speakText(plainText);
         }
     });
 
@@ -1586,6 +1636,10 @@ function processMessageQueue() {
     while (allMessages.length > MAX_ALL_MESSAGES) {
         const removedMsg = allMessages.shift();
         messageIdSet.delete(removedMsg.id);
+        const msgElToRemove = chatWindowEl.querySelector(`[data-id="${removedMsg.id}"]`);
+        if (msgElToRemove) {
+            msgElToRemove.remove();
+        }
     }
 
     throttledUpdateActivityStats();
@@ -1627,22 +1681,27 @@ function appendChatMessage(msg) {
 }
 
 
-// --- 上下文菜单和 AI 解释逻辑 (保持不变) ---
-function showContextMenu(element, x, y) {
-    currentMessageElement = element; 
-    
+// --- 上下文菜单和 AI 解释逻辑 ---
+// 重命名并修改参数，使其接收 DOM 元素和完整消息数据对象
+function showContextMenu(element, messageData, x, y) {
+    currentMessageElement = element; // Store the DOM element
+    currentMessageData = messageData; // Store the full message data object
+
     if (!contextMenu) {
         console.warn('Context menu element not found');
         return;
     }
     
+    // 设置菜单位置并显示
     contextMenu.style.top = `${y}px`;
     contextMenu.style.left = `${x}px`;
     contextMenu.style.display = 'block';
 
-    const messageType = element.dataset.messageType;
-    const isSelf = element.classList.contains('self'); 
+    const messageType = messageData.type; // Use messageData.type
+    const isSelf = messageData.username === username; // Use messageData.username
+    const messageContentText = messageData.text || messageData.caption || ''; // Use messageData for content
 
+    // 获取所有菜单项的引用
     const geminiTextOption = contextMenu.querySelector('[data-ai="gemini"][data-action="text-explain"]');
     const deepseekTextOption = contextMenu.querySelector('[data-ai="deepseek"][data-action="text-explain"]');
     const kimiTextOption = contextMenu.querySelector('[data-ai="kimi"][data-action="text-explain"]');
@@ -1652,26 +1711,34 @@ function showContextMenu(element, x, y) {
     const deleteOption = document.getElementById('delete-option');
     const publishToutiaoOption = document.getElementById('publish-toutiao-option');
 
+    // 默认隐藏所有AI和功能选项
     geminiTextOption.style.display = 'none';
     deepseekTextOption.style.display = 'none';
     kimiTextOption.style.display = 'none';
     geminiImageOption.style.display = 'none';
     kimiImageOption.style.display = 'none';
     copyOption.style.display = 'none';
-    publishToutiaoOption.style.display = 'none';
+    deleteOption.style.display = 'none';
+    publishToutiaoOption.style.display = 'none'; // 默认隐藏发布选项
     
+    // 根据消息类型决定显示哪些选项
     if (messageType === 'image') {
         geminiImageOption.style.display = 'flex'; 
         kimiImageOption.style.display = 'flex';
+        // 只要是图片消息，就显示发布选项（即使没有文字描述也可以发布）
         publishToutiaoOption.style.display = 'flex';
     } else if (messageType === 'text') {
         geminiTextOption.style.display = 'flex'; 
         deepseekTextOption.style.display = 'flex';
         kimiTextOption.style.display = 'flex';
-        copyOption.style.display = 'flex';
-        publishToutiaoOption.style.display = 'flex';
+        copyOption.style.display = 'flex';       
+        // 只有文本消息有内容才显示发布选项
+        if (messageContentText.trim().length > 0) {
+            publishToutiaoOption.style.display = 'flex';
+        }
     }
 
+    // 删除选项只对自己发送的消息显示
     deleteOption.style.display = isSelf ? 'flex' : 'none';
     
     if (navigator.vibrate) navigator.vibrate(50); 
@@ -1685,9 +1752,11 @@ if (contextMenu) {
     const action = clickedOption.dataset.action;
     const model = clickedOption.dataset.ai;
     
-    const originalMessageText = currentMessageElement?.dataset.messageText;
-    const originalImageUrl = currentMessageElement?.dataset.imageUrl;
-    const messageType = currentMessageElement?.dataset.messageType;
+    // 使用 currentMessageData 而不是 dataset，因为 currentMessageData 是完整的消息对象
+    const originalMessageText = currentMessageData?.text || currentMessageData?.caption || '';
+    const originalImageUrl = currentMessageData?.imageUrl;
+    const messageType = currentMessageData?.type;
+
 
     contextMenu.style.display = 'none';
 
@@ -1701,32 +1770,21 @@ if (contextMenu) {
     }
 
     if (clickedOption.id === 'publish-toutiao-option') {
-        const messageId = currentMessageElement?.dataset.id;
-        const messageText = currentMessageElement?.dataset.messageText;
-        const messageType = currentMessageElement?.dataset.messageType;
-        const imageUrl = currentMessageElement?.dataset.imageUrl;
-        
-        if (!messageId) {
-            logDebug('发布到头条：缺少消息ID', LOG_LEVELS.WARNING);
-            return;
+        // 直接将完整的 currentMessageData 对象传递给 publishToToutiao
+        if (currentMessageData) {
+            publishToToutiao(currentMessageData);
+        } else {
+            logDebug('发布到头条：没有选中的消息数据。', LOG_LEVELS.WARNING);
+            showAppNotification('没有可发布的消息', 3000, true);
         }
-        
-        const message = {
-            id: messageId,
-            text: messageText || '',
-            type: messageType,
-            imageUrl: imageUrl
-        };
-        
-        publishToToutiao(message);
         return;
     }
 
     if (clickedOption.id === 'delete-option') {
-        if (currentMessageElement?.dataset.id) {
+        if (currentMessageData?.id) {
             if (confirm("确定要删除这条消息吗？")) {
-                socket.send(JSON.stringify({ type: 'delete', payload: { id: currentMessageElement.dataset.id } }));
-                logDebug(`🟢 发送删除消息指令: ${currentMessageElement.dataset.id}`, LOG_LEVELS.INFO);
+                socket.send(JSON.stringify({ type: 'delete', payload: { id: currentMessageData.id } }));
+                logDebug(`🟢 发送删除消息指令: ${currentMessageData.id}`, LOG_LEVELS.INFO);
             }
         }
         return; 
@@ -1766,7 +1824,7 @@ if (contextMenu) {
         return;
     }
 
-    const existingExplanation = currentMessageElement.querySelector('.ai-explanation');
+    const existingExplanation = currentMessageElement?.querySelector('.ai-explanation'); // Use currentMessageElement (DOM)
     if (existingExplanation) {
         existingExplanation.remove();
     }
@@ -1774,7 +1832,7 @@ if (contextMenu) {
     const explanationEl = document.createElement('div');
     explanationEl.className = 'ai-explanation';
     explanationEl.innerHTML = `<p>🤖 ${explanationText}<span class="loading-dots"></span></p>`;
-    currentMessageElement.appendChild(explanationEl);
+    currentMessageElement?.appendChild(explanationEl); // Append to currentMessageElement (DOM)
 
     try {
         const response = await fetch(apiUrl, {
@@ -2327,7 +2385,7 @@ function onSocketOpen() {
     isConnecting = false;
     logDebug('🟢 WebSocket 连接已打开 (onopen触发)。');
     statusEl.textContent = '已连接';
-    connectionDot.classList.remove('disconnected');
+    connectionDot.classList.add('disconnected');
     
     // 成功打开后，重置重连间隔
     reconnectInterval = 1000;
@@ -2508,7 +2566,7 @@ clearInputBtn.addEventListener('click', () => {
     messageInput.dispatchEvent(new Event('input', { bubbles: true }));
     
     // 更新发送按钮状态
-    updateSendButtonState();
+    checkSendButtonState(); // Use checkSendButtonState as updateSendButtonState is not defined
 });
 
 async function onSocketMessage(event) {
@@ -2872,11 +2930,19 @@ let currentTouchMsgEl = null;
             }
         });
 
+        // 修改这里，直接监听聊天窗口，然后根据点击目标判断是否显示上下文菜单
         chatWindowEl.addEventListener('contextmenu', e => {
             const msgEl = e.target.closest('.message'); 
             if (msgEl) {
                 e.preventDefault(); 
-                showContextMenu(msgEl, e.pageX, e.pageY);
+                // 从 allMessages 数组中找到对应的完整消息数据
+                const msgData = allMessages.find(m => m.id === msgEl.dataset.id);
+                if (msgData) {
+                    showContextMenu(msgEl, msgData, e.pageX, e.pageY);
+                } else {
+                    logDebug('❗ 未找到对应的消息数据，无法显示上下文菜单。', LOG_LEVELS.WARNING, { messageId: msgEl.dataset.id });
+                    if (contextMenu) contextMenu.style.display = 'none';
+                }
             } else if (contextMenu) {
                 contextMenu.style.display = 'none';
             }
@@ -2890,9 +2956,15 @@ let currentTouchMsgEl = null;
 
                 touchLongPressTimer = setTimeout(() => {
                     if (currentTouchMsgEl === msgEl && (Date.now() - touchStartTime) >= 500) {
-                        e.preventDefault();
-                        showContextMenu(msgEl, e.touches[0].pageX, e.touches[0].pageY);
-                        if (navigator.vibrate) navigator.vibrate(50); 
+                        e.preventDefault(); // 阻止默认长按行为
+                        const msgData = allMessages.find(m => m.id === msgEl.dataset.id);
+                        if (msgData) {
+                            showContextMenu(msgEl, msgData, e.touches[0].pageX, e.touches[0].pageY);
+                            if (navigator.vibrate) navigator.vibrate(50); 
+                        } else {
+                            logDebug('❗ 触控未找到对应的消息数据，无法显示上下文菜单。', LOG_LEVELS.WARNING, { messageId: msgEl.dataset.id });
+                            if (contextMenu) contextMenu.style.display = 'none';
+                        }
                     }
                 }, 500); 
             } else if (contextMenu) {
@@ -2903,11 +2975,13 @@ let currentTouchMsgEl = null;
         chatWindowEl.addEventListener('touchend', () => {
             clearTimeout(touchLongPressTimer); 
             currentTouchMsgEl = null; 
+            currentMessageData = null; // 在每次触控结束时清除数据
         });
 
         chatWindowEl.addEventListener('touchmove', () => {
             clearTimeout(touchLongPressTimer); 
             currentTouchMsgEl = null; 
+            currentMessageData = null; // 在每次触控移动时清除数据
         }, { passive: true }); 
 
         document.addEventListener('click', (e) => {
