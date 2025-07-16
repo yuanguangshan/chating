@@ -1573,7 +1573,7 @@ class AIContentProcessor {
         // 多行文本，第一行作为标题
         return {
             title: lines[0].trim(),
-            content: lines.slice(1).join('\n').trim()
+            content: lines.slice(2).join('\n').trim()
         };
     }
     
