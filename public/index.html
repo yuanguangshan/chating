@@ -1427,13 +1427,11 @@ function createMessageElement(msg) {
     msgEl.addEventListener('touchend', () => {
         clearTimeout(touchLongPressTimer); 
         currentTouchMsgEl = null; 
-        currentMessageData = null; // Clear to prevent stale data
     });
 
     msgEl.addEventListener('touchmove', () => {
         clearTimeout(touchLongPressTimer); 
         currentTouchMsgEl = null; 
-        currentMessageData = null; // Clear to prevent stale data
     }, { passive: true }); 
 
     return msgEl;
@@ -1441,86 +1439,102 @@ function createMessageElement(msg) {
 
 
 // 发布到头条功能
-
-// 在 publishToToutiao 函数内部
-async function publishToToutiao(message) {
+// 发布到头条功能
+async function publishToToutiao(message) { // message is the full message data object
     try {
-        // ... (logDebug and initial fullText extraction remain the same)
+        // ... (initial logDebug and fullText extraction)
         
         let title = '';
         let content = '';
         let fullText = message.text || message.caption || ''; 
 
-        // === 新增：更严格的文本清理函数 ===
+        // === 文本清理函数 (保持不变) ===
         const cleanForJSON = (text) => {
             if (typeof text !== 'string') return '';
-            // 移除所有 ASCII 控制字符 (0-31) 和一些常见的非打印字符
-            // 除了换行符 \n 和回车符 \r
             let cleaned = text.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\u200B-\u200F\u2028\u2029\uFEFF]/g, '');
-            // 规范化空白字符，将多个连续的空白替换为单个空格
             cleaned = cleaned.replace(/\s+/g, ' ').trim();
             return cleaned;
         };
         // ===================================
 
-        // ... (AI response extraction and image URL handling, use cleanForJSON on extracted parts)
-        // Apply cleanForJSON to fullText at the very beginning of processing
         fullText = cleanForJSON(fullText); // Clean the raw text first
 
-        // 1. 尝试从AI回复中智能提取标题和内容
         let processedContent = fullText;
+
+        // 1. 提取标题 (更智能，确保在2-30字之间)
         if (message.username === '机器人小助手' && fullText.includes('**机器人小助手**:')) {
-            // 提取用户的问题作为标题
+            // AI回复消息
+            // 尝试提取用户的问题作为标题，例如 "@苑广山 文明的历史" -> "文明的历史"
             const userQueryMatch = fullText.match(/^@\w+\s*(.+?)(?:\n\n|\n|$)/); 
             if (userQueryMatch && userQueryMatch[1]) {
-                title = userQueryMatch[1].trim();
+                title = userQueryMatch[1].trim(); // 用户的原始提问
             }
-
-            // 提取AI的实际回答内容
+            
+            // 提取AI的实际回答内容作为主要内容
             const aiResponseStart = fullText.indexOf('**机器人小助手**:');
             if (aiResponseStart !== -1) {
                 processedContent = fullText.substring(aiResponseStart + '**机器人小助手**:'.length).trim();
             } else {
-                processedContent = fullText; 
+                processedContent = fullText; // Fallback if AI marker is not found
             }
+            
+            // 清理AI回复中的前缀和问候语，这些不应该出现在最终标题或内容中
             processedContent = processedContent.replace(/^\s*\(\s*由\s*Pro\s*模型生成\s*\)\s*[\r\n]*/, '').trim();
             processedContent = processedContent.replace(/^\s*你好[！!]?\s*/, '').trim(); 
+
         } else if (message.type === 'image' && message.imageUrl) {
-            processedContent = fullText + `\n\n图片链接: ${message.imageUrl}`;
-        }
+            // 图片消息的标题和内容
+            title = fullText.substring(0, Math.min(fullText.length, 30)); // 标题从描述中提取
+            if (fullText.length > 30) title += '...';
+            if (!title.trim()) title = '聊天室图片分享'; // 如果描述为空，使用默认标题
 
-        if (!processedContent.trim()) {
-            processedContent = "这是一条来自聊天室的分享。";
-            if (message.type === 'image' && message.imageUrl && !fullText.trim()) {
-                 processedContent = `来自聊天室的图片分享\n\n图片链接: ${message.imageUrl}`;
+            processedContent = fullText; // 图片的描述
+            if (message.imageUrl) {
+                processedContent += `\n\n图片链接: ${message.imageUrl}`; // 内容中加入图片链接
             }
-        }
-
-        // 3. 确保标题不为空或有意义
-        if (!title.trim()) {
-            const lines = processedContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        } else {
+            // 普通文本消息
+            const lines = fullText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
             if (lines.length > 0) {
-                title = lines[0].substring(0, Math.min(lines[0].length, 50));
-                if (lines[0].length > 50) title += '...';
+                title = lines[0]; // 使用第一行作为标题
             } else {
-                title = message.type === 'image' ? '聊天室图片分享' : '聊天室消息分享';
+                title = fullText; // 如果没有多行，直接用全文
+            }
+            processedContent = fullText;
+        }
+
+        // 2. 对标题和内容进行最终清理和长度限制
+        title = cleanForJSON(title); // 再次清理
+        content = cleanForJSON(processedContent); // 再次清理内容
+
+        // --- 核心修改：确保标题长度在2-30字之间 ---
+        if (title.length < 2) {
+            title = content.substring(0, Math.min(content.length, 30)); // 尝试从内容中提取标题
+            if (title.length > 30) title = title.substring(0, 27) + '...'; // 截断
+            if (!title.trim() || title.length < 2) { // 最终兜底
+                title = message.type === 'image' ? '图片分享' : '聊天室消息';
             }
         }
-        
-        // 4. 最终检查和兜底
+        if (title.length > 30) {
+            title = title.substring(0, 27) + '...'; // 超过30字截断，并加省略号
+        }
+        // ===========================================
+
+        // 3. 最终内容兜底（确保不为空）
+        if (!content.trim()) {
+            content = title; // 如果内容为空，用标题兜底
+        }
+
+        // 4. 再次确保标题和内容非空（防止极端情况）
         if (!title.trim()) { 
             title = message.type === 'image' ? '无标题图片分享' : '无标题聊天记录';
         }
         if (!content.trim()) { 
             content = title; 
         }
+        
+        // ... (logDebug for finalTitle, finalContentSnippet, and the rest of the fetch call)
 
-        // === 再次应用清理，确保最终发送的字符串是干净的 ===
-        title = cleanForJSON(title);
-        content = cleanForJSON(content);
-        // ================================================
-
-        // 记录最终要发送的数据
         logDebug('准备发送到头条的数据', LOG_LEVELS.INFO, {
             finalTitle: title,
             finalContentSnippet: content.substring(0, Math.min(content.length, 200)) + '...',
@@ -1533,7 +1547,6 @@ async function publishToToutiao(message) {
             throw new Error("内部错误：无法提取有效的标题或内容。请尝试其他消息或手动复制。");
         }
         
-        // ... (rest of fetch call, this part remains the same)
         const YOUR_FLASK_PROXY_API_URL = 'https://api.yuangs.cc/api/toutiaopost';
         
         const response = await fetch(YOUR_FLASK_PROXY_API_URL, {
@@ -1569,7 +1582,7 @@ async function publishToToutiao(message) {
         showAppNotification(`发布到头条失败: ${error.message}.`, 5000, true);
     }
 }
-// 消息队列处理函数，在 requestAnimationFrame 中执行
+
 function processMessageQueue() {
     if (isLoadingHistory) {
         logDebug("❗ 历史消息加载中，暂停处理新消息队列。", LOG_LEVELS.INFO);
@@ -3214,7 +3227,7 @@ let currentTouchMsgEl = null;
         }
     }
 
-    // 文字转语音功能
+    // 文字转语音功能    //test
     function speakText(text) {
         try {
             if (!('speechSynthesis' in window)) {
