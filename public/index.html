@@ -2127,6 +2127,52 @@ modelStyle.textContent = `
         background-color: #e3f2fd;
         color: #1976d2;
     }
+    
+    /* 响应式设计 - 移动端适配 */
+    @media (max-width: 768px) {
+        #modelSelector {
+            font-size: 14px;
+            max-height: 200px !important;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            min-width: 120px;
+            max-width: calc(100vw - 20px);
+        }
+        
+        .model-option {
+            padding: 12px 16px;
+            font-size: 15px;
+            line-height: 1.4;
+        }
+        
+        .mentions-suggestions {
+            font-size: 14px;
+            max-height: 200px !important;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            min-width: 120px;
+            max-width: calc(100vw - 20px);
+        }
+        
+        .mentions-suggestions .user-item {
+            padding: 12px 16px;
+            font-size: 15px;
+            line-height: 1.4;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        #modelSelector,
+        .mentions-suggestions {
+            max-height: 180px !important;
+            font-size: 13px;
+        }
+        
+        .model-option,
+        .mentions-suggestions .user-item {
+            padding: 10px 14px;
+        }
+    }
 `;
 document.head.appendChild(modelStyle);
 
@@ -2613,26 +2659,105 @@ messageInput.addEventListener('input', () => {
         const onlineUsers = Array.from(userNamesEl.children).map(el => el.dataset.username);
         const filteredUsers = onlineUsers.filter(user => user.toLowerCase().includes(query.toLowerCase()));
         populateMentionsSuggestions(filteredUsers.map(username => ({ username })));
-        mentionsSuggestions.style.display = filteredUsers.length > 0 ? 'block' : 'none';
+        
+        if (filteredUsers.length > 0) {
+            const inputWrapper = messageInput.parentElement;
+            const position = smartPosition(mentionsSuggestions, inputWrapper);
+            
+            Object.assign(mentionsSuggestions.style, position);
+            mentionsSuggestions.style.display = 'block';
+            
+            // 确保附加到正确的容器
+            if (mentionsSuggestions.parentElement !== inputWrapper) {
+                inputWrapper.appendChild(mentionsSuggestions);
+            }
+        } else {
+            mentionsSuggestions.style.display = 'none';
+        }
     } else {
         mentionsSuggestions.style.display = 'none';
+    }
+
+    // 智能定位函数 - 确保元素始终在屏幕内可见
+    function smartPosition(element, anchorElement) {
+        const anchorRect = anchorElement.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        const elementHeight = element.offsetHeight || 150;
+        const elementWidth = element.offsetWidth || 150;
+        
+        // 计算可用空间
+        const spaceAbove = anchorRect.top;
+        const spaceBelow = viewportHeight - anchorRect.bottom;
+        const spaceRight = viewportWidth - anchorRect.left;
+        const spaceLeft = anchorRect.right;
+        
+        let position = {
+            position: 'absolute',
+            zIndex: '1000'
+        };
+        
+        // 垂直方向：优先显示在下方，如果下方空间不足则显示在上方
+        if (spaceBelow >= Math.min(elementHeight, 150) + 10) {
+            // 显示在下方
+            position.top = '100%';
+            position.bottom = 'auto';
+            position.marginTop = '5px';
+            position.marginBottom = '0';
+            position.maxHeight = Math.min(elementHeight, spaceBelow - 10) + 'px';
+        } else if (spaceAbove >= Math.min(elementHeight, 150) + 10) {
+            // 显示在上方
+            position.bottom = '100%';
+            position.top = 'auto';
+            position.marginBottom = '5px';
+            position.marginTop = '0';
+            position.maxHeight = Math.min(elementHeight, spaceAbove - 10) + 'px';
+        } else {
+            // 空间不足，根据更大空间决定
+            if (spaceBelow > spaceAbove) {
+                position.top = '100%';
+                position.bottom = 'auto';
+                position.maxHeight = Math.max(50, spaceBelow - 10) + 'px';
+            } else {
+                position.bottom = '100%';
+                position.top = 'auto';
+                position.maxHeight = Math.max(50, spaceAbove - 10) + 'px';
+            }
+        }
+        
+        // 水平方向：确保不超出屏幕边界
+        const minWidth = Math.min(150, viewportWidth - 20);
+        
+        if (spaceRight >= minWidth) {
+            // 左对齐
+            position.left = '0';
+            position.right = 'auto';
+        } else if (spaceLeft >= minWidth) {
+            // 右对齐
+            position.right = '0';
+            position.left = 'auto';
+        } else {
+            // 居中显示
+            const availableWidth = Math.min(viewportWidth - 20, Math.max(elementWidth, 150));
+            const leftOffset = Math.max(10, (viewportWidth - availableWidth) / 2 - anchorRect.left);
+            position.left = leftOffset + 'px';
+            position.right = 'auto';
+            position.width = availableWidth + 'px';
+        }
+        
+        return position;
     }
 
     // 处理/快捷选择模型
     if (slashIndex !== -1 && slashIndex === text.length - 1 && text.length === 1) {
         // 只在单独输入/时显示
         const inputWrapper = messageInput.parentElement;
-        const rect = inputWrapper.getBoundingClientRect();
-        const inputRect = messageInput.getBoundingClientRect();
+        const position = smartPosition(modelSelector, inputWrapper);
         
-        // 相对于输入框容器定位，确保跟随输入框移动
-        modelSelector.style.position = 'absolute';
-        modelSelector.style.left = '0px';
-        modelSelector.style.bottom = '100%';
-        modelSelector.style.marginBottom = '5px';
+        Object.assign(modelSelector.style, position);
         modelSelector.style.display = 'block';
         
-        // 将选择器附加到输入框容器内，而不是body
+        // 将选择器附加到输入框容器内
         if (modelSelector.parentElement !== inputWrapper) {
             inputWrapper.appendChild(modelSelector);
         }
