@@ -35,7 +35,7 @@
       if (e.type==='touchend') e.preventDefault();
       const ac = new AudioCtx();
       if (ac.state==='suspended') ac.resume();
-      new Audio("data:audio/mp3;base64,SUQz...").play().catch(()=>{}); // 这里的音频数据应该是一个完整的Base64编码MP3数据
+      new Audio("data:audio/mp3;base64,SUQz...").play().catch(()=>{    }); // 这里的音频数据应该是一个完整的Base64编码MP3数据
       document.body.removeEventListener('click', unlockAudioContext);
       document.body.removeEventListener('touchend', unlockAudioContext);
     }
@@ -1467,7 +1467,9 @@ function showContextMenu(event, message) {
 // 发布到头条功能
 async function publishToToutiao(message) {
     try {
-        logDebug(`📰 开始发布到头条: ${message.text?.substring(0, 50)}...`, LOG_LEVELS.INFO);
+        logDebug('尝试通过后端代理发布消息到头条...', LOG_LEVELS.INFO, { 
+            content: message.text?.substring(0, 100) + '...' 
+        });
         
         // 提取标题和内容
         let title = '';
@@ -1498,38 +1500,36 @@ async function publishToToutiao(message) {
             content = fullText;
         }
         
-        // 构建发布内容
-        const publishText = `@苑广山 ${title}\n\n${content}`;
-        
         // 显示加载提示
         showAppNotification('正在发布到头条...', 2000);
         
-        // 模拟curl请求（由于浏览器安全限制，实际需要使用后端API）
-        // 这里我们创建一个下载链接，让用户手动复制发布
-        const blob = new Blob([publishText], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
+        // 调用后端代理接口
+        const YOUR_FLASK_PROXY_API_URL = '/api/toutiaopost';
         
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `toutiao_publish_${Date.now()}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const response = await fetch(YOUR_FLASK_PROXY_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title: title,
+                content: content
+            })
+        });
         
-        showAppNotification('发布内容已生成，请复制内容到头条发布', 3000);
-        
-        // 将内容复制到剪贴板
-        try {
-            await navigator.clipboard.writeText(publishText);
-            showAppNotification('内容已复制到剪贴板！', 2000);
-        } catch (clipboardError) {
-            logDebug('无法访问剪贴板，用户需要手动复制', LOG_LEVELS.WARN);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: '未知错误' }));
+            throw new Error(errorData.error || `HTTP ${response.status}`);
         }
         
+        const data = await response.json();
+        
+        logDebug('✅ 通过后端代理发布到头条成功 (可能需要审核)', LOG_LEVELS.SUCCESS, data);
+        showAppNotification('已通过后端提交到头条，等待审核。', 3000);
+        
     } catch (error) {
-        logDebug(`📰 发布到头条失败: ${error.message}`, LOG_LEVELS.ERROR);
-        showAppNotification('发布失败，请重试', 3000, true);
+        logDebug(`❗通过后端代理发布到头条失败: ${error.message}`, LOG_LEVELS.ERROR, error);
+        showAppNotification(`发布到头条失败: ${error.message}.`, 5000, true);
     }
 }
 
@@ -1645,6 +1645,11 @@ function appendChatMessage(msg) {
 function showAIContextMenu(element, x, y) {
     currentMessageElement = element; 
     
+    if (!contextMenu) {
+        console.warn('Context menu element not found');
+        return;
+    }
+    
     contextMenu.style.top = `${y}px`;
     contextMenu.style.left = `${x}px`;
     contextMenu.style.display = 'block';
@@ -1682,7 +1687,8 @@ function showAIContextMenu(element, x, y) {
     if (navigator.vibrate) navigator.vibrate(50); 
 }
 
-contextMenu.addEventListener('click', async (e) => {
+if (contextMenu) {
+    contextMenu.addEventListener('click', async (e) => {
     const clickedOption = e.target;
     if (!clickedOption.closest('li')) return; 
 
@@ -1813,6 +1819,7 @@ contextMenu.addEventListener('click', async (e) => {
         setTimeout(() => { if (explanationEl.parentNode) explanationEl.remove(); }, 6000); 
     }
 });
+}
 
 
 // --- 图片和媒体处理函数 (保持不变) ---
@@ -2858,7 +2865,7 @@ let currentTouchMsgEl = null;
             if (msgEl) {
                 e.preventDefault(); 
                 showAIContextMenu(msgEl, e.pageX, e.pageY);
-            } else {
+            } else if (contextMenu) {
                 contextMenu.style.display = 'none';
             }
         });
@@ -2876,7 +2883,7 @@ let currentTouchMsgEl = null;
                         if (navigator.vibrate) navigator.vibrate(50); 
                     }
                 }, 500); 
-            } else {
+            } else if (contextMenu) {
                 contextMenu.style.display = 'none';
             }
         }, { passive: true }); 
@@ -2892,7 +2899,7 @@ let currentTouchMsgEl = null;
         }, { passive: true }); 
 
         document.addEventListener('click', (e) => {
-            if (!usersMenu.contains(e.target) && !contextMenu.contains(e.target)) {
+            if (!usersMenu.contains(e.target) && contextMenu && !contextMenu.contains(e.target)) {
                 usersMenu.classList.remove('show');
                 contextMenu.style.display = 'none';
             }
