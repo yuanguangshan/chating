@@ -2549,7 +2549,14 @@ let currentTouchMsgEl = null;
             recognition.interimResults = false;
 
             voiceInputButton.classList.add('recording');
-            voiceInputStatus.textContent = '正在聆听...';
+            voiceInputStatus.textContent = '正在聆听... 说"发送"确认发送';
+            
+            // 添加使用提示
+            setTimeout(() => {
+                if (voiceInputStatus.classList.contains('show')) {
+                    voiceInputStatus.textContent = '说"发送"确认';
+                }
+            }, 2000);
             voiceInputStatus.classList.add('show');
             
             recognition.onstart = () => {
@@ -2560,15 +2567,22 @@ let currentTouchMsgEl = null;
                 const transcript = event.results[0][0].transcript;
                 logDebug(`🎤 语音识别结果: ${transcript}`, LOG_LEVELS.INFO);
                 
-                // 直接发送识别结果给机器人
-                if (transcript.trim()) {
-                    sendMessageToBot(transcript.trim());
+                // 检查是否说"发送"来确认发送
+                if (transcript.trim() === '发送') {
+                    // 如果输入框有内容，发送消息
+                    if (messageInput.value.trim()) {
+                        sendMessageToBot(messageInput.value.trim());
+                        messageInput.value = '';
+                        messageInput.style.height = 'auto';
+                        checkSendButtonState();
+                    }
+                } else {
+                    // 将识别结果显示在输入框中让用户检查
+                    messageInput.value = transcript.trim();
+                    messageInput.style.height = 'auto';
+                    messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    checkSendButtonState();
                 }
-                
-                // 清空输入框
-                messageInput.value = '';
-                messageInput.style.height = 'auto';
-                checkSendButtonState();
             };
 
             recognition.onerror = (event) => {
@@ -2592,7 +2606,9 @@ let currentTouchMsgEl = null;
 
             recognition.onend = () => {
                 voiceInputButton.classList.remove('recording');
-                voiceInputStatus.classList.remove('show');
+                setTimeout(() => {
+                    voiceInputStatus.classList.remove('show');
+                }, 1500);
                 logDebug('🎤 语音识别已结束', LOG_LEVELS.INFO);
             };
 
