@@ -1454,151 +1454,334 @@ function stripMarkdown(text) {
     return cleaned;
 }
 
-// 发布到头条功能 (完整修改后的函数)
+// 简化版AI回复内容处理器 (此处再次提供，确保完整性)
+class AIContentProcessor {
+    constructor() {
+        // 常见的AI回复标识符
+        this.aiIdentifiers = [
+            '机器人小助手',
+            '由 Pro 模型生成',
+            '由.*?模型生成', // 更通用地匹配“由任意模型生成”
+            'AI回复',
+            '智能助手'
+        ];
+        
+        // 常见的用户前缀
+        this.userPrefixes = [
+            '@苑广山',
+            '@\\w+', // 匹配任何@用户名
+            '用户[：:]',
+            '问题[：:]'
+        ];
+    }
+    
+    // 一步到位的内容清理 (包括控制字符、HTML、基础Markdown、规范化空格)
+    cleanContent(text) {
+        if (!text || typeof text !== 'string') return '';
+        
+        return text
+            // 移除控制字符 (包括零宽度字符等)
+            .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\u200B-\u200F\u2028\u2029\uFEFF]/g, '')
+            // 清理HTML标签
+            .replace(/<[^>]*>/g, '')
+            // 清理常见的Markdown粗体/斜体/代码块标记
+            .replace(/\*\*(.*?)\*\*/g, '$1') // 移除双星号粗体，保留内容
+            .replace(/\*(.*?)\*/g, '$1')     // 移除单星号斜体，保留内容
+            .replace(/`(.*?)`/g, '$1')       // 移除反引号代码，保留内容
+            // 规范化空格和换行
+            .replace(/[ \t]+/g, ' ') // 多个空格/制表符替换为单个空格
+            .replace(/\n\s*\n\s*\n/g, '\n\n') // 多个空行替换为双空行
+            .trim(); // 移除首尾空白
+    }
+    
+    // 智能检测是否为AI回复
+    isAIResponse(message) {
+        const text = message.text || message.caption || '';
+        const username = message.username || '';
+        
+        // 检查用户名
+        if (username === '机器人小助手') return true;
+        
+        // 检查文本内容是否包含AI标识符
+        return this.aiIdentifiers.some(identifier => 
+            new RegExp(identifier, 'i').test(text)
+        );
+    }
+    
+    // 移除AI标识符
+    removeAIIdentifiers(text) {
+        let cleaned = text;
+        
+        // 定义更全面的AI标识移除模式
+        const patterns = [
+            /\*\*机器人小助手\*\*:\s*\(由.*?模型生成\)/gi, // **机器人小助手**: (由XXX模型生成)
+            /机器人小助手:\s*\(由.*?模型生成\)/gi,       // 机器人小助手: (由XXX模型生成)
+            /机器人小助手:\s*/gi,                     // 机器人小助手:
+            /机器人小助手/gi,                        // 机器人小助手 (单独出现)
+            /由.*?模型生成/gi,                       // 由XXX模型生成 (单独出现)
+            /\(由.*?模型生成\)/gi,                    // (由XXX模型生成) (单独出现)
+            /\[机器人小助手\]/gi,                     // [机器人小助手]
+            /\[AI回复\]/gi,                         // [AI回复]
+            /^\s*你好[！!]?\s*[:：]?\s*/i,             // "你好！", "你好:", "你好："等开头的问候
+            /^\s*(?:问题|提问)[:：]?\s*/i,             // "问题:", "提问："等开头的用户问题引导
+            /^\s*(?:回答|回复)[:：]?\s*/i              // "回答:", "回复："等开头的AI回答引导
+        ];
+        
+        patterns.forEach(pattern => {
+            cleaned = cleaned.replace(pattern, '');
+        });
+        
+        return cleaned.trim();
+    }
+    
+    // 移除用户前缀
+    removeUserPrefixes(text) {
+        let cleaned = text;
+        
+        this.userPrefixes.forEach(prefix => {
+            // 使用 ^ 确保只匹配行首的前缀
+            cleaned = cleaned.replace(new RegExp(`^\\s*${prefix}\\s*`, 'i'), '');
+        });
+        
+        return cleaned.trim();
+    }
+    
+    // 智能分离标题和内容
+    separateTitleAndContent(text) {
+        const lines = text.split('\n').filter(line => line.trim().length > 0);
+        
+        if (lines.length === 0) {
+            return { title: '', content: text }; // 返回空标题，让normalizeTitle处理
+        }
+        
+        if (lines.length === 1) {
+            // 单行文本，尝试按冒号分割（如 "问题: 这是我的问题"）
+            const colonIndex = text.indexOf(':');
+            if (colonIndex !== -1 && colonIndex < 50) { // 冒号在标题合理长度内
+                const proposedTitle = text.substring(0, colonIndex).trim();
+                const proposedContent = text.substring(colonIndex + 1).trim();
+                // 只有当冒号前内容非空且不包含标点时，才认为是标题分割
+                if (proposedTitle && !/[。！？\.\!\?]$/.test(proposedTitle)) {
+                    return { title: proposedTitle, content: proposedContent };
+                }
+            }
+            
+            // 无法按冒号分割，或者不适合作为标题分割，则截取前部分作为标题
+            // 确保标题至少包含一部分内容，避免空标题
+            const fallbackTitle = text.substring(0, Math.min(30, text.length)).trim();
+            return {
+                title: fallbackTitle,
+                content: text // 内容仍为完整文本
+            };
+        }
+        
+        // 多行文本，第一行作为标题
+        return {
+            title: lines[0].trim(),
+            content: lines.slice(1).join('\n').trim()
+        };
+    }
+    
+    // 格式化内容（添加适当的换行，使其成为易读的纯文本）
+    // 此方法现在专门用于生成纯文本的、语义化的换行，不生成HTML标签。
+    // HTML转换将在publishToToutiao函数中进行。
+    formatContent(content) {
+        let formatted = content;
+
+        // 1. 规范化所有连续的空格和制表符为单个空格，并清理首尾空格
+        formatted = formatted.replace(/[ \t]+/g, ' ').trim();
+
+        // 2. 在中文句号、问号、感叹号、英文句号、问号、感叹号后添加换行符
+        // 旨在创建纯文本的句子分隔，而不是为了HTML渲染。
+        formatted = formatted.replace(/([。！？\.\!\?])\s*(?=[^\n]|$)/g, '$1\n');
+
+        // 3. 在数字列表 (如 "1. ") 或项目符号列表 (如 "- ", "* ", "• ") 前添加双换行，确保其独立成段。
+        // 这将帮助后续HTML转换时识别为新的 <p> 标签。
+        formatted = formatted.replace(/([^\n])(\s*)((?:\d+\.|\-|\*|•)\s+)/g, '$1\n\n$3');
+
+        // 4. 清理多余的空行 (将三个或更多连续换行替换为两个，保留段落间距)
+        formatted = formatted.replace(/\n{3,}/g, '\n\n');
+
+        // 5. 清理换行符后可能出现的行首空格
+        formatted = formatted.replace(/\n\s+/g, '\n');
+
+        // 6. 最终清理首尾空白
+        formatted = formatted.trim();
+
+        return formatted;
+    }
+    
+    // 规范化标题长度和提供默认值
+    normalizeTitle(title, minLength = 2, maxLength = 30) {
+        if (!title || title.length < minLength) {
+            return '聊天记录'; // 默认标题
+        }
+        
+        if (title.length > maxLength) {
+            return title.substring(0, maxLength - 3) + '...';
+        }
+        
+        return title;
+    }
+    
+    // 主处理函数
+    processMessage(message) {
+        try {
+            // 1. 获取原始文本
+            const rawText = message.text || message.caption || '';
+            if (!rawText.trim()) {
+                return {
+                    title: message.type === 'image' ? '图片分享' : '空消息',
+                    content: message.type === 'image' ? '用户分享了一张图片' : '消息内容为空'
+                };
+            }
+            
+            // 2. 基础清理 (移除控制字符、HTML、基础Markdown、规范化空格)
+            let cleanedText = this.cleanContent(rawText);
+            
+            // 3. 移除用户前缀
+            cleanedText = this.removeUserPrefixes(cleanedText);
+            
+            // 4. 处理AI回复：如果检测到是AI回复，则移除AI标识符
+            if (this.isAIResponse(message)) {
+                cleanedText = this.removeAIIdentifiers(cleanedText);
+            }
+            
+            // 5. 分离标题和内容
+            const { title: extractedTitle, content: extractedContent } = this.separateTitleAndContent(cleanedText);
+            
+            // 6. 格式化内容 (生成纯文本，包含\n和\n\n)
+            const finalContent = this.formatContent(extractedContent || cleanedText);
+            
+            // 7. 规范化标题长度并设置默认值
+            let finalTitle = this.normalizeTitle(extractedTitle);
+            if (finalTitle === '聊天记录' && finalContent.length > 0) {
+                 const contentAsTitle = finalContent.split('\n')[0].trim();
+                 finalTitle = this.normalizeTitle(contentAsTitle);
+            }
+            
+            // 8. 最终检查与兜底
+            if (!finalTitle.trim() || finalTitle === '聊天记录') {
+                 finalTitle = finalContent.substring(0, Math.min(finalContent.length, 30)).trim();
+                 if (!finalTitle || finalTitle.length < 2) {
+                     finalTitle = message.type === 'image' ? '图片分享' : '聊天记录';
+                 } else if (finalTitle.length > 30) {
+                     finalTitle = finalTitle.substring(0, 27) + '...';
+                 }
+            }
+
+            if (!finalContent.trim()) {
+                return {
+                    title: finalTitle,
+                    content: finalTitle
+                };
+            }
+            
+            return {
+                title: finalTitle,
+                content: finalContent // 返回纯文本
+            };
+            
+        } catch (error) {
+            console.error('处理消息时出错:', error);
+            return {
+                title: '处理失败',
+                content: '消息处理过程中发生错误: ' + error.message
+            };
+        }
+    }
+}
+
+
+// 发布到头条功能 (完整修改后的函数，已集成 AIContentProcessor)
 async function publishToToutiao(message) { // message is the full message data object
 
     try {
-        logDebug('尝试通过后端代理发布消息到头条...', LOG_LEVELS.INFO, { 
+        logDebug('尝试通过后端代理发布消息到头条...', LOG_LEVELS.INFO, {
             messageObject: message,
             originalTextSnippet: (message.text || message.caption || '').substring(0, 100) + '...'
         });
-        
-        let title = '';
-        let content = '';
-        let fullText = message.text || message.caption || ''; 
 
-        // 基础文本清理函数 (移除控制字符和规范化空格，保持不变)
-        const cleanForJSON = (text) => {
-            if (typeof text !== 'string') return '';
-            let cleaned = text.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\u200B-\u200F\u2028\u2029\uFEFF]/g, '');
-            // 保留换行符，只清理多余的空格和制表符
-            cleaned = cleaned.replace(/[ \t]+/g, ' ').trim();
-            return cleaned;
-        };
-        fullText = cleanForJSON(fullText); // 对原始文本进行基础清理
+        // 实例化 AIContentProcessor
+        const processor = new AIContentProcessor();
 
-        let processedContent = fullText;
+        // 调用 AIContentProcessor 的主处理函数，一步到位获取标题和纯文本内容
+        let { title, content } = processor.processMessage(message);
 
-        // 1. 智能提取标题和内容，并处理AI回复的特殊格式
-        let cleanedText = fullText;
-        
-        // 通用清理：移除@苑广山前缀和任何@用户名前缀
-        cleanedText = cleanedText.replace(/^@苑广山\s*/i, '');
-        cleanedText = cleanedText.replace(/^@\w+\s*/i, ''); // 移除任何@用户名前缀
-        
-        // 检查是否为AI回复消息（支持多种格式）
-        const isAiResponse = message.username === '机器人小助手' || 
-                           cleanedText.includes('机器人小助手:') || 
-                           cleanedText.includes('**机器人小助手**') ||
-                           cleanedText.includes('(由 Pro 模型生成)');
-        
-        if (isAiResponse) {
-            // AI回复消息 - 智能提取用户问题和AI回答
-            
-            // 清理机器人标识
-            cleanedText = cleanedText.replace(/\*\*机器人小助手\*\*:\s*\(由 Pro 模型生成\)/g, '机器人小助手:');
-            cleanedText = cleanedText.replace(/机器人小助手:\s*\(由 Pro 模型生成\)/g, '机器人小助手:');
-            cleanedText = cleanedText.replace(/\(由 Pro 模型生成\)/g, '');
-            
-            // 提取标题：用户问题部分（在机器人回复之前）
-            const aiMarkerIndex = cleanedText.indexOf('机器人小助手:');
-            if (aiMarkerIndex !== -1) {
-                title = cleanedText.substring(0, aiMarkerIndex).trim();
-                processedContent = cleanedText.substring(aiMarkerIndex + '机器人小助手:'.length).trim();
+        // --- 以下是 AIContentProcessor 无法直接处理的，需要额外逻辑 ---
+
+        // 特殊处理：图片消息，将图片链接添加到内容中
+        if (message.type === 'image' && message.imageUrl) {
+            if (title === '聊天记录' || title === '无内容' || title === '空消息' || title === '处理失败') {
+                title = '图片分享';
+            }
+            if (content.trim()) {
+                content += `\n\n图片链接: ${message.imageUrl}`;
             } else {
-                // 如果没有找到机器人标识，使用全文
-                title = cleanedText.substring(0, 30).trim();
-                processedContent = cleanedText;
+                content = `用户分享了一张图片。\n\n图片链接: ${message.imageUrl}`;
             }
-            
-            // 进一步清理标题和内容，并转换为纯文本
-            title = title.replace(/^\s*\你好[！!]?\s*/, '').trim();
-            processedContent = processedContent.replace(/^\s*\你好[！!]?\s*/, '').trim();
-            
-            // 转换为纯文本
-            title = stripMarkdown(title);
-            processedContent = stripMarkdown(processedContent);
-            
-        } else if (message.type === 'image' && message.imageUrl) {
-            // 图片消息的标题和内容
-            const cleanText = stripMarkdown(fullText); // 先清理markdown
-            title = cleanText.substring(0, Math.min(cleanText.length, 50)); 
-            if (cleanText.length > 50) title += '...';
-            if (!title.trim()) title = '聊天室图片分享'; // 如果描述为空，使用默认标题
-
-            processedContent = cleanText; // 图片的描述（已清理markdown）
-            if (message.imageUrl) {
-                processedContent += `\n\n图片链接: ${message.imageUrl}`; // 内容中加入图片链接
-            }
-        } else {
-            // 普通文本消息
-            const cleanText = stripMarkdown(fullText); // 先清理markdown
-            const lines = cleanText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-            if (lines.length > 0) {
-                title = lines[0]; // 使用第一行作为标题
-            } else {
-                title = cleanText; // 如果没有多行，直接用全文
-            }
-            processedContent = cleanText;
+            title = processor.normalizeTitle(title);
         }
 
-        // 2. 对内容进行句号后换行处理（内容已经是纯文本）
-        content = processedContent; // 内容已经是纯文本
-        // 智能换行处理：句号后换行，但避免重复换行
-        content = content.replace(/([。！？\.\!\?])\s*/g, '$1\n');
-        // 处理多个连续标点符号的情况
-        content = content.replace(/\n([。！？\.\!\?])\n/g, '$1\n');
-        // 确保段落之间有空行
-        content = content.replace(/\n{3,}/g, '\n\n');
+        // --- 最终的兜底检查和日志记录 ---
 
-        // 3. 对标题进行长度限制 (2-30字)
-        // 标题已经是纯文本
+        // 确保标题长度符合要求，并进行最终兜底
+        title = processor.normalizeTitle(title);
 
-        // 确保标题长度在 2-30 字之间，并进行兜底
-        if (title.length < 2) {
-            title = content.substring(0, Math.min(content.length, 30)); // 尝试从内容中提取标题
-            if (title.length > 30) title = title.substring(0, 27) + '...'; // 截断并加省略号
-            if (!title.trim() || title.length < 2) { // 最终兜底
-                title = message.type === 'image' ? '图片分享' : '聊天室消息';
-            }
-        }
-        if (title.length > 30) {
-            title = title.substring(0, 27) + '...'; // 超过30字截断，并加省略号
-        }
-
-        // 4. 最终确保标题和内容非空（防止极端情况）
-        if (!title.trim()) { 
+        // 最终检查，防止标题或内容为空
+        if (!title.trim()) {
             title = message.type === 'image' ? '无标题图片分享' : '无标题聊天记录';
         }
-        if (!content.trim()) { 
-            content = title; // 如果内容为空，用标题兜底
+        if (!content.trim()) {
+            content = title; // 如果内容最终为空，用标题作为内容兜底
         }
-        
-        // 5. 对最终的标题和内容进行基础 JSON 清理（移除控制字符和规范化空格）
-        title = cleanForJSON(title);
-        content = cleanForJSON(content);
 
-        // 记录最终要发送的数据 (调试用)
-        logDebug('准备发送到头条的数据', LOG_LEVELS.INFO, {
-            finalTitle: title,
-            finalContentSnippet: content.substring(0, Math.min(content.length, 200)) + '...',
-            messageType: message.type,
-            extractedSuccessfully: title.trim().length > 0 && content.trim().length > 0,
-            lineBreaksAdded: (content.match(/\n/g) || []).length
+        // **关键修改：将纯文本内容转换为头条期望的HTML格式**
+        let htmlContent = content;
+
+        // 1. 先对HTML特殊字符进行转义，防止内容本身包含 < > & 等字符被误解析为HTML标签
+        htmlContent = htmlContent
+            .replace(/&/g, '&')
+            .replace(/</g, '<')
+            .replace(/>/g, '>')
+            .replace(/"/g, '"')
+            .replace(/'/g, ''');
+
+        // 2. 将纯文本内容按段落分隔符（\n\n）拆分成数组。
+        //    然后对每个“逻辑段落”，将其内部的单行换行符（\n）替换为空格。
+        //    最后，将每个处理过的逻辑段落包裹在 <p> 标签中，并用空字符串连接起来。
+        const paragraphs = htmlContent.split(/\n\n+/); // 多个 \n 视为段落分隔
+
+        let htmlParagraphs = paragraphs.map(p => {
+            // 在单个 <p> 标签内部，将所有 \n 替换为空格，以匹配头条编辑器的行为
+            const cleanedP = p.replace(/\n/g, ' ').trim(); // 确保清理掉内部的换行符
+            return `<p>${cleanedP}</p>`;
         });
 
-        // 最终检查，如果因为某种极端情况导致仍然为空，则抛出错误
-        if (!title.trim() || !content.trim()) {
+        // 3. 将所有 <p> 标签拼接起来形成最终的HTML字符串
+        htmlContent = htmlParagraphs.join('');
+
+        // 确保最终HTML不是空的
+        if (!htmlContent.trim()) {
+            htmlContent = '<p></p>';
+        }
+
+        logDebug('准备发送到头条的数据', LOG_LEVELS.INFO, {
+            finalTitle: title,
+            finalContentSnippet: htmlContent.substring(0, Math.min(htmlContent.length, 200)) + '...', // 打印 HTML 内容
+            messageType: message.type,
+            extractedSuccessfully: title.trim().length > 0 && content.trim().length > 0, // content 仍然是纯文本
+        });
+
+        if (!title.trim() || !content.trim()) { // content.trim() 检查的是原始处理后的纯文本是否为空
             logDebug("❗ 内部错误：最终标题或内容为空，无法发送。", LOG_LEVELS.ERROR, { finalTitle: title, finalContent: content });
             throw new Error("内部错误：无法提取有效的标题或内容。请尝试其他消息或手动复制。");
         }
-        
-        // 显示加载提示
+
         showAppNotification('正在发布到头条...', 2000);
-        
-        // 调用后端代理接口
+
         const YOUR_FLASK_PROXY_API_URL = 'https://api.yuangs.cc/api/toutiaopost';
-        
+
         const response = await fetch(YOUR_FLASK_PROXY_API_URL, {
             method: 'POST',
             headers: {
@@ -1606,10 +1789,10 @@ async function publishToToutiao(message) { // message is the full message data o
             },
             body: JSON.stringify({
                 title: title,
-                content: content
+                content: htmlContent // **发送 HTML 格式的内容**
             })
         });
-        
+
         if (!response.ok) {
             const errorText = await response.text();
             let errorDetails = errorText;
@@ -1619,21 +1802,19 @@ async function publishToToutiao(message) { // message is the full message data o
             } catch (parseErr) {
                 // Not a JSON error, use raw text
             }
-            throw new Error(`后端代理返回错误: ${response.status} - ${errorDetails}`); 
+            throw new Error(`后端代理返回错误: ${response.status} - ${errorDetails}`);
         }
-        
+
         const data = await response.json();
-        
+
         logDebug('✅ 通过后端代理发布到头条成功 (可能需要审核)', LOG_LEVELS.SUCCESS, data);
         showAppNotification('已通过后端提交到头条，等待审核。', 3000);
-        
+
     } catch (error) {
         logDebug(`❗通过后端代理发布到头条失败: ${error.message}`, LOG_LEVELS.ERROR, error);
         showAppNotification(`发布到头条失败: ${error.message}.`, 5000, true);
     }
 }
-
-
 function processMessageQueue() {
     if (isLoadingHistory) {
         logDebug("❗ 历史消息加载中，暂停处理新消息队列。", LOG_LEVELS.INFO);
