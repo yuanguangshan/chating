@@ -1745,7 +1745,6 @@ async function publishToToutiao(message) { // message is the full message data o
             .replace(/</g, '<')
             .replace(/>/g, '>')
             .replace(/"/g, '"')
-            .replace(/'/g, ''');
 
         // 2. 将纯文本内容按段落分隔符（\n\n）拆分成数组。
         //    然后对每个“逻辑段落”，将其内部的单行换行符（\n）替换为空格。
