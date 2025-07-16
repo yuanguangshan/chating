@@ -2474,7 +2474,7 @@ function onSocketOpen() {
     isConnecting = false;
     logDebug('🟢 WebSocket 连接已打开 (onopen触发)。');
     statusEl.textContent = '已连接';
-    connectionDot.classList.add('disconnected');
+    connectionDot.classList.remove('disconnected');
     
     // 成功打开后，重置重连间隔
     reconnectInterval = 1000;
