@@ -1504,7 +1504,7 @@ async function publishToToutiao(message) {
         showAppNotification('正在发布到头条...', 2000);
         
         // 调用后端代理接口
-        const YOUR_FLASK_PROXY_API_URL = '/api/toutiaopost';
+        const YOUR_FLASK_PROXY_API_URL = 'https://api.yuangs.cc/api/toutiaopost';
         
         const response = await fetch(YOUR_FLASK_PROXY_API_URL, {
             method: 'POST',
