@@ -2102,6 +2102,8 @@ modelSelector.style.cssText = `
     display: none;
     font-size: 14px;
     min-width: 150px;
+    max-height: 200px;
+    overflow-y: auto;
 `;
 document.body.appendChild(modelSelector);
 
@@ -2600,6 +2602,10 @@ messageInput.addEventListener('input', () => {
 
     // 隐藏模型选择器
     modelSelector.style.display = 'none';
+    // 隐藏时返回到body，避免影响其他定位
+    if (modelSelector.parentElement !== document.body) {
+        document.body.appendChild(modelSelector);
+    }
 
     // 处理@提及
     if (atIndex !== -1 && (slashIndex === -1 || atIndex > slashIndex)) {
@@ -2615,10 +2621,21 @@ messageInput.addEventListener('input', () => {
     // 处理/快捷选择模型
     if (slashIndex !== -1 && slashIndex === text.length - 1 && text.length === 1) {
         // 只在单独输入/时显示
-        const rect = messageInput.getBoundingClientRect();
-        modelSelector.style.left = rect.left + 'px';
-        modelSelector.style.top = (rect.bottom + 5) + 'px';
+        const inputWrapper = messageInput.parentElement;
+        const rect = inputWrapper.getBoundingClientRect();
+        const inputRect = messageInput.getBoundingClientRect();
+        
+        // 相对于输入框容器定位，确保跟随输入框移动
+        modelSelector.style.position = 'absolute';
+        modelSelector.style.left = '0px';
+        modelSelector.style.bottom = '100%';
+        modelSelector.style.marginBottom = '5px';
         modelSelector.style.display = 'block';
+        
+        // 将选择器附加到输入框容器内，而不是body
+        if (modelSelector.parentElement !== inputWrapper) {
+            inputWrapper.appendChild(modelSelector);
+        }
     }
 });
 
@@ -2633,6 +2650,18 @@ modelSelector.addEventListener('click', (e) => {
         };
         messageInput.value = messageInput.value.replace(/\/$/, modelMap[model] + ' ');
         modelSelector.style.display = 'none';
+        // 隐藏时返回到body，避免影响其他定位
+        if (modelSelector.parentElement !== document.body) {
+            document.body.appendChild(modelSelector);
+        }
+        // 隐藏时返回到body，避免影响其他定位
+        if (modelSelector.parentElement !== document.body) {
+            document.body.appendChild(modelSelector);
+        }
+        // 隐藏时返回到body，避免影响其他定位
+        if (modelSelector.parentElement !== document.body) {
+            document.body.appendChild(modelSelector);
+        }
         messageInput.focus();
         messageInput.dispatchEvent(new Event('input', { bubbles: true }));
     }
@@ -3015,6 +3044,10 @@ let currentTouchMsgEl = null;
                 } else if (e.key === 'Escape') {
                     e.preventDefault();
                     modelSelector.style.display = 'none';
+                    // 隐藏时返回到body，避免影响其他定位
+                    if (modelSelector.parentElement !== document.body) {
+                        document.body.appendChild(modelSelector);
+                    }
                 }
             }
         });
