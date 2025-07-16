@@ -796,7 +796,7 @@ async handleSessionInitialization(ws, url) {
         }
 
         session.lastSeen = Date.now();
-        this.debugLog(`📨 收到用户： 👦  ${session.username} 的消息: ${message.substring(0, 150)}...`);
+        // this.debugLog(`📨 收到用户： 👦  ${session.username} 的消息: ${message.substring(0, 150)}...`);
 
         try {
             const data = JSON.parse(message);
