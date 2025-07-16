@@ -1377,7 +1377,160 @@ function createMessageElement(msg) {
     }
         
     msgEl.innerHTML = contentHTML;
+    
+    // 添加右键菜单支持
+    const textElement = msgEl.querySelector('.text');
+    if (textElement) {
+        textElement.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            showContextMenu(e, msg);
+        });
+    }
+    
     return msgEl;
+}
+
+// 右键菜单相关函数
+function showContextMenu(event, message) {
+    // 移除已存在的菜单
+    const existingMenu = document.querySelector('.context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    // 创建菜单
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.style.cssText = `
+        position: fixed;
+        z-index: 10000;
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px var(--shadow);
+        padding: 8px 0;
+        min-width: 120px;
+        font-size: 14px;
+    `;
+    
+    const menuItem = document.createElement('div');
+    menuItem.textContent = '一键发布到头条';
+    menuItem.style.cssText = `
+        padding: 8px 16px;
+        cursor: pointer;
+        color: var(--text);
+        transition: background-color 0.2s;
+    `;
+    
+    menuItem.addEventListener('mouseenter', function() {
+        this.style.backgroundColor = 'var(--border)';
+    });
+    
+    menuItem.addEventListener('mouseleave', function() {
+        this.style.backgroundColor = 'transparent';
+    });
+    
+    menuItem.addEventListener('click', function() {
+        publishToToutiao(message);
+        menu.remove();
+    });
+    
+    menu.appendChild(menuItem);
+    
+    // 定位菜单
+    const rect = event.target.getBoundingClientRect();
+    const menuX = event.clientX;
+    const menuY = event.clientY;
+    
+    // 确保菜单不超出视窗
+    const maxX = window.innerWidth - menu.offsetWidth - 10;
+    const maxY = window.innerHeight - menu.offsetHeight - 10;
+    
+    menu.style.left = Math.min(menuX, maxX) + 'px';
+    menu.style.top = Math.min(menuY, maxY) + 'px';
+    
+    document.body.appendChild(menu);
+    
+    // 点击其他地方关闭菜单
+    function closeMenu(e) {
+        if (!menu.contains(e.target)) {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+        }
+    }
+    
+    setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+    }, 0);
+}
+
+// 发布到头条功能
+async function publishToToutiao(message) {
+    try {
+        logDebug(`📰 开始发布到头条: ${message.text?.substring(0, 50)}...`, LOG_LEVELS.INFO);
+        
+        // 提取标题和内容
+        let title = '';
+        let content = '';
+        
+        const fullText = message.text || '';
+        
+        // 如果是AI回复，提取格式
+        if (message.username === '机器人小助手' && fullText.includes('(由 Pro 模型生成)')) {
+            // 移除开头的问候语和标识
+            const startIndex = fullText.indexOf('(由 Pro 模型生成)') + '(由 Pro 模型生成)'.length;
+            content = fullText.substring(startIndex).trim();
+            
+            // 移除开头的问候语（如"你好！"）
+            content = content.replace(/^(你好[！!]?\s*)/, '');
+            
+            // 提取标题：从"@苑广山"开始的部分
+            const titleMatch = fullText.match(/@苑广山\s+(.+?)(?:\n|$)/);
+            if (titleMatch) {
+                title = titleMatch[1].trim();
+            } else {
+                // 如果没有@苑广山格式，取前20个字符作为标题
+                title = content.substring(0, 20).replace(/\n/g, ' ') + '...';
+            }
+        } else {
+            // 普通消息
+            title = fullText.substring(0, 20).replace(/\n/g, ' ') + '...';
+            content = fullText;
+        }
+        
+        // 构建发布内容
+        const publishText = `@苑广山 ${title}\n\n${content}`;
+        
+        // 显示加载提示
+        showAppNotification('正在发布到头条...', 2000);
+        
+        // 模拟curl请求（由于浏览器安全限制，实际需要使用后端API）
+        // 这里我们创建一个下载链接，让用户手动复制发布
+        const blob = new Blob([publishText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `toutiao_publish_${Date.now()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showAppNotification('发布内容已生成，请复制内容到头条发布', 3000);
+        
+        // 将内容复制到剪贴板
+        try {
+            await navigator.clipboard.writeText(publishText);
+            showAppNotification('内容已复制到剪贴板！', 2000);
+        } catch (clipboardError) {
+            logDebug('无法访问剪贴板，用户需要手动复制', LOG_LEVELS.WARN);
+        }
+        
+    } catch (error) {
+        logDebug(`📰 发布到头条失败: ${error.message}`, LOG_LEVELS.ERROR);
+        showAppNotification('发布失败，请重试', 3000, true);
+    }
 }
 
 // 消息队列处理函数，在 requestAnimationFrame 中执行
@@ -1489,7 +1642,7 @@ function appendChatMessage(msg) {
 
 
 // --- 上下文菜单和 AI 解释逻辑 (保持不变) ---
-function showContextMenu(element, x, y) {
+function showAIContextMenu(element, x, y) {
     currentMessageElement = element; 
     
     contextMenu.style.top = `${y}px`;
@@ -2704,7 +2857,7 @@ let currentTouchMsgEl = null;
             const msgEl = e.target.closest('.message'); 
             if (msgEl) {
                 e.preventDefault(); 
-                showContextMenu(msgEl, e.pageX, e.pageY);
+                showAIContextMenu(msgEl, e.pageX, e.pageY);
             } else {
                 contextMenu.style.display = 'none';
             }
@@ -2719,7 +2872,7 @@ let currentTouchMsgEl = null;
                 touchLongPressTimer = setTimeout(() => {
                     if (currentTouchMsgEl === msgEl && (Date.now() - touchStartTime) >= 500) {
                         e.preventDefault();
-                        showContextMenu(msgEl, e.touches[0].pageX, e.touches[0].pageY);
+                        showAIContextMenu(msgEl, e.touches[0].pageX, e.touches[0].pageY);
                         if (navigator.vibrate) navigator.vibrate(50); 
                     }
                 }, 500); 
