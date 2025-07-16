@@ -1491,16 +1491,11 @@ class AIContentProcessor {
             .replace(/`/g, '')
             .replace(/#/g, '');
 
-        // --- 删除第一个句号之前的所有内容 ---
-        // 这里的清理是纯文本操作，在 AIContentProcessor.processMessage 调用 formatContent 之前。
-        // formatContent 会将所有 \n 转为空格，但这个分离逻辑仍然依赖原始的行结构。
-        const firstSentenceEndMatch = cleaned.match(/[。！？\.\!\?]/);
-        if (firstSentenceEndMatch) {
-            const firstCharIndex = firstSentenceEndMatch.index;
-            cleaned = cleaned.substring(firstCharIndex);
-        }
+        // --- 注意：这里删除了之前“删除第一个句号之前的所有内容”的逻辑 ---
+        // 因为现在要求“第一行做标题”，那么原文开头的句号不再是起点，
+        // 且此规则与“第二段开始处理”冲突。如果仍然需要，需要明确其作用时机。
         
-        // 规范化空格和换行（在 formatContent 中会进一步处理所有 \n）
+        // 规范化空格和换行（最终在formatContent中会将所有\n转为空格）
         cleaned = cleaned
             .replace(/[ \t]+/g, ' ')
             .replace(/\n\s*\n\s*\n/g, '\n\n')
@@ -1558,34 +1553,29 @@ class AIContentProcessor {
     }
     
     // 智能分离标题和内容
+    // 这次，这个方法会精确地返回第一行作为标题，其余作为内容（包含所有后续换行符）
     separateTitleAndContent(text) {
-        const lines = text.split('\n').filter(line => line.trim().length > 0);
+        // split('\n') 不会过滤空行，这样我们可以准确获取第一行、第二行等
+        const rawLines = text.split('\n');
         
-        if (lines.length === 0) {
-            return { title: '', content: text };
-        }
-        
-        if (lines.length === 1) {
-            const colonIndex = text.indexOf(':');
-            if (colonIndex !== -1 && colonIndex < 50) {
-                const proposedTitle = text.substring(0, colonIndex).trim();
-                const proposedContent = text.substring(colonIndex + 1).trim();
-                if (proposedTitle && !/[。！？\.\!\?]$/.test(proposedTitle)) {
-                    return { title: proposedTitle, content: proposedContent };
-                }
-            }
-            
-            const fallbackTitle = text.substring(0, Math.min(30, text.length)).trim();
+        // 确保至少有1行作为标题
+        const titleLine = rawLines[0] ? rawLines[0].trim() : '';
+
+        // 内容从第二行开始的所有行，包括空行，直到最后的trim()
+        const contentLines = rawLines.slice(1).join('\n').trim();
+
+        // 如果原始文本只有一行，内容为空，标题就是那一行
+        if (rawLines.length <= 1 || !titleLine) { // 如果没有明确的第一行，或者只有一行
             return {
-                title: fallbackTitle,
-                content: text
+                title: titleLine || text.substring(0, Math.min(30, text.length)).trim(), // 确保标题不为空
+                content: '' // 内容为空
             };
         }
         
-        // 多行文本，第一行作为标题，第二行忽略，从第三行开始作为内容
+        // 返回标题和从第二行开始的原始内容（不进行任何特殊过滤或跳过）
         return {
-            title: lines[0].trim(),
-            content: lines.slice(2).join('\n').trim()
+            title: titleLine,
+            content: contentLines
         };
     }
     
@@ -1594,88 +1584,71 @@ class AIContentProcessor {
         if (!content || typeof content !== 'string') return '';
 
         const TARGET_LINE_LENGTH = 20;
-        const NUMBER_DASHES = '---------'; // 9个 -
+        const NUMBER_DASHES = '-------------------'; // 9个 -
 
         let formattedLines = [];
         let currentBuffer = '';
 
         // 1. 预处理：标准化换行和空格，并确保句号后有空格
+        // 注意：这里不再将所有\n都转为空格，因为我们需要保留\n来判断原始的“行”
         let processedContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         processedContent = processedContent.replace(/[ \t]+/g, ' '); // 多个空格转单个空格
-        // 确保句号后有空格，方便后续按空格和字符切割
+        // 确保句号后有空格，方便后续按空格和字符切割，避免中文连接词问题
         processedContent = processedContent.replace(/([。！？\.\!\?])(?=\S)/g, '$1 '); 
-        processedContent = processedContent.trim();
+        // processedContent = processedContent.trim(); // 暂时不在这里trim，以免影响首行缩进
 
 
-        // 2. 逐字符或逐词处理，实现精确的行长度控制和补齐
-        const words = processedContent.split(' '); // 尝试按空格分割，但中文可能没有空格
+        // 2. 逐行处理，应用20字规则和数字规则
+        const linesToProcess = processedContent.split('\n').filter(line => line.trim().length > 0); // 过滤掉空行
 
-        for (const word of words) {
-            if (!word) continue;
+        for (let i = 0; i < linesToProcess.length; i++) {
+            let line = linesToProcess[i].trim();
+            if (!line) continue;
 
-            // 检查当前词是否是数字开头（如 "1." 或 "10."）
-            const numberMatch = word.match(/^(\d+)\./);
+            let lineBuffer = '';
+            // 检查当前行是否是数字开头（如 "1." 或 "10."）
+            const numberMatch = line.match(/^(\d+)\./);
             if (numberMatch) {
-                // 如果当前buffer有内容，先将其作为一行处理
-                if (currentBuffer.length > 0) {
-                    formattedLines.push(currentBuffer.padEnd(TARGET_LINE_LENGTH, ' '));
-                    currentBuffer = '';
-                }
-                
                 // 数字单独占一行，前后加短线
                 const number = numberMatch[1];
                 formattedLines.push(NUMBER_DASHES + number + NUMBER_DASHES);
                 
                 // 数字后的内容
-                const restOfWord = word.substring(numberMatch[0].length); // "Synology"
-                if (restOfWord) {
-                     currentBuffer += restOfWord;
-                }
-                
-                // 确保数字处理后，如果当前buffer已满，也进行换行
-                if (currentBuffer.length >= TARGET_LINE_LENGTH) {
-                    formattedLines.push(currentBuffer.padEnd(TARGET_LINE_LENGTH, ' '));
-                    currentBuffer = '';
-                }
-                continue; // 处理完数字，跳到下一个词
+                lineBuffer += line.substring(numberMatch[0].length).trim();
+            } else {
+                lineBuffer += line;
             }
 
-            // 一般文本处理：逐字添加以保证20字限制
-            for (const char of word) {
-                if ((currentBuffer + char).length > TARGET_LINE_LENGTH) {
-                    // 如果添加字符后超过20字，当前行结束，补齐空格
-                    formattedLines.push(currentBuffer.padEnd(TARGET_LINE_LENGTH, ' '));
-                    currentBuffer = char; // 新行开始
+            // 对当前行的内容进行20字切割和句号补齐
+            let charBuffer = '';
+            for (const char of lineBuffer) {
+                if ((charBuffer + char).length > TARGET_LINE_LENGTH) {
+                    formattedLines.push(charBuffer.padEnd(TARGET_LINE_LENGTH, ' '));
+                    charBuffer = char;
                 } else {
-                    currentBuffer += char; // 否则添加到当前行
+                    charBuffer += char;
                 }
             }
-
-            // 如果当前buffer的最后一个字符是句号，且长度不够20，补齐空格并结束行
-            if (/[。！？\.\!\?]$/.test(currentBuffer.trim()) && currentBuffer.length < TARGET_LINE_LENGTH) {
-                formattedLines.push(currentBuffer.padEnd(TARGET_LINE_LENGTH, ' '));
-                currentBuffer = ''; // 新行开始
-            } else if (currentBuffer.length < TARGET_LINE_LENGTH) {
-                 // 如果一行还没满20字，且不是句号结尾，但当前单词已处理完，添加一个空格作为分隔
-                if (currentBuffer.length > 0 && words.indexOf(word) < words.length - 1) { // 避免最后一行或数字行尾多余空格
-                    currentBuffer += ' ';
-                }
+            // 处理行的剩余部分
+            if (charBuffer.length > 0) {
+                 formattedLines.push(charBuffer.padEnd(TARGET_LINE_LENGTH, ' '));
+            }
+            
+            // 如果是列表项，且后面还有内容，可以考虑加一个额外的空行分隔
+            if (numberMatch && i < linesToProcess.length - 1) {
+                // formattedLines.push(''); // 列表项之间加空行分隔，可以根据效果决定是否加
             }
         }
-
-        // 处理剩余的 buffer 内容 (最后一行)
-        if (currentBuffer.length > 0) {
-            formattedLines.push(currentBuffer.padEnd(TARGET_LINE_LENGTH, ' '));
-        }
-
+        
         // 3. 首行首个字前加2个空格
         if (formattedLines.length > 0) {
-            formattedLines[0] = '  ' + formattedLines[0].trim(); // 先去除该行已有的首尾空格，再加两个
+            formattedLines[0] = '  ' + formattedLines[0].trim();
         }
 
-        // 4. 清理多余空行，并合并
+        // 4. 清理多余空行，并合并为最终的单行字符串
         let finalOutput = formattedLines.join('\n');
-        finalOutput = finalOutput.replace(/\n{3,}/g, '\n\n').trim(); // 多个空行规范化
+        finalOutput = finalOutput.replace(/\n{3,}/g, '\n\n'); // 规范化多余空行
+        finalOutput = finalOutput.replace(/\n/g, ' ').trim(); // **最后一步：将所有换行符转换为单个空格**
 
         return finalOutput;
     }
@@ -1704,37 +1677,55 @@ class AIContentProcessor {
                 };
             }
             
-            let cleanedText = this.cleanContent(rawText);
-            cleanedText = this.removeUserPrefixes(cleanedText);
+            // 注意这里，cleanContent不再执行删除“第一句号前内容”的逻辑，
+            // 而是只做基础清理。
+            let cleanedTextInitial = this.cleanContent(rawText);
+
+            // 首先根据换行符准确分离标题和（未处理的）内容
+            const { title: rawExtractedTitle, content: rawExtractedContent } = this.separateTitleAndContent(cleanedTextInitial);
             
+            // 对内容进行进一步清理（用户前缀、AI标识等）和最终格式化
+            let processedContent = rawExtractedContent;
+            processedContent = this.removeUserPrefixes(processedContent);
             if (this.isAIResponse(message)) {
-                cleanedText = this.removeAIIdentifiers(cleanedText);
+                processedContent = this.removeAIIdentifiers(processedContent);
             }
+            // 现在对“内容部分”应用复杂的格式化规则
+            const finalContent = this.formatContent(processedContent);
             
-            const { title: extractedTitle, content: extractedContent } = this.separateTitleAndContent(cleanedText);
-            // finalContent 现在将是经过复杂格式化后的纯文本
-            const finalContent = this.formatContent(extractedContent || cleanedText);
-            
-            let finalTitle = this.normalizeTitle(extractedTitle);
-            if (finalTitle === '聊天记录' && finalContent.length > 0) {
-                 // 从格式化后的内容中提取标题（可能包含大量空格）
-                 const contentAsTitle = finalContent.substring(0, Math.min(30, finalContent.length)).trim();
-                 finalTitle = this.normalizeTitle(contentAsTitle);
+            // 对标题进行清理和规范化
+            let processedTitle = rawExtractedTitle;
+            processedTitle = this.removeUserPrefixes(processedTitle);
+            if (this.isAIResponse(message)) {
+                processedTitle = this.removeAIIdentifiers(processedTitle);
             }
+            let finalTitle = this.normalizeTitle(processedTitle);
             
+            // 标题兜底逻辑（如果标题太短或不理想，从内容中提取）
             if (!finalTitle.trim() || finalTitle === '聊天记录') {
-                 finalTitle = finalContent.substring(0, Math.min(finalContent.length, 30)).trim();
-                 if (!finalTitle || finalTitle.length < 2) {
-                     finalTitle = message.type === 'image' ? '图片分享' : '聊天记录';
-                 } else if (finalTitle.length > 30) {
-                     finalTitle = finalTitle.substring(0, 27) + '...';
+                 // 尝试从内容中提取，但内容已经是格式化后的长串，可能不适合作为标题来源
+                 // 保持从原始提取的标题进行规范化的策略，避免标题过长或不准确
+                 finalTitle = this.normalizeTitle(rawExtractedTitle); // 从未经复杂格式化的原始标题再次尝试
+                 if (!finalTitle.trim() || finalTitle === '聊天记录') { // 如果仍然不理想
+                    finalTitle = finalContent.substring(0, Math.min(finalContent.length, 30)).trim();
+                    if (!finalTitle || finalTitle.length < 2) {
+                        finalTitle = message.type === 'image' ? '图片分享' : '聊天记录';
+                    } else if (finalTitle.length > 30) {
+                        finalTitle = finalTitle.substring(0, 27) + '...';
+                    }
                  }
             }
 
-            if (!finalContent.trim()) {
+
+            if (!finalContent.trim() && !finalTitle.trim()) { // 内容和标题都为空
+                return {
+                    title: message.type === 'image' ? '图片分享' : '空消息',
+                    content: message.type === 'image' ? '用户分享了一张图片' : '消息内容为空'
+                };
+            } else if (!finalContent.trim()) { // 内容为空，但标题不为空
                 return {
                     title: finalTitle,
-                    content: finalTitle
+                    content: finalTitle // 用标题兜底内容
                 };
             }
             
@@ -1753,7 +1744,7 @@ class AIContentProcessor {
     }
 }
 
-// publishToToutiao 功能 (保持不变，因为它现在只需要发送 AIContentProcessor 产出的纯文本)
+// publishToToutiao 功能 (保持不变)
 async function publishToToutiao(message) {
     try {
         logDebug('尝试通过后端代理发布消息到头条...', LOG_LEVELS.INFO, {
@@ -1836,7 +1827,6 @@ async function publishToToutiao(message) {
         showAppNotification(`发布到头条失败: ${error.message}.`, 5000, true);
     }
 }
-
 
 
 function processMessageQueue() {
