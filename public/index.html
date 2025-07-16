@@ -1441,16 +1441,31 @@ function createMessageElement(msg) {
 
 
 // 发布到头条功能
-async function publishToToutiao(message) { // message is the full message data object
+
+// 在 publishToToutiao 函数内部
+async function publishToToutiao(message) {
     try {
-        logDebug('尝试通过后端代理发布消息到头条...', LOG_LEVELS.INFO, { 
-            messageObject: message,
-            originalTextSnippet: (message.text || message.caption || '').substring(0, 100) + '...'
-        });
+        // ... (logDebug and initial fullText extraction remain the same)
         
         let title = '';
         let content = '';
-        let fullText = message.text || message.caption || ''; // Use text or caption for main content
+        let fullText = message.text || message.caption || ''; 
+
+        // === 新增：更严格的文本清理函数 ===
+        const cleanForJSON = (text) => {
+            if (typeof text !== 'string') return '';
+            // 移除所有 ASCII 控制字符 (0-31) 和一些常见的非打印字符
+            // 除了换行符 \n 和回车符 \r
+            let cleaned = text.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\u200B-\u200F\u2028\u2029\uFEFF]/g, '');
+            // 规范化空白字符，将多个连续的空白替换为单个空格
+            cleaned = cleaned.replace(/\s+/g, ' ').trim();
+            return cleaned;
+        };
+        // ===================================
+
+        // ... (AI response extraction and image URL handling, use cleanForJSON on extracted parts)
+        // Apply cleanForJSON to fullText at the very beginning of processing
+        fullText = cleanForJSON(fullText); // Clean the raw text first
 
         // 1. 尝试从AI回复中智能提取标题和内容
         let processedContent = fullText;
@@ -1466,50 +1481,44 @@ async function publishToToutiao(message) { // message is the full message data o
             if (aiResponseStart !== -1) {
                 processedContent = fullText.substring(aiResponseStart + '**机器人小助手**:'.length).trim();
             } else {
-                processedContent = fullText; // Fallback if AI marker is not found
+                processedContent = fullText; 
             }
-            
-            // 进一步清理AI回复中的前缀和问候语
             processedContent = processedContent.replace(/^\s*\(\s*由\s*Pro\s*模型生成\s*\)\s*[\r\n]*/, '').trim();
             processedContent = processedContent.replace(/^\s*你好[！!]?\s*/, '').trim(); 
         } else if (message.type === 'image' && message.imageUrl) {
-            // 对于图片消息，文本是caption，内容需要包含图片URL
             processedContent = fullText + `\n\n图片链接: ${message.imageUrl}`;
         }
-        // 对于普通文本消息，processedContent 就是 fullText
 
-        // 2. 确保内容不为空 (即使经过处理后)
         if (!processedContent.trim()) {
-            processedContent = "这是一条分享。"; // 最终兜底内容
-            if (message.type === 'image' && message.imageUrl && !fullText.trim()) { // 针对无描述图片
-                 processedContent = `图片分享\n\n图片链接: ${message.imageUrl}`;
+            processedContent = "这是一条来自聊天室的分享。";
+            if (message.type === 'image' && message.imageUrl && !fullText.trim()) {
+                 processedContent = `来自聊天室的图片分享\n\n图片链接: ${message.imageUrl}`;
             }
         }
 
         // 3. 确保标题不为空或有意义
         if (!title.trim()) {
-            // 尝试从处理后的内容中提取第一行作为标题
             const lines = processedContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
             if (lines.length > 0) {
                 title = lines[0].substring(0, Math.min(lines[0].length, 50));
                 if (lines[0].length > 50) title += '...';
             } else {
-                // 如果内容本身也无法提取出标题，使用通用默认标题
                 title = message.type === 'image' ? '聊天室图片分享' : '聊天室消息分享';
             }
         }
         
         // 4. 最终检查和兜底
-        if (!title.trim()) { // 再次检查，确保标题绝对非空
+        if (!title.trim()) { 
             title = message.type === 'image' ? '无标题图片分享' : '无标题聊天记录';
         }
-        if (!content.trim()) { // 再次检查，确保内容绝对非空
-            content = title; // 如果内容为空，用标题兜底
+        if (!content.trim()) { 
+            content = title; 
         }
 
-        // 清理Markdown标签，让标题更像纯文本
-        title = (marked.parse(title) || '').replace(/(<([^>]+)>)/gi, '').replace(/[\r\n]+/g, ' ').trim();
-        content = (marked.parse(content) || '').replace(/(<([^>]+)>)/gi, '').replace(/[\r\n]+/g, ' ').trim();
+        // === 再次应用清理，确保最终发送的字符串是干净的 ===
+        title = cleanForJSON(title);
+        content = cleanForJSON(content);
+        // ================================================
 
         // 记录最终要发送的数据
         logDebug('准备发送到头条的数据', LOG_LEVELS.INFO, {
@@ -1519,16 +1528,12 @@ async function publishToToutiao(message) { // message is the full message data o
             extractedSuccessfully: title.trim().length > 0 && content.trim().length > 0
         });
 
-        // 最终检查，如果因为某种极端情况导致仍然为空，则抛出错误
         if (!title.trim() || !content.trim()) {
             logDebug("❗ 内部错误：最终标题或内容为空，无法发送。", LOG_LEVELS.ERROR, { finalTitle: title, finalContent: content });
             throw new Error("内部错误：无法提取有效的标题或内容。请尝试其他消息或手动复制。");
         }
         
-        // 显示加载提示
-        showAppNotification('正在发布到头条...', 2000);
-        
-        // 调用后端代理接口
+        // ... (rest of fetch call, this part remains the same)
         const YOUR_FLASK_PROXY_API_URL = 'https://api.yuangs.cc/api/toutiaopost';
         
         const response = await fetch(YOUR_FLASK_PROXY_API_URL, {
@@ -1564,7 +1569,6 @@ async function publishToToutiao(message) { // message is the full message data o
         showAppNotification(`发布到头条失败: ${error.message}.`, 5000, true);
     }
 }
-
 // 消息队列处理函数，在 requestAnimationFrame 中执行
 function processMessageQueue() {
     if (isLoadingHistory) {
@@ -2975,13 +2979,14 @@ let currentTouchMsgEl = null;
         chatWindowEl.addEventListener('touchend', () => {
             clearTimeout(touchLongPressTimer); 
             currentTouchMsgEl = null; 
-            currentMessageData = null; // 在每次触控结束时清除数据
+           //currentMessageData = null; // 在每次触控结束时清除数据
+
         });
 
         chatWindowEl.addEventListener('touchmove', () => {
             clearTimeout(touchLongPressTimer); 
             currentTouchMsgEl = null; 
-            currentMessageData = null; // 在每次触控移动时清除数据
+            //currentMessageData = null; // 在每次触控移动时清除数据
         }, { passive: true }); 
 
         document.addEventListener('click', (e) => {
