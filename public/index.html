@@ -367,13 +367,16 @@
             transform: translateX(-50%);
             background: var(--accent);
             color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.85em;
+            padding: 12px 24px;
+            border-radius: 24px;
+            font-size: 0.95em;
             margin-bottom: 8px;
-            box-shadow: 0 2px 10px var(--shadow);
+            box-shadow: 0 4px 15px var(--shadow);
             display: none;
             z-index: 1000;
+            min-width: 200px;
+            text-align: center;
+            white-space: nowrap;
         }
         .voice-input-status.show {
             display: block;
@@ -1379,9 +1382,9 @@ function createMessageElement(msg) {
 
 // 消息队列处理函数，在 requestAnimationFrame 中执行
 function processMessageQueue() {
-    if (isLoadingHistory) { // 【修改】使用新的加载标志
+    if (isLoadingHistory) {
         logDebug("❗ 历史消息加载中，暂停处理新消息队列。", LOG_LEVELS.INFO);
-        rafScheduled = false; // 取消RAF调度，等待历史加载完成
+        rafScheduled = false;
         return;
     }
 
@@ -1390,30 +1393,64 @@ function processMessageQueue() {
         return;
     }
 
-    // 处理所有当前在队列中的消息 (因为人数少，直接处理所有积压的即可)
-    const messagesToProcess = messageQueue.splice(0, messageQueue.length); 
+    const messagesToProcess = messageQueue.splice(0, messageQueue.length);
+    const newMessagesToAppendToDOM = [];
 
-    logDebug(`✅ 处理消息队列: 移除并追加 ${messagesToProcess.length} 条消息`, LOG_LEVELS.INFO);
+    logDebug(`✅ 处理消息队列: ${messagesToProcess.length} 条消息待处理`, LOG_LEVELS.INFO);
 
     messagesToProcess.forEach(msg => {
-        if (!messageIdSet.has(msg.id)) {
+        const existingIndex = allMessages.findIndex(m => m.id === msg.id);
+        
+        if (existingIndex !== -1) {
+            // 消息已存在，更新数据
+            allMessages[existingIndex] = msg;
+            logDebug(`🔄 消息数据已更新 (ID: ${msg.id})`, LOG_LEVELS.INFO);
+            
+            // 更新DOM元素
+            const existingMsgEl = chatWindowEl.querySelector(`[data-id="${msg.id}"]`);
+            if (existingMsgEl) {
+                const updatedMsgEl = createMessageElement(msg);
+                existingMsgEl.replaceWith(updatedMsgEl);
+                logDebug(`🔄 消息DOM已更新 (ID: ${msg.id})`, LOG_LEVELS.INFO);
+            } else {
+                logDebug(`❗ 消息 ${msg.id} 数据已更新，但DOM元素未找到，将重新追加`, LOG_LEVELS.WARNING);
+                newMessagesToAppendToDOM.push(msg);
+            }
+        } else {
+            // 新消息
             allMessages.push(msg);
             messageIdSet.add(msg.id);
-        } else {
-            logDebug(`❗ 消息 ${msg.id} 已存在，跳过`, LOG_LEVELS.INFO);
+            newMessagesToAppendToDOM.push(msg);
+            logDebug(`➕ 新消息已添加 (ID: ${msg.id})`, LOG_LEVELS.INFO);
         }
     });
 
-    const MAX_ALL_MESSAGES = 500; 
-    while (allMessages.length > MAX_ALL_MESSAGES) {
-        const removedMsg = allMessages.shift(); 
-        messageIdSet.delete(removedMsg.id); 
+    // 统一处理需要追加到DOM的新消息
+    if (newMessagesToAppendToDOM.length > 0) {
+        appendMessagesToChatWindow(newMessagesToAppendToDOM, true);
+    } else {
+        // 如果有更新操作，也尝试滚动到底部
+        requestAnimationFrame(() => {
+            chatWindowEl.scrollTop = chatWindowEl.scrollHeight;
+        });
     }
 
-    appendMessagesToChatWindow(messagesToProcess, true); // 追加新消息并滚动到底部
-    throttledUpdateActivityStats(); // 【修改】触发用户活动统计更新
+    // 处理AI回复的语音播报
+    messagesToProcess.forEach(msg => {
+        if (msg.username === '机器人小助手' && msg.text) {
+            speakText(msg.text);
+        }
+    });
 
-    // 如果队列中还有消息（虽然上面一次性取完了），这表示可能在处理期间又有新消息入队了
+    // 限制消息数量
+    const MAX_ALL_MESSAGES = 500;
+    while (allMessages.length > MAX_ALL_MESSAGES) {
+        const removedMsg = allMessages.shift();
+        messageIdSet.delete(removedMsg.id);
+    }
+
+    throttledUpdateActivityStats();
+
     if (messageQueue.length > 0) {
         requestAnimationFrame(processMessageQueue);
     } else {
@@ -1728,6 +1765,50 @@ function checkSendButtonState() {
 
 
 // --- 消息发送函数 (保持不变) ---
+// 模型选择弹出层
+const modelSelector = document.createElement('div');
+modelSelector.id = 'model-selector';
+modelSelector.innerHTML = `
+    <div class="model-option" data-model="gemini">🤖 Gemini (模型一)</div>
+    <div class="model-option" data-model="deepseek">🧠 DeepSeek (模型二)</div>
+    <div class="model-option" data-model="kimi">🎯 Kimi (模型三)</div>
+`;
+modelSelector.style.cssText = `
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: none;
+    font-size: 14px;
+    min-width: 150px;
+`;
+document.body.appendChild(modelSelector);
+
+// 模型选择样式
+const modelStyle = document.createElement('style');
+modelStyle.textContent = `
+    .model-option {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+        transition: background-color 0.2s;
+    }
+    .model-option:last-child {
+        border-bottom: none;
+    }
+    .model-option:hover,
+    .model-option.active {
+        background-color: #f0f0f0;
+    }
+    .model-option.active {
+        background-color: #e3f2fd;
+        color: #1976d2;
+    }
+`;
+document.head.appendChild(modelStyle);
+
 messageForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = messageInput.value.trim();
@@ -1747,20 +1828,46 @@ messageForm.addEventListener('submit', async (e) => {
             const tempId = crypto.randomUUID();
             const tempTimestamp = Date.now();
 
-            if (/^\@|^@机器人小助手/.test(text)) {
-    const question = text.replace(/^@机器人小助手/, '').trim();
-    // 空格或@小助手开头
-socket.send(JSON.stringify({
-                    type: 'gemini_chat',
+            // 解析@指令
+            let aiModel = null;
+            let cleanText = text;
+            
+            if (text.includes('@deepseek')) {
+                aiModel = 'deepseek';
+                cleanText = text.replace(/@deepseek\s*/g, '').trim();
+            } else if (text.includes('@gemini')) {
+                aiModel = 'gemini';
+                cleanText = text.replace(/@gemini\s*/g, '').trim();
+            } else if (text.includes('@kimi')) {
+                aiModel = 'kimi';
+                cleanText = text.replace(/@kimi\s*/g, '').trim();
+            } else if (/^\@|^@机器人小助手/.test(text)) {
+                aiModel = 'gemini';
+                cleanText = text.replace(/^@机器人小助手/, '').trim();
+            }
+
+            if (aiModel && cleanText) {
+                // 发送到指定AI模型
+                let messageType = 'gemini_chat';
+                if (aiModel === 'kimi') {
+                    messageType = 'kimi_chat';
+                } else if (aiModel === 'deepseek') {
+                    messageType = 'deepseek_chat';
+                }
+                
+                socket.send(JSON.stringify({
+                    type: messageType,
                     payload: {
                         id: tempId,
                         timestamp: tempTimestamp,
                         type: 'text',
-                        text: question,
-                        original_user: username
+                        text: cleanText,
+                        original_user: username,
+                        model: aiModel
                     }
                 }));
             } else {
+                // 普通聊天消息
                 socket.send(JSON.stringify({ 
                     type: 'chat', 
                     payload: { 
@@ -2163,6 +2270,7 @@ const clearInputBtn = document.getElementById('clear-input-btn');
 messageInput.addEventListener('input', () => {
     const text = messageInput.value;
     const atIndex = text.lastIndexOf('@');
+    const slashIndex = text.lastIndexOf('/');
 
     // 显示/隐藏清除按钮
     if (text.trim().length > 0) {
@@ -2171,7 +2279,11 @@ messageInput.addEventListener('input', () => {
         clearInputBtn.style.display = 'none';
     }
 
-    if (atIndex !== -1) {
+    // 隐藏模型选择器
+    modelSelector.style.display = 'none';
+
+    // 处理@提及
+    if (atIndex !== -1 && (slashIndex === -1 || atIndex > slashIndex)) {
         const query = text.substring(atIndex + 1);
         const onlineUsers = Array.from(userNamesEl.children).map(el => el.dataset.username);
         const filteredUsers = onlineUsers.filter(user => user.toLowerCase().includes(query.toLowerCase()));
@@ -2179,6 +2291,38 @@ messageInput.addEventListener('input', () => {
         mentionsSuggestions.style.display = filteredUsers.length > 0 ? 'block' : 'none';
     } else {
         mentionsSuggestions.style.display = 'none';
+    }
+
+    // 处理/快捷选择模型
+    if (slashIndex !== -1 && slashIndex === text.length - 1 && text.length === 1) {
+        // 只在单独输入/时显示
+        const rect = messageInput.getBoundingClientRect();
+        modelSelector.style.left = rect.left + 'px';
+        modelSelector.style.top = (rect.bottom + 5) + 'px';
+        modelSelector.style.display = 'block';
+    }
+});
+
+// 模型选择事件处理
+modelSelector.addEventListener('click', (e) => {
+    if (e.target.classList.contains('model-option')) {
+        const model = e.target.dataset.model;
+        const modelMap = {
+            'gemini': '@gemini',
+            'deepseek': '@deepseek',
+            'kimi': '@kimi'
+        };
+        messageInput.value = messageInput.value.replace(/\/$/, modelMap[model] + ' ');
+        modelSelector.style.display = 'none';
+        messageInput.focus();
+        messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+});
+
+// 点击外部关闭模型选择器
+document.addEventListener('click', (e) => {
+    if (!modelSelector.contains(e.target) && e.target !== messageInput) {
+        modelSelector.style.display = 'none';
     }
 });
 
@@ -2521,6 +2665,38 @@ let currentTouchMsgEl = null;
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 messageForm.dispatchEvent(new Event('submit'));
+            } else if (modelSelector.style.display === 'block') {
+                const options = modelSelector.querySelectorAll('.model-option');
+                const activeOption = modelSelector.querySelector('.model-option:hover') || 
+                                   modelSelector.querySelector('.model-option.active');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (!activeOption) {
+                        options[0].classList.add('active');
+                    } else {
+                        activeOption.classList.remove('active');
+                        const nextIndex = (Array.from(options).indexOf(activeOption) + 1) % options.length;
+                        options[nextIndex].classList.add('active');
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (!activeOption) {
+                        options[options.length - 1].classList.add('active');
+                    } else {
+                        activeOption.classList.remove('active');
+                        const prevIndex = (Array.from(options).indexOf(activeOption) - 1 + options.length) % options.length;
+                        options[prevIndex].classList.add('active');
+                    }
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (activeOption) {
+                        activeOption.click();
+                    }
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    modelSelector.style.display = 'none';
+                }
             }
         });
 
@@ -2605,12 +2781,12 @@ let currentTouchMsgEl = null;
             recognition.interimResults = false;
 
             voiceInputButton.classList.add('recording');
-            voiceInputStatus.textContent = '正在聆听... 说"发送"确认';
+            voiceInputStatus.textContent = '正在聆听... 可用指令：发送、查询、模型一回答、模型二回答、模型三回答';
             
             // 添加使用提示
             setTimeout(() => {
                 if (voiceInputStatus.classList.contains('show')) {
-                    voiceInputStatus.textContent = '说"发送"确认';
+                    voiceInputStatus.textContent = '可用指令：发送、查询、模型一回答、模型二回答、模型三回答';
                 }
             }, 2000);
             voiceInputStatus.classList.add('show');
@@ -2623,20 +2799,57 @@ let currentTouchMsgEl = null;
                 const transcript = event.results[0][0].transcript;
                 logDebug(`🎤 语音识别结果: ${transcript}`, LOG_LEVELS.INFO);
                 
-                // 检查是否说"发送"来确认发送
-                if (transcript.trim() === '发送') {
-                    // 如果输入框有内容，发送消息
-                    if (messageInput.value.trim()) {
-                        sendMessageToBot(messageInput.value.trim());
+                // 检查是否包含指令
+                const text = transcript.trim();
+                
+                // 如果直接说"发送"，且输入框有内容
+                if (text === '发送' && messageInput.value.trim()) {
+                    sendMessageToBot(messageInput.value.trim());
+                    messageInput.value = '';
+                    messageInput.style.height = 'auto';
+                    checkSendButtonState();
+                    return;
+                }
+                
+                // 检查是否包含AI指令
+                let aiModel = null;
+                let cleanText = text;
+                
+                if (text.includes('模型三回答')) {
+                    aiModel = 'kimi';
+                    cleanText = text.replace(/模型三回答/g, '').trim();
+                } else if (text.includes('模型二回答')) {
+                    aiModel = 'deepseek';
+                    cleanText = text.replace(/模型二回答/g, '').trim();
+                } else if (text.includes('模型一回答')) {
+                    aiModel = 'gemini';
+                    cleanText = text.replace(/模型一回答/g, '').trim();
+                } else if (text.includes('查询')) {
+                    aiModel = 'gemini'; // 默认使用gemini
+                    cleanText = text.replace(/查询/g, '').trim();
+                } else if (text.includes('发送')) {
+                    // 处理"内容 发送"的情况
+                    cleanText = text.replace(/发送/g, '').trim();
+                    if (cleanText) {
+                        sendMessageToBot(cleanText);
                         messageInput.value = '';
                         messageInput.style.height = 'auto';
                         checkSendButtonState();
+                        return;
                     }
-                } else {
-                    // 将识别结果显示在输入框中让用户检查
-                    messageInput.value = transcript.trim();
+                }
+                
+                // 将清理后的文字显示在输入框中
+                messageInput.value = cleanText;
+                messageInput.style.height = 'auto';
+                messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+                checkSendButtonState();
+                
+                // 如果有AI指令，直接发送
+                if (aiModel && cleanText) {
+                    sendMessageToBotWithModel(cleanText, aiModel);
+                    messageInput.value = '';
                     messageInput.style.height = 'auto';
-                    messageInput.dispatchEvent(new Event('input', { bubbles: true }));
                     checkSendButtonState();
                 }
             };
@@ -2698,31 +2911,54 @@ let currentTouchMsgEl = null;
                 
                 logDebug(`🤖 已发送gemini_chat消息: ${message}`, LOG_LEVELS.INFO);
                 
-                // 设置监听器等待AI回复
-                const checkForAiReply = () => {
-                    setTimeout(() => {
-                        const messages = chatWindowEl.querySelectorAll('.message');
-                        const lastMessage = messages[messages.length - 1];
-                        
-                        if (lastMessage && lastMessage.querySelector('.message-username').textContent === '机器人小助手') {
-                            const aiText = lastMessage.querySelector('.message-content').textContent;
-                            speakText(aiText);
-                        } else {
-                            // 如果没有找到AI回复，1秒后重试，最多重试3次
-                            checkForAiReply.retryCount = (checkForAiReply.retryCount || 0) + 1;
-                            if (checkForAiReply.retryCount < 3) {
-                                checkForAiReply();
-                            }
-                        }
-                    }, 1500);
-                };
-                
-                checkForAiReply();
+                // AI语音回复现在由 processMessageQueue 统一处理
             } else {
                 showAppNotification('网络连接未就绪，请稍后再试', 3000, true);
             }
         } catch (error) {
             logDebug(`🤖 发送消息给机器人失败: ${error.message}`, LOG_LEVELS.ERROR);
+            showAppNotification('发送消息失败', 3000, true);
+        }
+    }
+
+    // 发送消息给指定AI模型并处理回复
+    async function sendMessageToBotWithModel(message, model) {
+        try {
+            logDebug(`🤖 向${model}发送消息: ${message}`, LOG_LEVELS.INFO);
+            
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const tempId = crypto.randomUUID();
+                const tempTimestamp = Date.now();
+                
+                let messageType = 'gemini_chat';
+                if (model === 'kimi') {
+                    messageType = 'kimi_chat';
+                } else if (model === 'deepseek') {
+                    messageType = 'deepseek_chat';
+                } else if (model === 'gemini') {
+                    messageType = 'gemini_chat';
+                }
+                
+                socket.send(JSON.stringify({
+                    type: messageType,
+                    payload: {
+                        id: tempId,
+                        timestamp: tempTimestamp,
+                        type: 'text',
+                        text: message,
+                        original_user: username,
+                        model: model
+                    }
+                }));
+                
+                logDebug(`🤖 已发送${messageType}消息: ${message}`, LOG_LEVELS.INFO);
+                
+                // AI语音回复现在由 processMessageQueue 统一处理
+            } else {
+                showAppNotification('网络连接未就绪，请稍后再试', 3000, true);
+            }
+        } catch (error) {
+            logDebug(`🤖 发送消息给${model}失败: ${error.message}`, LOG_LEVELS.ERROR);
             showAppNotification('发送消息失败', 3000, true);
         }
     }
@@ -2769,3 +3005,4 @@ document.addEventListener('DOMContentLoaded', initializeChat);
 </script>
 </body>
 </html>
+lwtyr

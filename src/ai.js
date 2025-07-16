@@ -675,3 +675,285 @@ export async function getKimiChatAnswer(question, history = [], env, logCallback
         return "抱歉，Kimi聊天服务暂时遇到问题，请稍后再试。";
     }
 }
+
+export async function getDeepSeekChatAnswer(question, history = [], env, logCallback = () => {}) {
+    const apiKey = env.DEEPSEEK_API_KEY;
+    if (!apiKey) throw new Error('服务器配置错误：未设置DEEPSEEK_API_KEY。');
+
+    const now = new Date();
+    const beijingTimeFormatter = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric', minute: 'numeric', hour12: false, timeZone: 'Asia/Shanghai'
+    });
+    const [beijingHourStr, beijingMinuteStr] = beijingTimeFormatter.format(now).split(':');
+    const beijingHour = parseInt(beijingHourStr, 10);
+    const beijingMinute = parseInt(beijingMinuteStr, 10);
+
+    let modelToUse = "deepseek-chat";
+    if ((beijingHour === 0 && beijingMinute >= 31) || (beijingHour > 0 && beijingHour < 8) || (beijingHour === 8 && beijingMinute <= 29)) {
+        modelToUse = "deepseek-reasoner";
+    }
+
+    const tools = [{
+        type: "function",
+        function: {
+            name: "get_price",
+            description: "获取指定期货品种的详细信息",
+            parameters: {
+                type: "object",
+                properties: {
+                    name: { type: "string", description: "期货品种的中文名称, 例如 '螺纹钢', '黄金'" }
+                },
+                required: ["name"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "get_news",
+            description: "获取某个关键词的最新新闻",
+            parameters: {
+                type: "object",
+                properties: {
+                    keyword: { type: "string", description: "要查询新闻的关键词, 例如 '原油'" }
+                },
+                required: ["keyword"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "draw_chart",
+            description: "根据代码和周期绘制K线图",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string", description: "期货合约代码, 例如 'ag'" },
+                    period: { type: "string", description: "图表周期, 例如 'daily'" }
+                },
+                required: ["symbol", "period"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "query_fut_daily",
+            description: "获取期货品种日线行情",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string", description: "如 rb、cu" },
+                    limit: { type: "integer", description: "条数，默认100" }
+                },
+                required: ["symbol"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "query_minutely",
+            description: "获取期货品种最近 N 天的 1 分钟 K 线",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string" },
+                    days: { type: "integer", description: "最近 N 天", default: 1 }
+                },
+                required: ["symbol", "days"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "query_option",
+            description: "获取期权日线行情",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string" },
+                    limit: { type: "integer", default: 100 }
+                },
+                required: ["symbol"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "query_lhb",
+            description: "获取期货龙虎榜数据",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string" },
+                    limit: { type: "integer", default: 100 }
+                },
+                required: ["symbol"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "query_aggregate",
+            description: "聚合查询期货数据（如最高价、最低价、平均成交量等）",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string", description: "品种代码如rb、cu等" },
+                    days: { type: "integer", description: "查询天数，默认5天" },
+                    aggFunc: { type: "string", description: "聚合函数：MAX、MIN、AVG、SUM" },
+                    column: { type: "string", description: "字段名：最高、最低、成交量等" }
+                },
+                required: ["symbol"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "smart_query",
+            description: "智能查询期货数据",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: { type: "string", description: "自然语言查询描述" }
+                },
+                required: ["query"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "get_highest_price",
+            description: "获取期货品种最近N天的最高价",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string" },
+                    days: { type: "integer", description: "天数" }
+                },
+                required: ["symbol", "days"]
+            }
+        }
+    }, {
+        type: "function",
+        function: {
+            name: "get_lowest_price",
+            description: "获取期货品种最近N天的最低价",
+            parameters: {
+                type: "object",
+                properties: {
+                    symbol: { type: "string" },
+                    days: { type: "integer", description: "天数" }
+                },
+                required: ["symbol", "days"]
+            }
+        }
+    }];
+
+    const messages = [
+        { role: "system", content: "你是一个有用的助手，善于用简洁的markdown语言来回答用户问题，并能够使用工具获取实时数据。" },
+        ...history,
+        { role: "user", content: question }
+    ];
+
+    try {
+        logCallback(`🚀 [API Request] Calling DeepSeek API: POST https://api.deepseek.com/chat/completions`);
+        
+        const response = await fetch("https://api.deepseek.com/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: modelToUse,
+                messages: messages,
+                temperature: 0.3,
+                tools: tools,
+                tool_choice: "auto"
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            logCallback(`❌ [API Error] DeepSeek API error: ${response.status} ${errorText}`, 'ERROR');
+            throw new Error(`DeepSeek API错误: ${response.status} ${errorText}`);
+        }
+
+        const data = await response.json();
+        const choice = data.choices[0];
+        
+        if (choice.finish_reason === "tool_calls" && choice.message.tool_calls) {
+            // 处理工具调用
+            const toolResults = await Promise.all(choice.message.tool_calls.map(async (toolCall) => {
+                const { name, arguments: argsString } = toolCall.function;
+                let args;
+                try {
+                    args = JSON.parse(argsString);
+                } catch (e) {
+                    logCallback(`❌ [Tool Error] DeepSeek function '${name}' argument parsing failed: ${e.message}`, 'ERROR', { argsString });
+                    return {
+                        tool_call_id: toolCall.id,
+                        role: "tool",
+                        content: JSON.stringify({ error: `工具参数解析失败: ${e.message}` })
+                    };
+                }
+
+                logCallback(`🛠️ [Tool Call] DeepSeek is calling function: ${name}`, 'INFO', args);
+                const tool = availableTools[name];
+
+                try {
+                    if (!tool) {
+                        throw new Error(`未知工具: ${name}`);
+                    }
+                    const result = await tool(args, env);
+                    logCallback(`✅ [Tool Result] DeepSeek function ${name} returned successfully.`);
+                    return {
+                        tool_call_id: toolCall.id,
+                        role: "tool",
+                        content: JSON.stringify({ content: result })
+                    };
+                } catch (e) {
+                    logCallback(`❌ [Tool Error] DeepSeek function ${name} failed: ${e.message}`, 'ERROR', e);
+                    return {
+                        tool_call_id: toolCall.id,
+                        role: "tool",
+                        content: JSON.stringify({ error: `工具执行失败: ${e.message}` })
+                    };
+                }
+            }));
+
+            // 将工具结果发送回DeepSeek
+            const finalMessages = [
+                ...messages,
+                choice.message,
+                ...toolResults
+            ];
+
+            const finalData = await fetch("https://api.deepseek.com/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: modelToUse,
+                    messages: finalMessages,
+                    temperature: 0.3
+                })
+            });
+
+            if (!finalData.ok) {
+                const errorText = await finalData.text();
+                throw new Error(`DeepSeek API错误: ${finalData.status} ${errorText}`);
+            }
+
+            const finalResult = await finalData.json();
+            return finalResult.choices[0].message.content;
+        } else {
+            // 直接返回文本回复
+            return choice.message.content;
+        }
+    } catch (error) {
+        console.error("[AI] getDeepSeekChatAnswer失败:", error);
+        return "抱歉，DeepSeek聊天服务暂时遇到问题，请稍后再试。";
+    }
+}

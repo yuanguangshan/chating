@@ -808,6 +808,12 @@ async handleSessionInitialization(ws, url) {
                 case MSG_TYPE_GEMINI_CHAT:
                     await this.handleGeminiChatMessage(session, data.payload);
                     break;
+                case 'deepseek_chat':
+                    await this.handleDeepSeekChatMessage(session, data.payload);
+                    break;
+                case 'kimi_chat':
+                    await this.handleKimiChatMessage(session, data.payload);
+                    break;
                 case MSG_TYPE_DELETE:
                     await this.handleDeleteMessageRequest(session, data.payload);
                     break;
@@ -1002,6 +1008,168 @@ async handleSessionInitialization(ws, url) {
                 this.messages[messageIndex].text += `\n\n> ❌ 抱歉，小助手出错了，请稍后再试。`;
                 await this.saveMessages();
                 this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            }
+        }
+    }
+
+    async handleDeepSeekChatMessage(session, payload) {
+        this.debugLog(`💬 [AI] Processing deepseek chat from 👦 ${session.username}`, 'INFO', payload);
+
+        // ✨ 新增：创建一个绑定到此请求的日志记录器
+        const logCallback = (message, level = 'INFO', data = null) => {
+            this.debugLog(`[AI] ${message}`, level, data);
+        };
+
+        // 1. Post the user's original question immediately, with a "thinking" indicator.
+        const thinkingMessage = {
+            id: payload.id || crypto.randomUUID(),
+            username: session.username,
+            timestamp: payload.timestamp || Date.now(),
+            text: `@机器人小助手 ${payload.text}\n\n> ❤️ 小助手正在思考，请稍候...`,
+            type: 'text',
+            original_user: session.username, // Keep track of who asked
+        };
+        await this.addAndBroadcastMessage(thinkingMessage);
+
+        try {
+            // 2. Prepare history and call the AI (which may involve tool calls)
+            const history = this.messages
+                .filter(m => m.type === 'text')
+                .slice(-10)
+                .map(m => ({
+                    role: m.username === '机器人小助手' ? 'assistant' : 'user',
+                    content: m.text
+                }));
+
+            // 3. Call DeepSeek AI
+            const { getDeepSeekChatAnswer } = await import('./ai.js');
+            const answer = await getDeepSeekChatAnswer(payload.text, history, this.env, logCallback);
+
+            // 4. Find the original "thinking" message
+            const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+            if (messageIndex !== -1) {
+                // 5. Update the message with the final answer
+                this.messages[messageIndex].text = `@${thinkingMessage.original_user} ${payload.text}\n\n**机器人小助手**:\n${answer}`;
+                this.messages[messageIndex].timestamp = Date.now(); // Update timestamp to reflect final answer time
+
+                this.debugLog(`💬 [AI] Final answer generated. Updating message ${thinkingMessage.id}`);
+
+                // 5. Save and broadcast the *updated* message
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+
+            } else {
+                 this.debugLog(`❌ [AI] Could not find original message ${thinkingMessage.id} to update.`, 'ERROR');
+                 // Fallback: send a new message if the original is gone
+                 const botMessage = {
+                    id: crypto.randomUUID(),
+                    username: "机器人小助手",
+                    timestamp: Date.now(),
+                    text: `@${session.username} ${answer}`,
+                    type: 'text'
+                };
+                await this.addAndBroadcastMessage(botMessage);
+            }
+
+        } catch (error) {
+            this.debugLog(`❌ [AI] deepseek chat processing failed: ${error.message}`, 'ERROR', error);
+            // Also update the original message with an error
+            const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+            if (messageIndex !== -1) {
+                this.messages[messageIndex].text += `\n\n> ❌ 抱歉，小助手处理问题时遇到了错误：${error.message}`;
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            } else {
+                 // Fallback: send a new error message if the original is gone
+                 const errorMessage = {
+                    id: crypto.randomUUID(),
+                    username: "机器人小助手",
+                    timestamp: Date.now(),
+                    text: `@${session.username} 抱歉，小助手处理问题时遇到了错误：${error.message}`,
+                    type: 'text'
+                };
+                await this.addAndBroadcastMessage(errorMessage);
+            }
+        }
+    }
+
+    async handleKimiChatMessage(session, payload) {
+        this.debugLog(`💬 [AI] Processing kimi chat from 👦 ${session.username}`, 'INFO', payload);
+
+        // ✨ 新增：创建一个绑定到此请求的日志记录器
+        const logCallback = (message, level = 'INFO', data = null) => {
+            this.debugLog(`[AI] ${message}`, level, data);
+        };
+
+        // 1. Post the user's original question immediately, with a "thinking" indicator.
+        const thinkingMessage = {
+            id: payload.id || crypto.randomUUID(),
+            username: session.username,
+            timestamp: payload.timestamp || Date.now(),
+            text: `@机器人小助手 ${payload.text}\n\n> ❤️ 小助手正在思考，请稍候...`,
+            type: 'text',
+            original_user: session.username, // Keep track of who asked
+        };
+        await this.addAndBroadcastMessage(thinkingMessage);
+
+        try {
+            // 2. Prepare history and call the AI (which may involve tool calls)
+            const history = this.messages
+                .filter(m => m.type === 'text')
+                .slice(-10)
+                .map(m => ({
+                    role: m.username === '机器人小助手' ? 'assistant' : 'user',
+                    content: m.text
+                }));
+
+            // 3. Call Kimi AI
+            const { getKimiChatAnswer } = await import('./ai.js');
+            const answer = await getKimiChatAnswer(payload.text, history, this.env, logCallback);
+
+            // 4. Find the original "thinking" message
+            const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+            if (messageIndex !== -1) {
+                // 5. Update the message with the final answer
+                this.messages[messageIndex].text = `@${thinkingMessage.original_user} ${payload.text}\n\n**机器人小助手**:\n${answer}`;
+                this.messages[messageIndex].timestamp = Date.now(); // Update timestamp to reflect final answer time
+
+                this.debugLog(`💬 [AI] Final answer generated. Updating message ${thinkingMessage.id}`);
+
+                // 5. Save and broadcast the *updated* message
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+
+            } else {
+                 this.debugLog(`❌ [AI] Could not find original message ${thinkingMessage.id} to update.`, 'ERROR');
+                 // Fallback: send a new message if the original is gone
+                 const botMessage = {
+                    id: crypto.randomUUID(),
+                    username: "机器人小助手",
+                    timestamp: Date.now(),
+                    text: `@${session.username} ${answer}`,
+                    type: 'text'
+                };
+                await this.addAndBroadcastMessage(botMessage);
+            }
+
+        } catch (error) {
+            this.debugLog(`❌ [AI] kimi chat processing failed: ${error.message}`, 'ERROR', error);
+            // Also update the original message with an error
+            const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+            if (messageIndex !== -1) {
+                this.messages[messageIndex].text += `\n\n> ❌ 抱歉，小助手处理问题时遇到了错误：${error.message}`;
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            } else {
+                 // Fallback: send a new error message if the original is gone
+                 const errorMessage = {
+                    id: crypto.randomUUID(),
+                    username: "机器人小助手",
+                    timestamp: Date.now(),
+                    text: `@${session.username} 抱歉，小助手处理问题时遇到了错误：${error.message}`,
+                    type: 'text'
+                };
+                await this.addAndBroadcastMessage(errorMessage);
             }
         }
     }
