@@ -1454,7 +1454,6 @@ function stripMarkdown(text) {
     return cleaned;
 }
 
-
 // 简化版AI回复内容处理器
 class AIContentProcessor {
     constructor() {
@@ -1474,6 +1473,20 @@ class AIContentProcessor {
             '用户[：:]',
             '问题[：:]'
         ];
+
+        // 数字到Emoji的映射
+        this.digitToEmojiMap = {
+            '0': '0️⃣',
+            '1': '1️⃣',
+            '2': '2️⃣',
+            '3': '3️⃣',
+            '4': '4️⃣',
+            '5': '5️⃣',
+            '6': '6️⃣',
+            '7': '7️⃣',
+            '8': '8️⃣',
+            '9': '9️⃣'
+        };
     }
     
     // 一步到位的内容清理
@@ -1491,10 +1504,10 @@ class AIContentProcessor {
             .replace(/`/g, '')
             .replace(/#/g, '');
 
-        // 规范化空格和换行（在 formatContent 中会进一步处理所有 \n）
+        // 规范化空格和换行（最终在formatContent中会将所有\n转为空格）
         cleaned = cleaned
             .replace(/[ \t]+/g, ' ')
-            .replace(/\n\s*\n\s*\n/g, '\n\n')
+            .replace(/\n\s*\n\s*\n/g, '\n\n') // 保留语义化的双换行，formatContent会最终处理
             .trim();
             
         return cleaned;
@@ -1550,168 +1563,37 @@ class AIContentProcessor {
     
     // 智能分离标题和内容 (第一行为标题，从第二行开始为正文)
     separateTitleAndContent(text) {
-        const rawLines = text.split('\n'); // 获取所有原始行，包括空行，以确保索引准确
+        const rawLines = text.split('\n'); 
         
-        // 标题为第一行，即使是空字符串也先保留
         const titleLine = rawLines[0] ? rawLines[0].trim() : '';
 
-        // 内容从第二行（索引1）开始的所有行
-        // 如果只有一行，则内容为空字符串
         const contentLines = rawLines.slice(1).join('\n').trim();
 
-        // 处理只有一行的情况，或者没有明确标题的情况
         if (rawLines.length <= 1 || !titleLine) {
-            // 如果只有一行，内容就是空，标题就是那一行
-            // 如果第一行为空，也用原始内容做标题兜底
             return {
                 title: titleLine || text.substring(0, Math.min(30, text.length)).trim(),
-                content: '' // 没有后续行，内容为空
+                content: '' 
             };
         }
         
         return {
             title: titleLine,
-            content: contentLines // 返回从第二行开始的所有原始内容（包含\n）
+            content: contentLines 
         };
     }
     
-    // 格式化内容（按用户最新规则处理）
+    // 格式化内容（主要进行数字Emoji替换，并确保无换行）
     formatContent(content) {
         if (!content || typeof content !== 'string') return '';
 
-        const TARGET_LINE_LENGTH = 20;
-        const NUMBER_DASHES = '---------'; // 9个 -
-        const FIRST_LINE_INDENT = '    '; // 4个空格
+        // 1. 将所有数字替换为对应的Emoji
+        let formatted = content.replace(/[0-9]/g, (digit) => this.digitToEmojiMap[digit]);
 
-        let formattedLines = [];
-        let isFirstContentLine = true; // 标志是否是正文的第一行
-
-        // 1. 预处理：标准化换行和空格，并确保句号后有空格
-        let processedContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-        processedContent = processedContent.replace(/[ \t]+/g, ' '); // 多个空格转单个空格
-        // 确保句号后有空格，方便后续按空格和字符切割，避免中文连接词问题
-        processedContent = processedContent.replace(/([。！？\.\!\?])(?=\S)/g, '$1 '); 
-        // 临时将连续多个换行符规范化为双换行符，以便处理逻辑段落
-        processedContent = processedContent.replace(/\n{3,}/g, '\n\n');
-        processedContent = processedContent.trim();
-
-
-        // 2. 逐逻辑段落处理，然后应用20字规则和数字规则
-        const logicalParagraphs = processedContent.split('\n\n'); // 按双换行符分割逻辑段落
-
-        for (const paragraph of logicalParagraphs) {
-            if (!paragraph.trim()) continue; // 跳过空逻辑段落
-
-            let currentBuffer = '';
-            // 再次按单换行符分割（处理可能在逻辑段落内有\n的原始文本行）
-            const linesInParagraph = paragraph.split('\n').filter(line => line.trim().length > 0);
-
-            for (let i = 0; i < linesInParagraph.length; i++) {
-                let line = linesInParagraph[i].trim();
-                if (!line) continue;
-
-                // 检查当前行是否是数字开头（如 "1." 或 "10."）
-                const numberMatch = line.match(/^(\d+)\./);
-                if (numberMatch) {
-                    // 如果当前buffer有内容，且未以句号结尾，先将其作为一行处理
-                    if (currentBuffer.length > 0) {
-                        formattedLines.push(currentBuffer.padEnd(TARGET_LINE_LENGTH, ' '));
-                        currentBuffer = '';
-                    }
-                    
-                    // 数字单独占一行，前后加短线
-                    const number = numberMatch[1];
-                    formattedLines.push(NUMBER_DASHES + number + NUMBER_DASHES);
-                    
-                    // 数字后的内容
-                    currentBuffer += line.substring(numberMatch[0].length).trim();
-                    
-                    // 确保数字处理后，如果当前buffer已满，也进行换行
-                    if (currentBuffer.length >= TARGET_LINE_LENGTH) {
-                        formattedLines.push(currentBuffer.padEnd(TARGET_LINE_LENGTH, ' '));
-                        currentBuffer = '';
-                    }
-                    // 标记为非首行，因为数字行已经插入了内容
-                    isFirstContentLine = false; 
-                    continue; 
-                }
-
-                // 处理非数字开头的普通文本行
-                // 将当前行内容添加到currentBuffer，并按字切割
-                const wordsInLine = line.split(' '); // 尝试按空格分割，中文可能没有
-                for (const word of wordsInLine) {
-                    if (!word) continue;
-
-                    for (const char of word) {
-                        // 考虑首行缩进
-                        const effectiveCurrentLength = currentBuffer.length + (isFirstContentLine ? FIRST_LINE_INDENT.length : 0);
-                        if (effectiveCurrentLength + 1 > TARGET_LINE_LENGTH) { // +1 for the new char
-                            // 如果添加字符后超过20字，当前行结束，补齐空格
-                            let lineToPush = currentBuffer;
-                            if (isFirstContentLine) {
-                                lineToPush = FIRST_LINE_INDENT + currentBuffer.trimStart(); // 确保缩进只加一次
-                                isFirstContentLine = false; // 已经不是第一行了
-                            }
-                            formattedLines.push(lineToPush.padEnd(TARGET_LINE_LENGTH, ' '));
-                            currentBuffer = char; // 新行开始
-                        } else {
-                            currentBuffer += char; // 否则添加到当前行
-                        }
-                    }
-                    // 如果一个单词处理完，且不是行尾，且不是句号结尾，可以加一个空格作为单词分隔
-                    if (currentBuffer.length > 0 && wordsInLine.indexOf(word) < wordsInLine.length - 1 && !/[。！？\.\!\?]$/.test(currentBuffer)) {
-                        if ((currentBuffer + ' ').length <= TARGET_LINE_LENGTH + (isFirstContentLine ? FIRST_LINE_INDENT.length : 0)) {
-                             currentBuffer += ' ';
-                        } else {
-                            // 如果加空格会超长，就直接换行
-                             let lineToPush = currentBuffer;
-                             if (isFirstContentLine) {
-                                 lineToPush = FIRST_LINE_INDENT + currentBuffer.trimStart();
-                                 isFirstContentLine = false;
-                             }
-                             formattedLines.push(lineToPush.padEnd(TARGET_LINE_LENGTH, ' '));
-                             currentBuffer = ''; // 新行开始
-                        }
-                    }
-                }
-                
-                // 处理行尾的句号强制补齐
-                if (/[。！？\.\!\?]$/.test(currentBuffer.trim())) {
-                    let lineToPush = currentBuffer;
-                    if (isFirstContentLine) {
-                        lineToPush = FIRST_LINE_INDENT + currentBuffer.trimStart();
-                        isFirstContentLine = false;
-                    }
-                    formattedLines.push(lineToPush.padEnd(TARGET_LINE_LENGTH, ' '));
-                    currentBuffer = ''; // 新行开始
-                }
-            }
-
-            // 处理逻辑段落内部的剩余 buffer 内容
-            if (currentBuffer.length > 0) {
-                 let lineToPush = currentBuffer;
-                 if (isFirstContentLine) {
-                     lineToPush = FIRST_LINE_INDENT + currentBuffer.trimStart();
-                     isFirstContentLine = false;
-                 }
-                 formattedLines.push(lineToPush.padEnd(TARGET_LINE_LENGTH, ' '));
-                 currentBuffer = '';
-            }
-
-            // 逻辑段落间加一个空行
-            if (formattedLines.length > 0 && logicalParagraphs.indexOf(paragraph) < logicalParagraphs.length - 1) {
-                formattedLines.push('');
-                // 确保下一个逻辑段落的首行重新计算缩进
-                isFirstContentLine = true; 
-            }
-        }
+        // 2. 规范化所有连续的空格和换行符为单个空格
+        // 这确保了最终输出是一个连续的纯文本字符串，符合头条API的渲染行为
+        formatted = formatted.replace(/[\n\r]+/g, ' ').replace(/[ \t]+/g, ' ').trim();
         
-        // 3. 最终清理和合并
-        let finalOutput = formattedLines.join('\n');
-        finalOutput = finalOutput.replace(/\n{3,}/g, '\n\n'); // 规范化多余空行
-        finalOutput = finalOutput.replace(/\n/g, ' ').trim(); // **最后一步：将所有换行符转换为单个空格**
-
-        return finalOutput;
+        return formatted;
     }
     
     // 规范化标题长度
@@ -1738,22 +1620,17 @@ class AIContentProcessor {
                 };
             }
             
-            // 对原始文本进行基础清理（HTML、Markdown、控制字符）
             let cleanedTextInitial = this.cleanContent(rawText);
 
-            // 首先根据换行符准确分离标题和（未处理的）内容
             const { title: rawExtractedTitle, content: rawExtractedContent } = this.separateTitleAndContent(cleanedTextInitial);
             
-            // 对内容部分进行进一步清理（用户前缀、AI标识等）
             let processedContent = rawExtractedContent;
             processedContent = this.removeUserPrefixes(processedContent);
             if (this.isAIResponse(message)) {
                 processedContent = this.removeAIIdentifiers(processedContent);
             }
-            // 现在对“内容部分”应用复杂的格式化规则
             const finalContent = this.formatContent(processedContent);
             
-            // 对标题部分进行清理和规范化
             let processedTitle = rawExtractedTitle;
             processedTitle = this.removeUserPrefixes(processedTitle);
             if (this.isAIResponse(message)) {
@@ -1761,12 +1638,9 @@ class AIContentProcessor {
             }
             let finalTitle = this.normalizeTitle(processedTitle);
             
-            // 标题兜底逻辑（如果标题太短或不理想，从内容中提取）
             if (!finalTitle.trim() || finalTitle === '聊天记录') {
-                 // 尝试从原始提取的标题进行规范化
                  finalTitle = this.normalizeTitle(rawExtractedTitle); 
-                 if (!finalTitle.trim() || finalTitle === '聊天记录') { // 如果仍然不理想
-                    // 最后尝试从格式化后的内容中提取，但这可能不是最佳标题来源
+                 if (!finalTitle.trim() || finalTitle === '聊天记录') {
                     finalTitle = finalContent.substring(0, Math.min(finalContent.length, 30)).trim();
                     if (!finalTitle || finalTitle.length < 2) {
                         finalTitle = message.type === 'image' ? '图片分享' : '聊天记录';
@@ -1791,7 +1665,7 @@ class AIContentProcessor {
             
             return {
                 title: finalTitle,
-                content: finalContent // 返回高度格式化的纯文本
+                content: finalContent 
             };
             
         } catch (error) {
