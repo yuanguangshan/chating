@@ -1438,54 +1438,73 @@ function createMessageElement(msg) {
 }
 
 
-// 发布到头条功能
-// 发布到头条功能
+// 新增的辅助函数：去除Markdown符号
+function stripMarkdown(text) {
+    if (typeof text !== 'string') return '';
+    // 移除常见的Markdown格式
+    let cleaned = text.replace(/(\*\*|__|\*|_|#+)\s*(.*?)\s*(\*\*|__|\*|_)/g, '$2'); // **text**, *text*, ## text
+    cleaned = cleaned.replace(/^-+\s*$/gm, ''); // 水平分割线 ---
+    cleaned = cleaned.replace(/^[*-]\s*/gm, ''); // 列表项 - *
+    cleaned = cleaned.replace(/^>\s*/gm, ''); // 引用块 >
+    cleaned = cleaned.replace(/`{1,3}([^`]+?)`{1,3}/g, '$1'); // 行内代码和代码块 `code`
+    cleaned = cleaned.replace(/\[(.*?)\]\((.*?)\)/g, '$1'); // 链接 [text](url) -> text
+    
+    // 移除多余的空格（例如，去除Markdown符号后可能产生的多余空格）
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    return cleaned;
+}
+
+// 发布到头条功能 (完整修改后的函数)
 async function publishToToutiao(message) { // message is the full message data object
+
     try {
-        // ... (initial logDebug and fullText extraction)
+        logDebug('尝试通过后端代理发布消息到头条...', LOG_LEVELS.INFO, { 
+            messageObject: message,
+            originalTextSnippet: (message.text || message.caption || '').substring(0, 100) + '...'
+        });
         
         let title = '';
         let content = '';
         let fullText = message.text || message.caption || ''; 
 
-        // === 文本清理函数 (保持不变) ===
+        // 基础文本清理函数 (移除控制字符和规范化空格，保持不变)
         const cleanForJSON = (text) => {
             if (typeof text !== 'string') return '';
             let cleaned = text.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\u200B-\u200F\u2028\u2029\uFEFF]/g, '');
             cleaned = cleaned.replace(/\s+/g, ' ').trim();
             return cleaned;
         };
-        // ===================================
-
-        fullText = cleanForJSON(fullText); // Clean the raw text first
+        fullText = cleanForJSON(fullText); // 对原始文本进行基础清理
 
         let processedContent = fullText;
 
-        // 1. 提取标题 (更智能，确保在2-30字之间)
+        // 1. 智能提取标题和内容，并处理AI回复的特殊格式
         if (message.username === '机器人小助手' && fullText.includes('**机器人小助手**:')) {
             // AI回复消息
-            // 尝试提取用户的问题作为标题，例如 "@苑广山 文明的历史" -> "文明的历史"
-            const userQueryMatch = fullText.match(/^@\w+\s*(.+?)(?:\n\n|\n|$)/); 
-            if (userQueryMatch && userQueryMatch[1]) {
-                title = userQueryMatch[1].trim(); // 用户的原始提问
+            // 尝试提取用户的问题作为标题，例如 "@苑广山 文明的历史 **机器人小助手**: (由 Pro 模型生成)" -> "文明的历史"
+            const titlePattern = /^@\w+\s*(.+?)\s*\*\*机器人小助手\*\*:\s*\(由 Pro 模型生成\)/s;
+            const titleMatch = fullText.match(titlePattern);
+            if (titleMatch && titleMatch[1]) {
+                title = titleMatch[1].trim(); // 提取用户的原始提问
             }
             
             // 提取AI的实际回答内容作为主要内容
-            const aiResponseStart = fullText.indexOf('**机器人小助手**:');
+            const aiResponsePreamble = '**机器人小助手**: (由 Pro 模型生成)';
+            const aiResponseStart = fullText.indexOf(aiResponsePreamble);
             if (aiResponseStart !== -1) {
-                processedContent = fullText.substring(aiResponseStart + '**机器人小助手**:'.length).trim();
+                // 获取前缀（**机器人小助手**: (由 Pro 模型生成)）之后的所有内容
+                processedContent = fullText.substring(aiResponseStart + aiResponsePreamble.length).trim();
             } else {
-                processedContent = fullText; // Fallback if AI marker is not found
+                processedContent = fullText; // 如果没找到特定前缀，就用原始文本
             }
             
-            // 清理AI回复中的前缀和问候语，这些不应该出现在最终标题或内容中
-            processedContent = processedContent.replace(/^\s*\(\s*由\s*Pro\s*模型生成\s*\)\s*[\r\n]*/, '').trim();
-            processedContent = processedContent.replace(/^\s*你好[！!]?\s*/, '').trim(); 
+            // 清理AI回复中可能残留的问候语
+            processedContent = processedContent.replace(/^\s*\你好[！!]?\s*/, '').trim(); 
 
         } else if (message.type === 'image' && message.imageUrl) {
             // 图片消息的标题和内容
-            title = fullText.substring(0, Math.min(fullText.length, 30)); // 标题从描述中提取
-            if (fullText.length > 30) title += '...';
+            title = fullText.substring(0, Math.min(fullText.length, 50)); 
+            if (fullText.length > 50) title += '...';
             if (!title.trim()) title = '聊天室图片分享'; // 如果描述为空，使用默认标题
 
             processedContent = fullText; // 图片的描述
@@ -1503,14 +1522,17 @@ async function publishToToutiao(message) { // message is the full message data o
             processedContent = fullText;
         }
 
-        // 2. 对标题和内容进行最终清理和长度限制
-        title = cleanForJSON(title); // 再次清理
-        content = cleanForJSON(processedContent); // 再次清理内容
+        // 2. 对内容进行 Markdown 符号去除 和 句号后换行处理
+        content = stripMarkdown(processedContent); // 移除 Markdown 符号
+        content = content.replace(/。/g, '。\n'); // 句号后面换行
 
-        // --- 核心修改：确保标题长度在2-30字之间 ---
+        // 3. 对标题进行 Markdown 符号去除 和 长度限制 (2-30字)
+        title = stripMarkdown(title); // 标题也要去除 Markdown 符号
+
+        // 确保标题长度在 2-30 字之间，并进行兜底
         if (title.length < 2) {
             title = content.substring(0, Math.min(content.length, 30)); // 尝试从内容中提取标题
-            if (title.length > 30) title = title.substring(0, 27) + '...'; // 截断
+            if (title.length > 30) title = title.substring(0, 27) + '...'; // 截断并加省略号
             if (!title.trim() || title.length < 2) { // 最终兜底
                 title = message.type === 'image' ? '图片分享' : '聊天室消息';
             }
@@ -1518,23 +1540,20 @@ async function publishToToutiao(message) { // message is the full message data o
         if (title.length > 30) {
             title = title.substring(0, 27) + '...'; // 超过30字截断，并加省略号
         }
-        // ===========================================
 
-        // 3. 最终内容兜底（确保不为空）
-        if (!content.trim()) {
-            content = title; // 如果内容为空，用标题兜底
-        }
-
-        // 4. 再次确保标题和内容非空（防止极端情况）
+        // 4. 最终确保标题和内容非空（防止极端情况）
         if (!title.trim()) { 
             title = message.type === 'image' ? '无标题图片分享' : '无标题聊天记录';
         }
         if (!content.trim()) { 
-            content = title; 
+            content = title; // 如果内容为空，用标题兜底
         }
         
-        // ... (logDebug for finalTitle, finalContentSnippet, and the rest of the fetch call)
+        // 5. 对最终的标题和内容进行基础 JSON 清理（移除控制字符和规范化空格）
+        title = cleanForJSON(title);
+        content = cleanForJSON(content);
 
+        // 记录最终要发送的数据 (调试用)
         logDebug('准备发送到头条的数据', LOG_LEVELS.INFO, {
             finalTitle: title,
             finalContentSnippet: content.substring(0, Math.min(content.length, 200)) + '...',
@@ -1542,11 +1561,16 @@ async function publishToToutiao(message) { // message is the full message data o
             extractedSuccessfully: title.trim().length > 0 && content.trim().length > 0
         });
 
+        // 最终检查，如果因为某种极端情况导致仍然为空，则抛出错误
         if (!title.trim() || !content.trim()) {
             logDebug("❗ 内部错误：最终标题或内容为空，无法发送。", LOG_LEVELS.ERROR, { finalTitle: title, finalContent: content });
             throw new Error("内部错误：无法提取有效的标题或内容。请尝试其他消息或手动复制。");
         }
         
+        // 显示加载提示
+        showAppNotification('正在发布到头条...', 2000);
+        
+        // 调用后端代理接口
         const YOUR_FLASK_PROXY_API_URL = 'https://api.yuangs.cc/api/toutiaopost';
         
         const response = await fetch(YOUR_FLASK_PROXY_API_URL, {
@@ -1582,6 +1606,7 @@ async function publishToToutiao(message) { // message is the full message data o
         showAppNotification(`发布到头条失败: ${error.message}.`, 5000, true);
     }
 }
+
 
 function processMessageQueue() {
     if (isLoadingHistory) {
