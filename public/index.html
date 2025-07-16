@@ -1463,7 +1463,7 @@ class AIContentProcessor {
             '由 Pro 模型生成',
             '由.*?模型生成',
             'AI回复',
-            '智能助手'
+            '机器人小助手：'
         ];
         
         // 常见的用户前缀
@@ -1488,6 +1488,8 @@ class AIContentProcessor {
             .replace(/\*\*/g, '')
             .replace(/\*/g, '')
             .replace(/`/g, '')
+            .replace(/#/g, '')
+
             // 规范化空格和换行
             .replace(/[ \t]+/g, ' ')
             .replace(/\n\s*\n\s*\n/g, '\n\n')
