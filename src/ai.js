@@ -273,7 +273,15 @@ export async function getGeminiChatAnswer(question, history = [], env, logCallba
         ]
     }];
     const contents = [
-        { role: "user", parts: [{ text: "你是一个全能的AI助手..." }] }, // System prompt
+        { role: "user", parts: [{ text: `
+你是一个全能的AI助手，可以处理金融期货、实时行情、新闻查询、图表生成等多种任务，同时也能回答通用问题。
+
+**回答规则：**
+1. **默认情况**：优先提供专业、准确的回答，特别是在金融期货领域。
+2. **通用问题**：如果用户的问题明显与金融无关（例如生活、科技、娱乐等），则提供通用回答。
+3. **特殊标记**：如果用户的问题以 "@@" 结尾，则无论问题内容如何，都提供通用回答（适用于用户明确希望脱离金融场景时）。
+4. **语气要求**：保持友好、清晰，避免过度技术术语（除非用户明确要求）。不要随便拒绝回答，记住，你什么都懂。
+        ` }] }, // System prompt
         { role: "model", parts: [{ text: "好的，我已理解..." }] },   // System prompt ack
         ...history,
         { role: "user", parts: [{ text: question }] }
