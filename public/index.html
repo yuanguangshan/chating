@@ -865,6 +865,7 @@
         <li class="ai-explain-option" data-ai="deepseek" data-action="text-explain">DeepSeek</li>
         <li class="ai-explain-option" data-ai="kimi" data-action="text-explain">问Kimi</li>
         <li class="ai-explain-option" data-ai="gemini" data-action="image-describe">Gemini读图</li>
+        <li id="publish-toutiao-option">📰 发布到头条</li>
         <li class="ai-explain-option" data-ai="kimi" data-action="image-describe">Kimi读图</li>
         <li id="copy-option">📝 复 制</li>
         <li id="delete-option">❌ 删 除</li>
@@ -1390,79 +1391,7 @@ function createMessageElement(msg) {
     return msgEl;
 }
 
-// 右键菜单相关函数
-function showContextMenu(event, message) {
-    // 移除已存在的菜单
-    const existingMenu = document.querySelector('.context-menu');
-    if (existingMenu) {
-        existingMenu.remove();
-    }
-    
-    // 创建菜单
-    const menu = document.createElement('div');
-    menu.className = 'context-menu';
-    menu.style.cssText = `
-        position: fixed;
-        z-index: 10000;
-        background: var(--bg-panel);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        box-shadow: 0 4px 12px var(--shadow);
-        padding: 8px 0;
-        min-width: 120px;
-        font-size: 14px;
-    `;
-    
-    const menuItem = document.createElement('div');
-    menuItem.textContent = '一键发布到头条';
-    menuItem.style.cssText = `
-        padding: 8px 16px;
-        cursor: pointer;
-        color: var(--text);
-        transition: background-color 0.2s;
-    `;
-    
-    menuItem.addEventListener('mouseenter', function() {
-        this.style.backgroundColor = 'var(--border)';
-    });
-    
-    menuItem.addEventListener('mouseleave', function() {
-        this.style.backgroundColor = 'transparent';
-    });
-    
-    menuItem.addEventListener('click', function() {
-        publishToToutiao(message);
-        menu.remove();
-    });
-    
-    menu.appendChild(menuItem);
-    
-    // 定位菜单
-    const rect = event.target.getBoundingClientRect();
-    const menuX = event.clientX;
-    const menuY = event.clientY;
-    
-    // 确保菜单不超出视窗
-    const maxX = window.innerWidth - menu.offsetWidth - 10;
-    const maxY = window.innerHeight - menu.offsetHeight - 10;
-    
-    menu.style.left = Math.min(menuX, maxX) + 'px';
-    menu.style.top = Math.min(menuY, maxY) + 'px';
-    
-    document.body.appendChild(menu);
-    
-    // 点击其他地方关闭菜单
-    function closeMenu(e) {
-        if (!menu.contains(e.target)) {
-            menu.remove();
-            document.removeEventListener('click', closeMenu);
-        }
-    }
-    
-    setTimeout(() => {
-        document.addEventListener('click', closeMenu);
-    }, 0);
-}
+
 
 // 发布到头条功能
 async function publishToToutiao(message) {
@@ -1475,10 +1404,27 @@ async function publishToToutiao(message) {
         let title = '';
         let content = '';
         
-        const fullText = message.text || '';
+        // 根据消息类型获取文本内容
+        let fullText = '';
+        if (message.type === 'image') {
+            fullText = message.text || message.caption || '';
+        } else {
+            fullText = message.text || '';
+        }
+        
+        // 确保有内容可发布
+        if (!fullText.trim()) {
+            // 如果是图片但没有文字内容，使用默认标题
+            if (message.type === 'image') {
+                title = '聊天室图片分享';
+                content = '来自聊天室的图片分享';
+            } else {
+                throw new Error('消息内容为空，无法发布');
+            }
+        }
         
         // 如果是AI回复，提取格式
-        if (message.username === '机器人小助手' && fullText.includes('(由 Pro 模型生成)')) {
+        if (fullText.includes('(由 Pro 模型生成)')) {
             // 移除开头的问候语和标识
             const startIndex = fullText.indexOf('(由 Pro 模型生成)') + '(由 Pro 模型生成)'.length;
             content = fullText.substring(startIndex).trim();
@@ -1486,22 +1432,62 @@ async function publishToToutiao(message) {
             // 移除开头的问候语（如"你好！"）
             content = content.replace(/^(你好[！!]?\s*)/, '');
             
+            // 确保内容不为空
+            if (!content.trim()) {
+                content = fullText; // 如果清理后为空，使用原始内容
+            }
+            
             // 提取标题：从"@苑广山"开始的部分
             const titleMatch = fullText.match(/@苑广山\s+(.+?)(?:\n|$)/);
             if (titleMatch) {
                 title = titleMatch[1].trim();
             } else {
-                // 如果没有@苑广山格式，取前20个字符作为标题
-                title = content.substring(0, 20).replace(/\n/g, ' ') + '...';
+                // 如果没有@苑广山格式，取第一行或前30个字符作为标题
+                const lines = content.split('\n').filter(line => line.trim());
+                title = lines.length > 0 ? lines[0].trim().substring(0, 30) : content.substring(0, 30);
+                if (title.length >= 30) title += '...';
             }
         } else {
             // 普通消息
-            title = fullText.substring(0, 20).replace(/\n/g, ' ') + '...';
+            const lines = fullText.split('\n').filter(line => line.trim());
+            if (lines.length > 0) {
+                title = lines[0].trim().substring(0, 30);
+                if (title.length >= 30) title += '...';
+            } else {
+                title = fullText.substring(0, 30);
+                if (title.length >= 30) title += '...';
+            }
             content = fullText;
+        }
+        
+        // 最终确保标题和内容不为空
+        if (!title.trim()) {
+            title = content.substring(0, 30);
+            if (title.length >= 30) title += '...';
+            if (!title.trim()) {
+                title = message.type === 'image' ? '图片分享' : '这是一张不错的图片';
+            }
+        }
+        if (!content.trim()) {
+            content = title;
+        }
+        
+        // 如果是图片消息，在内容中添加图片信息
+        if (message.type === 'image' && message.imageUrl) {
+            content = `${content}\n\n图片链接: ${message.imageUrl}`;
         }
         
         // 显示加载提示
         showAppNotification('正在发布到头条...', 2000);
+        
+        // 调试信息：记录实际发送的标题和内容
+        logDebug('准备发送到头条的数据', LOG_LEVELS.INFO, {
+            title: title,
+            titleLength: title.length,
+            content: content.substring(0, 100) + '...',
+            contentLength: content.length,
+            messageType: message.type
+        });
         
         // 调用后端代理接口
         const YOUR_FLASK_PROXY_API_URL = 'https://api.yuangs.cc/api/toutiaopost';
@@ -1642,7 +1628,7 @@ function appendChatMessage(msg) {
 
 
 // --- 上下文菜单和 AI 解释逻辑 (保持不变) ---
-function showAIContextMenu(element, x, y) {
+function showContextMenu(element, x, y) {
     currentMessageElement = element; 
     
     if (!contextMenu) {
@@ -1664,6 +1650,7 @@ function showAIContextMenu(element, x, y) {
     const kimiImageOption = contextMenu.querySelector('[data-ai="kimi"][data-action="image-describe"]');
     const copyOption = document.getElementById('copy-option');
     const deleteOption = document.getElementById('delete-option');
+    const publishToutiaoOption = document.getElementById('publish-toutiao-option');
 
     geminiTextOption.style.display = 'none';
     deepseekTextOption.style.display = 'none';
@@ -1671,15 +1658,18 @@ function showAIContextMenu(element, x, y) {
     geminiImageOption.style.display = 'none';
     kimiImageOption.style.display = 'none';
     copyOption.style.display = 'none';
+    publishToutiaoOption.style.display = 'none';
     
     if (messageType === 'image') {
         geminiImageOption.style.display = 'flex'; 
         kimiImageOption.style.display = 'flex';
+        publishToutiaoOption.style.display = 'flex';
     } else if (messageType === 'text') {
         geminiTextOption.style.display = 'flex'; 
         deepseekTextOption.style.display = 'flex';
         kimiTextOption.style.display = 'flex';
-        copyOption.style.display = 'flex';       
+        copyOption.style.display = 'flex';
+        publishToutiaoOption.style.display = 'flex';
     }
 
     deleteOption.style.display = isSelf ? 'flex' : 'none';
@@ -1708,6 +1698,28 @@ if (contextMenu) {
                 .catch(err => logDebug(`复制失败: ${err}`, LOG_LEVELS.ERROR));
         }
         return; 
+    }
+
+    if (clickedOption.id === 'publish-toutiao-option') {
+        const messageId = currentMessageElement?.dataset.id;
+        const messageText = currentMessageElement?.dataset.messageText;
+        const messageType = currentMessageElement?.dataset.messageType;
+        const imageUrl = currentMessageElement?.dataset.imageUrl;
+        
+        if (!messageId) {
+            logDebug('发布到头条：缺少消息ID', LOG_LEVELS.WARNING);
+            return;
+        }
+        
+        const message = {
+            id: messageId,
+            text: messageText || '',
+            type: messageType,
+            imageUrl: imageUrl
+        };
+        
+        publishToToutiao(message);
+        return;
     }
 
     if (clickedOption.id === 'delete-option') {
@@ -2864,7 +2876,7 @@ let currentTouchMsgEl = null;
             const msgEl = e.target.closest('.message'); 
             if (msgEl) {
                 e.preventDefault(); 
-                showAIContextMenu(msgEl, e.pageX, e.pageY);
+                showContextMenu(msgEl, e.pageX, e.pageY);
             } else if (contextMenu) {
                 contextMenu.style.display = 'none';
             }
@@ -2879,7 +2891,7 @@ let currentTouchMsgEl = null;
                 touchLongPressTimer = setTimeout(() => {
                     if (currentTouchMsgEl === msgEl && (Date.now() - touchStartTime) >= 500) {
                         e.preventDefault();
-                        showAIContextMenu(msgEl, e.touches[0].pageX, e.touches[0].pageY);
+                        showContextMenu(msgEl, e.touches[0].pageX, e.touches[0].pageY);
                         if (navigator.vibrate) navigator.vibrate(50); 
                     }
                 }, 500); 

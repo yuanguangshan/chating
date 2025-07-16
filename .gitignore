@@ -6,3 +6,4 @@ merge2main.sh
 *.db
 data_api.py
 src/error.log
+src/data_api.py
