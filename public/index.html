@@ -1325,7 +1325,7 @@ function updateOnlineUserListDisplay(onlineUsers) {
 
     // 更新在线用户数量显示
     onlineCountEl.textContent = onlineUsers.length;
-    onlineDisplay.textContent = 🧑‍💻 活跃: ${onlineUsers.length}`;
+    onlineDisplay.textContent = `🧑‍💻 活跃: ${onlineUsers.length}`;
 
     logDebug(`✅ 在线用户👭列表已更新 (${onlineUsers.length} 人在线)`, LOG_LEVELS.INFO, onlineUsers.map(u => u.username));
     populateMentionsSuggestions(onlineUsers);
