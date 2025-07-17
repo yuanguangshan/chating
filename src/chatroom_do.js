@@ -21,6 +21,7 @@ const MSG_TYPE_USER_LIST_UPDATE = 'user_list_update';
 
 // 【修改】存储键常量
 const ALLOWED_USERS_KEY = 'allowed_users';
+const TOUTIAO_QUEUE_KEY = 'toutiao_task_queue'; // 新增：任务队列的存储键
 
 const JSON_HEADERS = {
     'Content-Type': 'application/json;charset=UTF-8',
@@ -151,6 +152,17 @@ export class HibernatingChating extends DurableObject {
         }
     }
 
+    // 新增：一个将任务添加到队列的辅助函数
+    async addToutiaoTask(task) {
+        // 使用事务来确保读写操作的原子性，防止并发问题
+        await this.ctx.storage.transaction(async (txn) => {
+            let queue = await txn.get(TOUTIAO_QUEUE_KEY) || [];
+            queue.push(task);
+            await txn.put(TOUTIAO_QUEUE_KEY, queue);
+            this.debugLog(`📰 已将新任务添加到头条队列。当前队列长度: ${queue.length}`, 'INFO', task);
+        });
+    }
+
     // ============ 心跳机制 ============
     startHeartbeat() {
         if (this.heartbeatInterval) {
@@ -257,6 +269,64 @@ export class HibernatingChating extends DurableObject {
         await this.initialize();
         this.debugLog(`📢 收到系统消息: ${payload.message}`, payload.level || 'INFO', payload.data);
         this.broadcast({ type: MSG_TYPE_DEBUG_LOG, payload: { message: payload.message, level: payload.level, data: payload.data, timestamp: new Date().toISOString(), id: crypto.randomUUID().substring(0, 8) } });
+    }
+
+    // 新增：处理头条队列的 RPC 方法，由 Cron 任务调用
+    async processToutiaoQueue(secret) {
+        if (this.env.CRON_SECRET && secret !== this.env.CRON_SECRET) {
+            this.debugLog("🚫 未授权的头条队列处理尝试", 'ERROR');
+            return;
+        }
+
+        this.debugLog(`⚙️ 开始处理头条任务队列...`);
+        await this.loadMessages();
+
+        // 1. 获取并清空队列，防止重复处理
+        const queue = await this.ctx.storage.get(TOUTIAO_QUEUE_KEY);
+        if (!queue || queue.length === 0) {
+            this.debugLog(`✅ 头条任务队列为空，无需处理。`);
+            return;
+        }
+        await this.ctx.storage.delete(TOUTIAO_QUEUE_KEY);
+        this.debugLog(`🗂️ 从队列中取出 ${queue.length} 个任务进行处理。`);
+
+        // 2. 遍历任务并处理
+        for (const task of queue) {
+            try {
+                const prompt = `你是一位专业的"头条"平台内容创作者。请根据以下用户的原始请求，生成一篇吸引人的、结构清晰的头条风格文章。文章要包含引人注目的标题、简洁的引言、分点的正文内容和有力的结尾。原始请求是："${task.originalText.replace('@头条', '').trim()}"`;
+                
+                // 调用 AI 生成内容
+                const { getKimiExplanation } = await import('./ai.js');
+                const generatedContent = await getKimiExplanation(prompt, this.env);
+
+                // 3. 找到原始消息并更新
+                const messageIndex = this.messages.findIndex(m => m.id === task.originalMessageId);
+                if (messageIndex !== -1) {
+                    this.debugLog(`✅ 成功为消息 ${task.originalMessageId} 生成内容，正在更新...`);
+                    // 替换掉之前的 "等待中" 提示
+                    const originalRequestText = this.messages[messageIndex].text.split('\n\n> (⏳')[0];
+                    this.messages[messageIndex].text = `${originalRequestText}\n\n---\n✍️ **头条AI助手** (由 ${task.username} 发起):\n\n${generatedContent}`;
+                    this.messages[messageIndex].timestamp = Date.now(); // 更新时间戳
+
+                    // 广播更新后的消息
+                    this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+                } else {
+                    this.debugLog(`⚠️ 未找到原始消息 ${task.originalMessageId}，可能已被删除。`, 'WARN');
+                }
+            } catch (error) {
+                this.debugLog(`💥 处理头条任务失败 (ID: ${task.originalMessageId}): ${error.message}`, 'ERROR', error);
+                // 更新原始消息为失败状态
+                const messageIndex = this.messages.findIndex(m => m.id === task.originalMessageId);
+                if (messageIndex !== -1) {
+                    this.messages[messageIndex].text += `\n\n> (❌ 内容生成失败，请联系管理员。)`;
+                    this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+                }
+            }
+        }
+
+        // 4. 保存所有更改
+        await this.saveMessages();
+        this.debugLog(`✅ 头条任务队列处理完毕。`);
     }
 
     // ============ 主要入口点 ============
@@ -927,6 +997,24 @@ async handleSessionInitialization(ws, url) {
             message.audioUrl = payload.audioUrl;
             message.filename = payload.filename;
             message.size = payload.size;
+        }
+        
+        // 新增：检查是否是头条任务
+        if (message.text.includes('@头条')) {
+            // 1. 准备任务对象
+            const toutiaoTask = {
+                originalMessageId: message.id,
+                originalText: message.text,
+                username: session.username,
+                timestamp: Date.now()
+            };
+            
+            // 2. 将任务添加到持久化队列
+            // 使用 waitUntil 确保任务在后台完成，不阻塞当前响应
+            this.ctx.waitUntil(this.addToutiaoTask(toutiaoTask));
+
+            // 3. 立即给用户一个反馈
+            message.text += `\n\n> (⏳ 已加入头条内容生成队列...)`;
         }
         
         await this.addAndBroadcastMessage(message);
