@@ -386,7 +386,7 @@ export class HibernatingChating extends DurableObject {
         try {
             // --- 步骤 A: AI生成内容 ---
             logCallback('开始生成头条内容...');
-            const prompt = `你是一位专业的"头条"平台内容创作者。请根据以下用户的原始请求，生成一篇吸引人的、结构清晰的头条风格文章。文章必须包含一个明确的标题（使用 # 符号标记，例如 # 我的标题）。原始请求是："${originalMessage.text.replace('@头条', '').trim()}"`;
+            const prompt = `你是一位专业的"头条"平台内容创作者。请根据以下用户的原始请求，生成一篇吸引人的、结构清晰的头条风格文章。文章必须包含一个明确的标题（使用 # 符号标记，例如 # 我的标题）开头不要有口语化回应和解释行文字，比如：好的，没问题！作为专业的头条内容创作者，我将为你生成一篇引人入胜的文章。不需要过多解释，自己生成标题和内容。原始请求是："${originalMessage.text.replace('@头条', '').trim()}"`;
             const generatedText = await getGeminiChatAnswer(prompt, [], this.env);
             logCallback('内容生成完毕。');
 
