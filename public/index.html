@@ -465,10 +465,37 @@
         }
         
         /* --- CONTEXT MENU & AI EXPLANATION STYLES --- */
-        .context-menu { display: none; position: absolute; background-color: var(--bg-panel); border: 1px solid var(--border); border-radius: 5px; box-shadow: 0 2px 5px var(--shadow); z-index: 1000; }
+        .context-menu { 
+            display: none; 
+            position: absolute; 
+            background-color: var(--bg-panel); 
+            border: 1px solid var(--border); 
+            border-radius: 5px; 
+            box-shadow: 0 2px 5px var(--shadow); 
+            z-index: 1000; 
+            max-height: 70vh; /* 限制最大高度为视口高度的70% */
+            overflow-y: auto; /* 内容超出时允许滚动 */
+            -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
+        }
         .context-menu ul { list-style: none; padding: 5px 0; margin: 0; }
-        .context-menu ul li { padding: 8px 15px; cursor: pointer; color: var(--text); }
+        .context-menu ul li { 
+            padding: 8px 15px; 
+            cursor: pointer; 
+            color: var(--text); 
+            white-space: nowrap; /* 防止文字换行 */
+            font-size: 14px; /* 移动端适配字体大小 */
+        }
         .context-menu ul li:hover { background-color: var(--bg); }
+        @media (max-width: 768px) {
+            .context-menu {
+                max-width: 90vw; /* 移动端限制最大宽度 */
+                border-radius: 8px; /* 移动端更大的圆角 */
+            }
+            .context-menu ul li {
+                padding: 12px 16px; /* 移动端更大的点击区域 */
+                font-size: 16px; /* 移动端更大的字体 */
+            }
+        }
 
         /* Call Controls */
         #call-controls-container {
@@ -1890,10 +1917,51 @@ function showContextMenu(element, messageData, x, y) {
         return;
     }
     
-    // 设置菜单位置并显示
-    contextMenu.style.top = `${y}px`;
-    contextMenu.style.left = `${x}px`;
+    // 设置菜单位置并显示，确保菜单在屏幕边界内
+    const menuWidth = contextMenu.offsetWidth || 200; // 估计菜单宽度
+    const menuHeight = contextMenu.offsetHeight || 200; // 估计菜单高度
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // 计算菜单位置，确保不会超出屏幕边界
+    let menuX = x;
+    let menuY = y;
+    
+    // 检查右边界
+    if (x + menuWidth > viewportWidth) {
+        menuX = viewportWidth - menuWidth - 10; // 留10px边距
+    }
+    
+    // 检查下边界
+    if (y + menuHeight > viewportHeight) {
+        menuY = viewportHeight - menuHeight - 10; // 留10px边距
+    }
+    
+    // 确保菜单不会超出左边界和上边界
+    menuX = Math.max(10, menuX);
+    menuY = Math.max(10, menuY);
+    
+    contextMenu.style.top = `${menuY}px`;
+    contextMenu.style.left = `${menuX}px`;
     contextMenu.style.display = 'block';
+    
+    // 重新计算实际尺寸，如果估计不准确
+    const actualWidth = contextMenu.offsetWidth;
+    const actualHeight = contextMenu.offsetHeight;
+    
+    // 如果实际尺寸导致超出边界，再次调整
+    if (menuX + actualWidth > viewportWidth) {
+        menuX = viewportWidth - actualWidth - 5;
+    }
+    if (menuY + actualHeight > viewportHeight) {
+        menuY = viewportHeight - actualHeight - 5;
+    }
+    
+    menuX = Math.max(5, menuX);
+    menuY = Math.max(5, menuY);
+    
+    contextMenu.style.top = `${menuY}px`;
+    contextMenu.style.left = `${menuX}px`;
 
     const messageType = messageData.type; // Use messageData.type
     const isSelf = messageData.username === username; // Use messageData.username
