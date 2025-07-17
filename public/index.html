@@ -1793,7 +1793,7 @@ async function publishToToutiao(message) {
         const data = await response.json();
 
         logDebug('✅ 已通过自有api提交到头条成功 (待头条审核)', LOG_LEVELS.SUCCESS, data);
-        showAppNotification('通过api发布成功！', 5000);
+        showAppNotification('🍭通过API发布成功！', 5000);
 
     } catch (error) {
         logDebug(`❗通过后端代理发布到头条失败: ${error.message}`, LOG_LEVELS.ERROR, error);
