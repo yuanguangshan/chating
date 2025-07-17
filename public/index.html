@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>实时聊天室</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- ================================================== -->
+    <!--  ✅ 在这里添加占位符，用于注入服务器端环境变量   -->
+    <!-- ================================================== -->
+    <script>
+      //--CONFIG-PLACEHOLDER--//
+    </script>
+    <!-- ================================================== -->
 <script>
 ;(function(){
   /* 1. passive-patch 保持原样 */
@@ -1724,7 +1731,7 @@ async function publishToToutiao(message) {
 
         showAppNotification('正在发布到头条...', 2000);
 
-        const YOUR_FLASK_PROXY_API_URL = 'https://api.yuangs.cc/api/toutiaopost';
+        const YOUR_FLASK_PROXY_API_URL = window.FLASK_API_URL || 'https://your.domain.path/to/toutiaopost';
 
         const response = await fetch(YOUR_FLASK_PROXY_API_URL, {
             method: 'POST',

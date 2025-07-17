@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>用户组管理</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  //--CONFIG-PLACEHOLDER--//
   <style>
     /* ====== THEME VARIABLES ====== */
     :root {
@@ -631,15 +632,17 @@
       showStatus(`切换主题 (${themeName}) 成功`, 'success');
     }
 
-   /* API_DOMAIN_PLACEHOLDER */
-   /* MANAGEMENT_ROOMS_LIST_PLACEHOLDER */ // 1. 最先声明，因为它由 Worker 注入
+    // 从全局变量获取配置
+    const potentialRoomsToCheck = window.MANAGEMENT_ROOMS_LIST || ['general', 'test', 'future', 'admin', 'kerry'];
+    const apiDomain = window.API_DOMAIN || 'chat.want.biz';
+    const envConfig = window.ENV_CONFIG || {};
 
-    // 2. 声明 urlParams，因为它不依赖其他变量，且 adminSecret 和 initialRoom 依赖它
+    // 声明 urlParams，因为它不依赖其他变量，且 adminSecret 和 initialRoom 依赖它
     const urlParams     = new URLSearchParams(window.location.search);
     const adminSecret   = urlParams.get('secret');
     const initialRoom   = urlParams.get('room');
 
-    // 3. 声明所有 DOM 元素，它们不依赖其他变量，且相互独立
+    // 声明所有 DOM 元素，它们不依赖其他变量，且相互独立
     const roomNameInput      = document.getElementById('room-name-input');
     const userList           = document.getElementById('user-list');
     const newUserInput       = document.getElementById('new-user-input');
@@ -661,9 +664,9 @@
       showStatus('正在加载已激活房间...');
       activatedRoomList.innerHTML = '<li class="no-rooms">正在加载房间...</li>';
       const activeRooms = [];
-      const domain = `https://${apiDomain || 'chating.want.biz'}`;
-      // 直接使用注入的 potentialRoomsToCheck 变量
-      const fetches = potentialRoomsToCheck.map(r => // 此行保持不变，但变量来源已改变
+      const domain = `https://${apiDomain}`;
+      // 使用从环境变量获取的房间列表
+      const fetches = potentialRoomsToCheck.map(r =>
         fetch(`${domain}/api/room/status?roomName=${encodeURIComponent(r)}`)
           .then(res => res.json())
           .then(d => d.active ? r : null)
@@ -705,7 +708,7 @@
       }
       showStatus(`正在加载房间 "${room}" 的白名单…`, 'info');
       try {
-        const domain = `https://${apiDomain || 'chating.want.biz'}`;
+        const domain = `https://${apiDomain}`;
         const res = await fetch(`${domain}/api/users/list?roomName=${encodeURIComponent(room)}`);
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
@@ -746,7 +749,7 @@
       addUserBtn.textContent = '添加中…';
       showStatus(`正在添加用户 "${u}" 到房间 "${room}"…`,'info');
       try {
-        const domain = `https://${apiDomain || 'chating.want.biz'}`;
+        const domain = `https://${apiDomain}`;
         const res = await fetch(`${domain}/api/users/add?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`, {
           method:'POST',
           headers:{'Content-Type':'application/json'},
@@ -771,7 +774,7 @@
       if (!confirm(`确认移除 "${u}"？`)) return;
       showStatus(`正在移除 "${u}"…`,'info');
       try {
-        const domain = `https://${apiDomain || 'chating.want.biz'}`;
+        const domain = `https://${apiDomain}`;
         const res = await fetch(`${domain}/api/users/remove?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`, {
           method:'POST',
           headers:{'Content-Type':'application/json'},
@@ -803,7 +806,7 @@
       kimiResult.textContent = '正在查询...';
 
       try {
-        const domain = `https://${apiDomain || 'chating.want.biz'}`;
+        const domain = `https://${apiDomain}`;
         const res = await fetch(`${domain}/api/ai/kimi?roomName=${encodeURIComponent(room)}`, {
           method: 'POST',
           headers: { 
@@ -834,7 +837,7 @@
     // ====== API 链接更新 ======
     function updateApiLinks() {
       const room = roomNameInput.value.trim() || 'test';
-      const domain = `https://${apiDomain || 'chating.want.biz'}`;
+      const domain = `https://${apiDomain}`;
       document.querySelectorAll('.api-links-list a').forEach(a=>{
         const tpl = a.dataset.template;
         const url = domain + tpl.replace('{roomName}', encodeURIComponent(room));
