@@ -1258,7 +1258,7 @@ function updateUserActivityStats() {
             item.innerHTML = `
                 <div class="stat-row">
                     <strong>${escapeHTML(name)}</strong>
-                    <span class="${isActive ? 'online-status' : 'offline-status'}">${isActive ? '🛜 活跃' : '离线'}</span>
+                    <span class="${isActive ? 'online-status' : 'offline-status'}">${isActive ? '🦁 活跃' : '离线'}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">发言:</span>
@@ -1325,7 +1325,7 @@ function updateOnlineUserListDisplay(onlineUsers) {
 
     // 更新在线用户数量显示
     onlineCountEl.textContent = onlineUsers.length;
-    onlineDisplay.textContent = `🛜 活跃: ${onlineUsers.length}`;
+    onlineDisplay.textContent = `🧑‍💻 活跃: ${onlineUsers.length}`;
 
     logDebug(`✅ 在线用户👭列表已更新 (${onlineUsers.length} 人在线)`, LOG_LEVELS.INFO, onlineUsers.map(u => u.username));
     populateMentionsSuggestions(onlineUsers);
@@ -1496,7 +1496,13 @@ class AIContentProcessor {
             '由 Pro 模型生成',
             '由.*?模型生成',
             'AI回复',
-            '智能助手'
+            '智能助手',
+            '你好！',
+            '您好！',
+            '好的。'
+            
+        
+            
         ];
         
         // 常见的用户前缀
@@ -1505,6 +1511,7 @@ class AIContentProcessor {
             '@\\w+',
             '用户[：:]',
             '问题[：:]'
+            
         ];
 
         // 数字到Emoji的映射
@@ -1786,7 +1793,7 @@ async function publishToToutiao(message) {
         const data = await response.json();
 
         logDebug('✅ 已通过自有api提交到头条成功 (待头条审核)', LOG_LEVELS.SUCCESS, data);
-        showAppNotification('已通过自有api提交到头条。', 5000);
+        showAppNotification('🍭通过API发布成功！', 5000);
 
     } catch (error) {
         logDebug(`❗通过后端代理发布到头条失败: ${error.message}`, LOG_LEVELS.ERROR, error);
@@ -2251,7 +2258,7 @@ async function handleRecordButtonClick() {
         mediaRecorder.start();
     } catch (error) {
         logDebug('🎤 无法访问麦克风: ' + error, LOG_LEVELS.ERROR);
-        showAppNotification('🎤 无法访问麦克风，请检查权限。', 3000, true); 
+        showAppNotification('🎤 无麦克风权限，请检查。', 3000, true); 
     }
 }
 
@@ -3046,7 +3053,7 @@ async function onSocketMessage(event) {
     // --- 原有的重连逻辑只在非永久性错误时执行 ---
     let reason = `Code: ${event.code}, Reason: ${event.reason || '无'}, Was Clean: ${event.wasClean}`;
     logDebug(`❗WebSocket连接已断开❌。${reason}`, LOG_LEVELS.WARNING);
-    showAppNotification(`连接已断开❌，尝试重连中... (${event.reason || '无'})`, 3000, true); 
+    showAppNotification(`已断开，尝试重连... (${event.reason || '😭'})`, 3000, true); 
 
     logDebug(`将在${reconnectInterval/1000}秒后重连`, LOG_LEVELS.WARNING);
     setTimeout(connectWebSocket, reconnectInterval);
@@ -3078,7 +3085,7 @@ async function initLocalMedia() {
     }
     catch (err) {
         logDebug('❗无法获取麦克风权限: ' + err, LOG_LEVELS.ERROR);
-        showAppNotification('❗ 无法获取麦克风，通话功能不可用。请检查权限。', 4000, true);
+        showAppNotification('无🎤，☎️功能不可用。', 4000, true);
         return null;
     }
 }

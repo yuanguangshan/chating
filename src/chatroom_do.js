@@ -897,12 +897,12 @@ async handleSessionInitialization(ws, url) {
         }
 
         const textContentToCheckLength = payload.text || payload.caption || '';
-        if (textContentToCheckLength.length > 10000) {
+        if (textContentToCheckLength.length > 20000) {
             this.debugLog(`❌ 消息文本或标题过长，请控制在1万字符以内 👦 ${session.username}`, 'WARN');
             try {
                 session.ws.send(JSON.stringify({
                     type: MSG_TYPE_ERROR,
-                    payload: { message: "❗ 消息文本或标题过长，请控制在10000字符以内" }
+                    payload: { message: "❗ 消息文本或标题过长，请控制在20000字符以内" }
                 }));
             } catch (e) {
                 this.debugLog(`❌ Failed to send error message to 👦 ${session.username}: ${e.message}`, 'ERROR');
