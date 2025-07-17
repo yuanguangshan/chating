@@ -3085,7 +3085,7 @@ async function initLocalMedia() {
     }
     catch (err) {
         logDebug('❗无法获取麦克风权限: ' + err, LOG_LEVELS.ERROR);
-        showAppNotification('❗ 无🎤，☎️功能不可用。', 4000, true);
+        showAppNotification('❗无🎤，☎️功能不可用。', 4000, true);
         return null;
     }
 }
