@@ -345,7 +345,7 @@ export async function getGeminiChatAnswer(question, history = [], env, logCallba
             contents.push({ role: "tool", parts: toolResponseParts });
         } else if (candidate.content.parts[0]?.text) {
             const finalText = candidate.content.parts[0].text;
-            return `(由 ${modelUsed} 模型生成)\n\n${finalText}`;
+            return `${finalText}`;
         } else {
             return "抱歉，收到了无法解析的AI回复。";
         }
