@@ -83,7 +83,7 @@ class AIContentProcessor {
  * @returns {Promise<object>} - 返回发布成功后的API响应
  */
 async function publishToToutiao(title, content, env, logCallback) {
-    const flaskProxyUrl = env.FLASK_PROXY_API_URL;
+    const flaskProxyUrl = env.YOUR_FLASK_PROXY_API_URL;
     if (!flaskProxyUrl) {
         logCallback('🚫 未配置 FLASK_PROXY_API_URL 环境变量，无法发布到头条。', 'ERROR');
         throw new Error('发布服务未配置。');
