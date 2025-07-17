@@ -636,6 +636,7 @@
     const potentialRoomsToCheck = window.MANAGEMENT_ROOMS_LIST || ['general', 'test', 'future', 'admin', 'kerry'];
     const envConfig = window.ENV_CONFIG || {};
     const apiDomain = window.ENV_CONFIG.apiDomain;
+    console.log(apiDomain)
 
     // 声明 urlParams，因为它不依赖其他变量，且 adminSecret 和 initialRoom 依赖它
     const urlParams     = new URLSearchParams(window.location.search);
