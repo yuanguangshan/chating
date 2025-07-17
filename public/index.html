@@ -92,7 +92,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            overscroll-behavior: none; /* 防止整页橡皮筋效果 */
+            overscroll-behavior: auto; /* 允许正常滚动 */
         }
         
         .chat-container {
@@ -632,7 +632,7 @@
                 position: relative; /* 相对定位 */
                 display: flex;
                 flex-direction: column; /* 移动端改为列布局 */
-                overflow: hidden; /* 仅容器内滚动 */
+                overflow: auto; /* 允许容器内滚动 */
             }
             .main-chat {
                 flex: 1;
@@ -1453,7 +1453,7 @@ function createMessageElement(msg) {
 
         touchLongPressTimer = setTimeout(() => {
             if (currentTouchMsgEl === msgEl && (Date.now() - touchStartTime) >= 500) {
-                e.preventDefault(); // Prevent default browser context menu
+                if (e.cancelable) e.preventDefault(); // 只在事件可取消时阻止默认行为
                 showContextMenu(msgEl, msg, e.touches[0].pageX, e.touches[0].pageY);
                 if (navigator.vibrate) navigator.vibrate(50); 
             }
@@ -3391,7 +3391,7 @@ let currentTouchMsgEl = null;
 
                 touchLongPressTimer = setTimeout(() => {
                     if (currentTouchMsgEl === msgEl && (Date.now() - touchStartTime) >= 500) {
-                        e.preventDefault(); // 阻止默认长按行为
+                        if (e.cancelable) e.preventDefault(); // 只在事件可取消时阻止默认行为
                         const msgData = allMessages.find(m => m.id === msgEl.dataset.id);
                         if (msgData) {
                             showContextMenu(msgEl, msgData, e.touches[0].pageX, e.touches[0].pageY);
