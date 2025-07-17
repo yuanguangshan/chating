@@ -21,7 +21,10 @@ const CRON_TRIGGERS = {
     FETCH_NEWS: "0 1-7,13-19 * * 1-5",
 
     // 规则四: 期货数据 (同上时间段, 每小时的第15分钟, 用于测试)
-    TEST_FUTURES_DATA: "*/30 1-7,13-19 * * 1-5"
+    TEST_FUTURES_DATA: "*/30 1-7,13-19 * * 1-5",
+    
+    // 新增：每30分钟处理一次头条队列
+    PROCESS_TOUTIAO_QUEUE: "*/30 * * * *"
 };
 
 /**
@@ -46,7 +49,7 @@ async function executeTextTask(env, ctx) {
     // 或者，如果你只是需要一个递增的唯一标识符，也可以用时间戳，但UUID更独特：
     // const uniqueTimestamp = Date.now(); 
 
-    // 在提示词中加入唯一标识符和明确的“不要重复”指令
+    // 在提示词中加入唯一标识符和明确的"不要重复"指令
     // 使用模板字符串 (backticks) 方便拼接
     const finalPrompt = `${basePrompt} 
     
@@ -72,6 +75,7 @@ async function executeTextTask(env, ctx) {
         return { success: false, roomName: roomName, error: error.message };
     }
 }
+
 /**
  * 任务：生成并发布图表
  * @param {object} env - 环境变量
@@ -138,18 +142,6 @@ async function executeNewsTask(env, ctx) {
     }
 }
 
-
-/**
- * 3. 创建 Cron 表达式到任务函数的映射
- */
-export const taskMap = new Map([
-    [CRON_TRIGGERS.DAILY_TEXT_MESSAGE, executeTextTask],
-    [CRON_TRIGGERS.HOURLY_CHART_GENERATION, executeChartTask],
-    [CRON_TRIGGERS.FETCH_NEWS, executeNewsTask],
-    [CRON_TRIGGERS.TEST_FUTURES_DATA, executeFuturesTestTask]
-]);
-
-
 /**
  * 任务：测试获取期货数据
  * @param {object} env - 环境变量
@@ -183,3 +175,40 @@ async function executeFuturesTestTask(env, ctx) {
         return { success: false, roomName: roomName, error: error.message };
     }
 }
+
+/**
+ * 新增：处理头条队列的任务函数
+ * @param {object} env - 环境变量
+ * @param {object} ctx - 执行上下文
+ */
+async function executeToutiaoTask(env, ctx) {
+    const roomName = 'future'; // 目标房间，可根据需要修改
+    
+    console.log(`[Cron Task] Executing Toutiao queue processing for room: ${roomName}`);
+    try {
+        if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+        
+        const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+        const stub = env.CHAT_ROOM_DO.get(doId);
+        
+        // 使用 RPC 调用 DO 的新方法
+        ctx.waitUntil(stub.processToutiaoQueue(env.CRON_SECRET));
+        
+        console.log(`[Cron Task] Successfully dispatched Toutiao queue processing to room: ${roomName}`);
+        return { success: true, roomName: roomName, message: "头条队列处理任务已分发。" };
+    } catch (error) {
+        console.error(`CRON ERROR (toutiao task):`, error.stack || error);
+        return { success: false, roomName: roomName, error: error.message };
+    }
+}
+
+/**
+ * 3. 创建 Cron 表达式到任务函数的映射
+ */
+export const taskMap = new Map([
+    [CRON_TRIGGERS.DAILY_TEXT_MESSAGE, executeTextTask],
+    [CRON_TRIGGERS.HOURLY_CHART_GENERATION, executeChartTask],
+    [CRON_TRIGGERS.FETCH_NEWS, executeNewsTask],
+    [CRON_TRIGGERS.TEST_FUTURES_DATA, executeFuturesTestTask],
+    [CRON_TRIGGERS.PROCESS_TOUTIAO_QUEUE, executeToutiaoTask]
+]);
