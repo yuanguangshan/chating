@@ -1498,6 +1498,7 @@ class AIContentProcessor {
             'AI回复',
             '智能助手',
             '你好！',
+            '您好！',
             '好的。'
             
         
@@ -1510,6 +1511,7 @@ class AIContentProcessor {
             '@\\w+',
             '用户[：:]',
             '问题[：:]'
+            
         ];
 
         // 数字到Emoji的映射
@@ -1791,7 +1793,7 @@ async function publishToToutiao(message) {
         const data = await response.json();
 
         logDebug('✅ 已通过自有api提交到头条成功 (待头条审核)', LOG_LEVELS.SUCCESS, data);
-        showAppNotification('已通过自有api提交到头条。', 5000);
+        showAppNotification('通过api发布成功！', 5000);
 
     } catch (error) {
         logDebug(`❗通过后端代理发布到头条失败: ${error.message}`, LOG_LEVELS.ERROR, error);
@@ -3051,7 +3053,7 @@ async function onSocketMessage(event) {
     // --- 原有的重连逻辑只在非永久性错误时执行 ---
     let reason = `Code: ${event.code}, Reason: ${event.reason || '无'}, Was Clean: ${event.wasClean}`;
     logDebug(`❗WebSocket连接已断开❌。${reason}`, LOG_LEVELS.WARNING);
-    showAppNotification(`连接已断开❌，尝试重连中... (${event.reason || '无'})`, 3000, true); 
+    showAppNotification(`已断开，尝试重连... (${event.reason || '无'})`, 3000, true); 
 
     logDebug(`将在${reconnectInterval/1000}秒后重连`, LOG_LEVELS.WARNING);
     setTimeout(connectWebSocket, reconnectInterval);
