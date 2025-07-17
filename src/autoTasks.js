@@ -182,7 +182,7 @@ async function executeFuturesTestTask(env, ctx) {
  * @param {object} ctx - 执行上下文
  */
 async function executeToutiaoTask(env, ctx) {
-    const roomName = 'future'; // 目标房间，可根据需要修改
+    const roomName = 'test'; // 目标房间，可根据需要修改
     
     console.log(`[Cron Task] Executing Toutiao queue processing for room: ${roomName}`);
     try {
