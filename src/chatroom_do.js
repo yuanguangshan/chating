@@ -28,6 +28,96 @@ const JSON_HEADERS = {
     'Access-Control-Allow-Origin': '*'
 };
 
+
+
+// ✨✨✨【新增代码块开始】✨✨✨
+
+/**
+ * 后端版本的内容处理器
+ * 负责从AI生成的完整Markdown文本中提取标题和内容
+ */
+class AIContentProcessor {
+    /**
+     * 从AI生成的Markdown文本中提取标题和内容
+     * @param {string} aiGeneratedText - AI生成的完整Markdown文本
+     * @returns {{title: string, content: string}}
+     */
+    processAIText(aiGeneratedText) {
+        let title = '无标题';
+        let content = aiGeneratedText;
+
+        // 尝试用更健壮的方式提取标题
+        // 规则1: 查找第一个H1或H2标题 (例如: # 标题 或 ## 标题)
+        const headingMatch = aiGeneratedText.match(/^(#|##)\s+(.*)/m);
+        if (headingMatch && headingMatch[2]) {
+            title = headingMatch[2].trim();
+            // 从内容中移除标题行
+            content = aiGeneratedText.replace(headingMatch[0], '').trim();
+        } else {
+            // 规则2: 如果没有H1/H2，取第一行作为标题（如果它不像一个长段落）
+            const firstLine = aiGeneratedText.split('\n')[0].trim();
+            if (firstLine.length > 0 && firstLine.length < 50) { // 假设标题长度小于50
+                title = firstLine;
+                // 从内容中移除第一行
+                const lines = aiGeneratedText.split('\n');
+                lines.shift();
+                content = lines.join('\n').trim();
+            }
+        }
+        
+        // 如果内容为空，则使用原始文本
+        if (!content.trim()) {
+            content = aiGeneratedText;
+        }
+
+        return { title, content };
+    }
+}
+
+/**
+ * 后端发布函数，通过Flask代理将内容发布到头条
+ * @param {string} title - 文章标题
+ * @param {string} content - 文章内容
+ * @param {object} env - Cloudflare环境变量，用于获取代理URL和密钥
+ * @param {function} logCallback - 用于记录日志的函数
+ * @returns {Promise<object>} - 返回发布成功后的API响应
+ */
+async function publishToToutiao(title, content, env, logCallback) {
+    const flaskProxyUrl = env.FLASK_PROXY_API_URL;
+    if (!flaskProxyUrl) {
+        logCallback('🚫 未配置 FLASK_PROXY_API_URL 环境变量，无法发布到头条。', 'ERROR');
+        throw new Error('发布服务未配置。');
+    }
+
+    logCallback(`🚀 准备通过代理 ${flaskProxyUrl} 发布到头条...`, 'INFO', { title });
+
+    const response = await fetch(flaskProxyUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            // 如果您的Flask代理需要密钥验证，可以在这里添加
+            // 'Authorization': `Bearer ${env.FLASK_PROXY_SECRET}`
+        },
+        body: JSON.stringify({
+            title: title,
+            content: content
+        })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        logCallback(`💥 发布到头条失败，代理返回错误: ${response.status}`, 'ERROR', { errorText });
+        throw new Error(`发布失败: ${errorText}`);
+    }
+
+    const data = await response.json();
+    logCallback('✅ 成功通过代理提交到头条 (待审核)', 'INFO', data);
+    return data;
+}
+
+// ✨✨✨【新增代码块结束】✨✨✨
+
+
 export class HibernatingChating extends DurableObject {
     constructor(ctx, env) {
         super(ctx, env);
@@ -271,64 +361,83 @@ export class HibernatingChating extends DurableObject {
         this.broadcast({ type: MSG_TYPE_DEBUG_LOG, payload: { message: payload.message, level: payload.level, data: payload.data, timestamp: new Date().toISOString(), id: crypto.randomUUID().substring(0, 8) } });
     }
 
-    // 新增：处理头条队列的 RPC 方法，由 Cron 任务调用
-    async processToutiaoQueue(secret) {
-        if (this.env.CRON_SECRET && secret !== this.env.CRON_SECRET) {
-            this.debugLog("🚫 未授权的头条队列处理尝试", 'ERROR');
-            return;
-        }
+    async handleToutiaoTask(session, payload) {
+    const originalMessage = {
+        id: payload.id || crypto.randomUUID(),
+        username: session.username,
+        timestamp: payload.timestamp || Date.now(),
+        text: payload.text.trim(),
+        type: 'text'
+    };
 
-        this.debugLog(`⚙️ 开始处理头条任务队列...`);
-        await this.loadMessages();
+    // 1. 立即发送一个"正在处理"的消息给前端
+    const thinkingMessage = {
+        ...originalMessage,
+        text: `${originalMessage.text}\n\n> (✍️ 头条AI助手正在生成中，请稍候...)`
+    };
+    await this.addAndBroadcastMessage(thinkingMessage);
 
-        // 1. 获取并清空队列，防止重复处理
-        const queue = await this.ctx.storage.get(TOUTIAO_QUEUE_KEY);
-        if (!queue || queue.length === 0) {
-            this.debugLog(`✅ 头条任务队列为空，无需处理。`);
-            return;
-        }
-        await this.ctx.storage.delete(TOUTIAO_QUEUE_KEY);
-        this.debugLog(`🗂️ 从队列中取出 ${queue.length} 个任务进行处理。`);
+    // 2. 使用 waitUntil 在后台执行整个生成和发布流程
+    this.ctx.waitUntil((async () => {
+        const logCallback = (message, level = 'INFO', data = null) => {
+            this.debugLog(`[ToutiaoTask:${thinkingMessage.id}] ${message}`, level, data);
+        };
 
-        // 2. 遍历任务并处理
-        for (const task of queue) {
-            try {
-                const prompt = `你是一位专业的"头条"平台内容创作者。请根据以下用户的原始请求，生成一篇吸引人的、结构清晰的头条风格文章。文章要包含引人注目的标题、简洁的引言、分点的正文内容和有力的结尾。原始请求是："${task.originalText.replace('@头条', '').trim()}"`;
-                
-                // 调用 AI 生成内容
-                const { getKimiExplanation } = await import('./ai.js');
-                const generatedContent = await getKimiExplanation(prompt, this.env);
+        try {
+            // --- 步骤 A: AI生成内容 ---
+            logCallback('开始生成头条内容...');
+            const prompt = `你是一位专业的"头条"平台内容创作者。请根据以下用户的原始请求，生成一篇吸引人的、结构清晰的头条风格文章。文章必须包含一个明确的标题（使用 # 符号标记，例如 # 我的标题）。原始请求是："${originalMessage.text.replace('@头条', '').trim()}"`;
+            const generatedText = await getKimiExplanation(prompt, this.env);
+            logCallback('内容生成完毕。');
 
-                // 3. 找到原始消息并更新
-                const messageIndex = this.messages.findIndex(m => m.id === task.originalMessageId);
-                if (messageIndex !== -1) {
-                    this.debugLog(`✅ 成功为消息 ${task.originalMessageId} 生成内容，正在更新...`);
-                    // 替换掉之前的 "等待中" 提示
-                    const originalRequestText = this.messages[messageIndex].text.split('\n\n> (⏳')[0];
-                    this.messages[messageIndex].text = `${originalRequestText}\n\n---\n✍️ **头条AI助手** (由 ${task.username} 发起):\n\n${generatedContent}`;
-                    this.messages[messageIndex].timestamp = Date.now(); // 更新时间戳
+            // --- 步骤 B: 提取标题和内容 ---
+            logCallback('正在提取标题和内容...');
+            const processor = new AIContentProcessor();
+            const { title, content } = processor.processAIText(generatedText);
+            logCallback('提取完成。', 'INFO', { title });
 
-                    // 广播更新后的消息
-                    this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
-                } else {
-                    this.debugLog(`⚠️ 未找到原始消息 ${task.originalMessageId}，可能已被删除。`, 'WARN');
-                }
-            } catch (error) {
-                this.debugLog(`💥 处理头条任务失败 (ID: ${task.originalMessageId}): ${error.message}`, 'ERROR', error);
-                // 更新原始消息为失败状态
-                const messageIndex = this.messages.findIndex(m => m.id === task.originalMessageId);
-                if (messageIndex !== -1) {
-                    this.messages[messageIndex].text += `\n\n> (❌ 内容生成失败，请联系管理员。)`;
-                    this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
-                }
+            if (!title || !content) {
+                throw new Error('AI生成的内容格式不规范，无法提取标题或内容。');
+            }
+
+            // --- 步骤 C: 发布到头条 ---
+            logCallback('开始发布到头条...');
+            const publishResult = await publishToToutiao(title, content, this.env, logCallback);
+            logCallback('发布成功！');
+
+            // --- 步骤 D: 更新聊天室消息为最终成功状态 ---
+            const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+            if (messageIndex !== -1) {
+                const successMessage = [
+                    originalMessage.text,
+                    '---',
+                    `✍️ **头条AI助手** (由 ${session.username} 发起):`,
+                    generatedText, // 显示完整的AI生成内容
+                    '---',
+                    `✅ **发布成功!** 已通过API提交至头条后台等待审核。`,
+                    // 如果API返回了文章链接，可以显示出来
+                    publishResult.url ? `🔗 [查看文章](${publishResult.url})` : ''
+                ].join('\n\n');
+
+                this.messages[messageIndex].text = successMessage;
+                this.messages[messageIndex].timestamp = Date.now();
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            }
+
+        } catch (error) {
+            logCallback(`处理头条任务时发生错误: ${error.message}`, 'ERROR', error);
+            
+            // --- 步骤 E: 更新聊天室消息为失败状态 ---
+            const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+            if (messageIndex !== -1) {
+                this.messages[messageIndex].text += `\n\n> (❌ **操作失败**: ${error.message})`;
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
             }
         }
-
-        // 4. 保存所有更改
-        await this.saveMessages();
-        this.debugLog(`✅ 头条任务队列处理完毕。`);
-    }
-
+    })());
+}
     // ============ 主要入口点 ============
     async fetch(request) {
         const url = new URL(request.url);
