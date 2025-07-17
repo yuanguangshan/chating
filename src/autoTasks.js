@@ -24,7 +24,7 @@ const CRON_TRIGGERS = {
     TEST_FUTURES_DATA: "*/30 1-7,13-19 * * 1-5",
     
     // 新增：每30分钟处理一次头条队列
-    PROCESS_TOUTIAO_QUEUE: "*/3 * * * *"
+    PROCESS_TOUTIAO_QUEUE: "*/30 * * * *"
 };
 
 /**
