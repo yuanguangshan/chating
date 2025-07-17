@@ -612,29 +612,27 @@
         @media (max-width: 768px) {
             html, body { 
                 height: 100%; /* 使用固定高度 */
-                overflow: hidden; /* 防止整页滚动 */
-                position: fixed; /* 固定整个页面 */
+                overflow: auto; /* 允许整页滚动 */
+                position: relative; /* 相对定位 */
                 width: 100%; /* 确保宽度100% */
-                top: 0;
-                left: 0;
+                -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
             }
             .chat-container { 
                 width: 100%; 
-                height: 100%; 
+                height: 100vh; /* 使用视口高度 */
                 max-width: 100%; /* 覆盖桌面端的 max-width */
                 border-radius: 0;
                 box-shadow: none;
-                position: absolute; /* 固定聊天容器 */
-                top: 0;
-                left: 0;
+                position: relative; /* 相对定位 */
                 display: flex;
                 flex-direction: column; /* 移动端改为列布局 */
+                overflow: hidden; /* 仅容器内滚动 */
             }
             .main-chat {
                 flex: 1;
                 width: 100%;
                 position: relative;
-                overflow: hidden; /* 防止容器外溢出 */
+                overflow: visible; /* 允许内容滚动 */
                 display: flex;
                 flex-direction: column;
             }
