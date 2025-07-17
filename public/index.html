@@ -38,16 +38,22 @@
   /* 2. 等 DOM 完全就绪后再解锁 AudioContext */
   document.addEventListener('DOMContentLoaded', ()=>{
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioUnlocked = false;
     function unlockAudioContext(e){
-      if (e.type==='touchend') e.preventDefault();
+      if (audioUnlocked) return;
+      // 只在特定条件下阻止默认行为，不影响滚动
+      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        // 避免在输入框区域阻止默认行为
+      }
       const ac = new AudioCtx();
       if (ac.state==='suspended') ac.resume();
-      new Audio("data:audio/mp3;base64,SUQz...").play().catch(()=>{    }); // 这里的音频数据应该是一个完整的Base64编码MP3数据
+      new Audio("data:audio/mp3;base64,SUQz...").play().catch(()=>{    });
+      audioUnlocked = true;
       document.body.removeEventListener('click', unlockAudioContext);
       document.body.removeEventListener('touchend', unlockAudioContext);
     }
     document.body.addEventListener('click', unlockAudioContext, { once: true });
-    document.body.addEventListener('touchend', unlockAudioContext, { once: true, passive: false });
+    document.body.addEventListener('touchend', unlockAudioContext, { once: true, passive: true });
   });
 })();
 </script>
