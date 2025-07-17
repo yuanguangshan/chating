@@ -34,6 +34,64 @@ import { getPrice } from './futuresDataService.js';
 // 导出Durable Object类，以便Cloudflare平台能够识别和实例化它。
 export { HibernatingChating };
 
+/**
+ * 统一的环境变量注入函数
+ * @param {string} htmlContent - HTML内容
+ * @param {object} env - 环境变量对象
+ * @param {string} pageType - 页面类型，用于区分不同的变量注入
+ * @returns {string} - 带有注入变量的HTML内容
+ */
+function injectEnvVariables(htmlContent, env, pageType = 'main') {
+    let injectedScript = '';
+    
+    if (pageType === 'main') {
+        injectedScript += `window.FLASK_API_URL = "${env.YOUR_FLASK_PROXY_API_URL || 'http://localhost:5000'}";\n`;
+    } else if (pageType === 'management') {
+        const roomsListString = env.MANAGEMENT_ROOMS_LIST || 'general,test,future,admin,kerry';
+        const roomsArray = roomsListString.split(',').map(room => room.trim());
+        
+        injectedScript += `window.MANAGEMENT_ROOMS_LIST = ${JSON.stringify(roomsArray)};\n`;
+        injectedScript += `window.API_DOMAIN = "${env.API_DOMAIN || 'chat.want.biz'}";\n`;
+        injectedScript += `window.ENV_CONFIG = ${JSON.stringify({
+            managementRoomsList: roomsArray,
+            apiDomain: env.API_DOMAIN || 'chat.want.biz',
+            flaskApiUrl: env.YOUR_FLASK_PROXY_API_URL || 'http://localhost:5000'
+})};\n`;
+    }
+    
+    // 替换HTML中的占位符
+    return htmlContent.replace(
+        '//--CONFIG-PLACEHOLDER--//',
+        injectedScript
+    );
+}
+
+/**
+ * 注入环境变量到主页面HTML中的辅助函数
+ * @param {object} env - 环境变量对象
+ * @returns {Response} - 带有注入变量的HTML响应
+ */
+function serveMainHtmlWithEnv(env) {
+    const modifiedHtml = injectEnvVariables(html, env, 'main');
+    
+    return new Response(modifiedHtml, { 
+        headers: { 'Content-Type': 'text/html;charset=UTF-8' } 
+    });
+}
+
+/**
+ * 注入环境变量到管理页面HTML中的辅助函数
+ * @param {object} env - 环境变量对象
+ * @returns {Response} - 带有注入变量的HTML响应
+ */
+function serveManagementHtmlWithEnv(env) {
+    const modifiedHtml = injectEnvVariables(managementHtml, env, 'management');
+    
+    return new Response(modifiedHtml, { 
+        headers: { 'Content-Type': 'text/html;charset=UTF-8' } 
+    });
+}
+
 // --- CORS (Cross-Origin Resource Sharing) Headers ---
 // 这是一个可重用的对象，用于为API响应添加正确的CORS头部，允许跨域访问。
 const corsHeaders = {
@@ -108,27 +166,10 @@ export default {
             // --- 路由 1: 全局独立API (不需转发) ---
 
                 
-            // --- ✨ 新增：管理页面路由 ---
+            // --- ✨ 管理页面路由 ---
             if (pathname === '/management') {
                 console.log(`[Worker] Handling /management request.`);
-                // 从环境变量中获取房间列表，如果未设置则提供默认值
-                const roomsListString = env.MANAGEMENT_ROOMS_LIST || 'general,test,future,admin,kerry';
-                const roomsArray = roomsListString.split(',').map(room => room.trim()); // 分割并去除空格
-
-                // 将房间列表注入到 HTML 字符串中
-                // 我们在 HTML 中放置一个特殊的注释占位符，然后替换它
-                let modifiedHtml = managementHtml.replace(
-                    '/* MANAGEMENT_ROOMS_LIST_PLACEHOLDER */',
-                    `const potentialRoomsToCheck = ${JSON.stringify(roomsArray)};`
-                );
-                if (env.API_DOMAIN) {
-                    modifiedHtml = modifiedHtml.replace(
-                        '/* API_DOMAIN_PLACEHOLDER */',
-                        `const apiDomain = "${env.API_DOMAIN}";`
-                    );
-                }
-
-                return new Response(modifiedHtml, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
+                return serveManagementHtmlWithEnv(env);
             }
 
             // --- ✨ 新增：用户管理API路由转发 ---
@@ -331,13 +372,13 @@ export default {
 
                  // 只有在DO明确要求时，才返回HTML
                  if (response.headers.get("X-DO-Request-HTML") === "true") {
-                     return new Response(html, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
+                     return serveMainHtmlWithEnv(env);
                  }
                  return response;
             }
 
-            // --- 路由 4: 根路径 或 其他未匹配路径，直接返回HTML ---
-            return new Response(html, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
+            // --- 路由 4: 根路径 或 其他未匹配路径，注入环境变量后返回HTML ---
+            return serveMainHtmlWithEnv(env);
 
         } catch (e) {
             console.error("Critical error in main Worker fetch:", e.stack || e);

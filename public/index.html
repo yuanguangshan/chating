@@ -1,4 +1,3 @@
-html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,6 +5,13 @@ html
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>实时聊天室</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- ================================================== -->
+    <!--  ✅ 在这里添加占位符，用于注入服务器端环境变量   -->
+    <!-- ================================================== -->
+    <script>
+      //--CONFIG-PLACEHOLDER--//
+    </script>
+    <!-- ================================================== -->
 <script>
 ;(function(){
   /* 1. passive-patch 保持原样 */
@@ -459,10 +465,37 @@ html
         }
         
         /* --- CONTEXT MENU & AI EXPLANATION STYLES --- */
-        .context-menu { display: none; position: absolute; background-color: var(--bg-panel); border: 1px solid var(--border); border-radius: 5px; box-shadow: 0 2px 5px var(--shadow); z-index: 1000; }
+        .context-menu { 
+            display: none; 
+            position: absolute; 
+            background-color: var(--bg-panel); 
+            border: 1px solid var(--border); 
+            border-radius: 5px; 
+            box-shadow: 0 2px 5px var(--shadow); 
+            z-index: 1000; 
+            max-height: 70vh; /* 限制最大高度为视口高度的70% */
+            overflow-y: auto; /* 内容超出时允许滚动 */
+            -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
+        }
         .context-menu ul { list-style: none; padding: 5px 0; margin: 0; }
-        .context-menu ul li { padding: 8px 15px; cursor: pointer; color: var(--text); }
+        .context-menu ul li { 
+            padding: 8px 15px; 
+            cursor: pointer; 
+            color: var(--text); 
+            white-space: nowrap; /* 防止文字换行 */
+            font-size: 14px; /* 移动端适配字体大小 */
+        }
         .context-menu ul li:hover { background-color: var(--bg); }
+        @media (max-width: 768px) {
+            .context-menu {
+                max-width: 90vw; /* 移动端限制最大宽度 */
+                border-radius: 8px; /* 移动端更大的圆角 */
+            }
+            .context-menu ul li {
+                padding: 12px 16px; /* 移动端更大的点击区域 */
+                font-size: 16px; /* 移动端更大的字体 */
+            }
+        }
 
         /* Call Controls */
         #call-controls-container {
@@ -525,7 +558,7 @@ html
         }
 
         .context-menu .ai-explain-option::before {
-            content: '🤖'; /* AI小机器人图标 */
+            content: '🇨🇳'; /* AI小机器人图标 */
             font-size: 14px;
         }   
         .ai-explanation { position: relative; background-color: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-top: 8px; font-size: 0.85em; color: var(--text); line-height: 1.5; animation: fadeInUp 0.4s ease; box-shadow: 0 2px 5px var(--shadow); max-width: 75%; box-sizing: border-box; align-self: flex-start; }
@@ -784,22 +817,22 @@ html
         <aside class="sidebar" id="sidebar">
                 <div class="sidebar-header">
                     <a href="https://chat.want.biz/management?secret=" class="header-link" style="text-decoration: none;">
-                        <h2><span class="online-indicator"></span> 活跃用户</h2>
+                        <h2><span class="online-indicator"></span> 🤹 活跃用户</h2>
                     </a>
                     <button id="theme-toggle-btn" class="theme-toggle-btn" title="切换深色模式">🌓</button>
                 </div>
             <div class="user-list-container">
-                <div class="user-list-title">用户 & 房间信息</div>
+                <div class="user-list-title">🏠 用户 & 房间信息</div>
                 <div class="user-row">
                     <!-- 这个user-names div将被直接填充在线用户列表 -->
                     <div class="user-names" id="user-names"></div>
                     <div class="user-info">
                         <div class="info-row">
-                            <span class="info-label">活跃</span>
+                            <span class="info-label">🟢 活跃</span>
                             <span class="info-value online-count" id="online-count">0</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">房间</span>
+                            <span class="info-label">💒 房间</span>
                             <span class="info-value room-name-sidebar" id="sidebar-room-name">--</span>
                         </div>
                     </div>
@@ -808,15 +841,15 @@ html
                 <ul id="user-list" style="display: none;"></ul> 
             </div>
             <div class="user-stats-container">
-                <div class="user-list-title">用户活动统计</div>
+                <div class="user-list-title">🏕 用户活动统计</div>
                 <div id="user-stats-list"></div>
             </div>
             <div class="debug-log-container">
-                <div class="user-list-title">调试日志
+                <div class="user-list-title">🎞 调试日志
                     <div class="debug-controls">
-                        <button id="clear-logs-btn" title="清空日志">🗑️</button>
+                        <button id="clear-logs-btn" title="清空日志">💥</button>
                         <button id="copy-logs-btn" title="复制全部日志">📋</button>
-                        <button id="toggle-logs-btn" title="显示/隐藏日志">👁️</button>
+                        <button id="toggle-logs-btn" title="显示/隐藏日志">🦉</button>
                     </div>
                 </div>
                 <div id="debug-log-content" class="debug-log-content"></div>
@@ -827,7 +860,7 @@ html
             <header class="chat-header">
                 <button class="sidebar-toggle" id="sidebar-toggle">☰</button>
                 <div class="chat-info">
-                    <div class="room-icon">💬</div>
+                    <div class="room-icon">⚜️</div>
                     <div class="chat-details">
                         <h1 class="room-name" id="room-name">Room: test</h1>
                         <p class="user-status">
@@ -837,7 +870,7 @@ html
                         </p>
                     </div>
                 </div>
-                <div class="online-users-display" id="online-users-display">活跃: 0</div>
+                <div class="online-users-display" id="online-users-display">🛜 活跃: 0</div>
                 <div class="users-menu" id="users-menu">
                     <!-- users-menu-list 将被直接填充在线用户列表 -->
                     <ul id="users-menu-list"></ul>
@@ -864,11 +897,11 @@ html
                     <textarea id="message-input" placeholder="请输入..." rows="1"></textarea>
                     <button type="button" class="clear-btn" id="clear-input-btn" title="清空输入框">×</button>
                     <div id="mentions-suggestions" class="mentions-suggestions"></div>
-                    <div class="voice-input-status" id="voice-input-status">正在聆听...</div>
+                    <div class="voice-input-status" id="voice-input-status">☎️正在聆听...</div>
                 </div>
                 <button type="button" class="icon-btn" id="record-button" title="语音输入">🎤</button>
                 <button type="button" class="icon-btn" id="voice-input-button" title="语音提问">🎙️</button>
-                <button type="submit" class="icon-btn" id="send-button" title="发送" disabled>📤</button>
+                <button type="submit" class="icon-btn" id="send-button" title="发送" disabled>🚀</button>
             </form>
         </main>
     </div>
@@ -1225,7 +1258,7 @@ function updateUserActivityStats() {
             item.innerHTML = `
                 <div class="stat-row">
                     <strong>${escapeHTML(name)}</strong>
-                    <span class="${isActive ? 'online-status' : 'offline-status'}">${isActive ? '活跃' : '离线'}</span>
+                    <span class="${isActive ? 'online-status' : 'offline-status'}">${isActive ? '🛜 活跃' : '离线'}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">发言:</span>
@@ -1292,7 +1325,7 @@ function updateOnlineUserListDisplay(onlineUsers) {
 
     // 更新在线用户数量显示
     onlineCountEl.textContent = onlineUsers.length;
-    onlineDisplay.textContent = `活跃: ${onlineUsers.length}`;
+    onlineDisplay.textContent = `🛜 活跃: ${onlineUsers.length}`;
 
     logDebug(`✅ 在线用户👭列表已更新 (${onlineUsers.length} 人在线)`, LOG_LEVELS.INFO, onlineUsers.map(u => u.username));
     populateMentionsSuggestions(onlineUsers);
@@ -1459,13 +1492,11 @@ class AIContentProcessor {
     constructor() {
         // 常见的AI回复标识符
         this.aiIdentifiers = [
-            '(机器人小助手)',
-            '(由 Pro 模型生成)',
+            '机器人小助手',
+            '由 Pro 模型生成',
             '由.*?模型生成',
             'AI回复',
-            '机器人小助手:',
-            '机器人小助手：',
-            '**机器人小助手**:'
+            '智能助手'
         ];
         
         // 常见的用户前缀
@@ -1475,27 +1506,44 @@ class AIContentProcessor {
             '用户[：:]',
             '问题[：:]'
         ];
+
+        // 数字到Emoji的映射
+        this.digitToEmojiMap = {
+            '0': '0️⃣',
+            '1': '1️⃣',
+            '2': '2️⃣',
+            '3': '3️⃣',
+            '4': '4️⃣',
+            '5': '5️⃣',
+            '6': '6️⃣',
+            '7': '7️⃣',
+            '8': '8️⃣',
+            '9': '9️⃣'
+        };
     }
     
     // 一步到位的内容清理
     cleanContent(text) {
         if (!text || typeof text !== 'string') return '';
         
-        return text
+        let cleaned = text
             // 移除控制字符
-            .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\u200B-\u200F\u2028\u2029\uFEFF]/g, '')
+            .replace(/[\x00-\x09\x0B\x0C\u200B-\u200F\u2028\u2029\uFEFF]/g, '')
             // 清理HTML标签
             .replace(/<[^>]*>/g, '')
-            // 清理Markdown
+            // 清理Markdown符号（直接删除，不保留内容）
             .replace(/\*\*/g, '')
             .replace(/\*/g, '')
             .replace(/`/g, '')
-            .replace(/#/g, '')
+            .replace(/#/g, '');
 
-            // 规范化空格和换行
+        // 规范化空格和换行（最终在formatContent中会将所有\n转为空格）
+        cleaned = cleaned
             .replace(/[ \t]+/g, ' ')
-            .replace(/\n\s*\n\s*\n/g, '\n\n')
+            .replace(/\n\s*\n\s*\n/g, '\n\n') // 保留语义化的双换行，formatContent会最终处理
             .trim();
+            
+        return cleaned;
     }
     
     // 智能检测是否为AI回复
@@ -1503,10 +1551,8 @@ class AIContentProcessor {
         const text = message.text || message.caption || '';
         const username = message.username || '';
         
-        // 检查用户名
         if (username === '机器人小助手') return true;
         
-        // 检查文本内容
         return this.aiIdentifiers.some(identifier => 
             new RegExp(identifier, 'i').test(text)
         );
@@ -1516,15 +1562,18 @@ class AIContentProcessor {
     removeAIIdentifiers(text) {
         let cleaned = text;
         
-        // 移除AI相关标识
         const patterns = [
-            /\*\*机器人小助手\*\*:\s*\(由.*?模型生成\)/g,
-            /机器人小助手:\s*\(由.*?模型生成\)/g,
-            /机器人小助手/g,
-            /由.*?模型生成/g,
-            /\(由.*?模型生成\)/g,
-            /\[机器人小助手\]/g,
-            /\[AI回复\]/g
+            /\*\*机器人小助手\*\*:\s*\(由.*?模型生成\)/gi,
+            /机器人小助手:\s*\(由.*?模型生成\)/gi,
+            /机器人小助手:\s*/gi,
+            /机器人小助手/gi,
+            /由.*?模型生成/gi,
+            /\(由.*?模型生成\)/gi,
+            /\[机器人小助手\]/gi,
+            /\[AI回复\]/gi,
+            /^\s*你好[！!]?\s*/i,
+            /^\s*好的[，]?\s*/i,
+            /^\s*了解[，]?\s*/i
         ];
         
         patterns.forEach(pattern => {
@@ -1545,108 +1594,39 @@ class AIContentProcessor {
         return cleaned.trim();
     }
     
-    // 智能分离标题和内容
+    // 智能分离标题和内容 (第一行为标题，从第二行开始为正文)
     separateTitleAndContent(text) {
-        const lines = text.split('\n').filter(line => line.trim().length > 0);
+        const rawLines = text.split('\n'); 
         
-        if (lines.length === 0) {
-            return { title: '无标题', content: text };
-        }
-        
-        if (lines.length === 1) {
-            // 单行文本，尝试按冒号分割
-            const colonIndex = text.indexOf(':');
-            if (colonIndex !== -1 && colonIndex < 50) {
-                return {
-                    title: text.substring(0, colonIndex).trim(),
-                    content: text.substring(colonIndex + 1).trim()
-                };
-            }
-            
-            // 无法分割，截取前30字符作为标题
+        const titleLine = rawLines[0] ? rawLines[0].trim() : '';
+
+        const contentLines = rawLines.slice(1).join('\n').trim();
+
+        if (rawLines.length <= 1 || !titleLine) {
             return {
-                title: text.substring(0, Math.min(30, text.length)),
-                content: text
+                title: titleLine || text.substring(0, Math.min(30, text.length)).trim(),
+                content: '' 
             };
         }
         
-        // 多行文本，第一行作为标题
         return {
-            title: lines[0].trim(),
-            content: lines.slice(1).join('\n').trim()
+            title: titleLine,
+            content: contentLines 
         };
     }
     
-    // 格式化内容（添加适当的换行）
+    // 格式化内容（主要进行数字Emoji替换，并确保无换行）
     formatContent(content) {
-        return content
-            // 数字列表后换行 (1. 2. 3. 等)
-            .replace(/(\d+\.\s*[^。！？\.\!\?]*[。！？\.\!\?])\s*/g, '$1\n\n')
-            // 句号后换行，但要考虑上下文
-            .replace(/([。！？\.\!\?])\s*(?![0-9]|\)|\])/g, '$1\n')
-            // 冒号后换行（标题后）
-            .replace(/([：:])\s*(?=\S)/g, '$1\n')
-            // 确保段落分隔
-            .replace(/\n{3,}/g, '\n\n')
-            // 清理行首空格
-            .replace(/\n\s+/g, '\n')
-            .trim();
-    }
-    
-    // 专门处理长文本的段落分割
-    formatLongContent(content) {
-        // 先基础格式化
-        let formatted = this.formatContent(content);
-        
-        // 智能段落分割
-        const paragraphs = [];
-        const sentences = formatted.split(/[。！？\.\!\?]/);
-        let currentParagraph = '';
-        
-        sentences.forEach((sentence, index) => {
-            if (!sentence.trim()) return;
-            
-            // 重新添加标点符号（除了最后一个）
-            const punct = formatted.split(/[。！？\.\!\?]/)[index] ? 
-                formatted.match(/[。！？\.\!\?]/g)?.[index] || '' : '';
-            
-            currentParagraph += sentence.trim() + punct;
-            
-            // 达到一定长度或遇到特定标识时分段
-            if (currentParagraph.length > 100 || 
-                sentence.includes('：') || 
-                sentence.match(/^\s*\d+\./)) {
-                
-                if (currentParagraph.trim()) {
-                    paragraphs.push(currentParagraph.trim());
-                    currentParagraph = '';
-                }
-            }
-        });
-        
-        // 添加最后一段
-        if (currentParagraph.trim()) {
-            paragraphs.push(currentParagraph.trim());
-        }
-        
-        return paragraphs.join('\n\n');
-    }
-    
-    // 转换为HTML格式（适用于头条号等平台）
-    formatForHTML(content) {
-        // 先基础格式化
-        let formatted = this.formatLongContent(content);
-        
-        // 将换行符转换为HTML <br> 标签
-        formatted = formatted.replace(/\n\n/g, '<br><br>');
-        formatted = formatted.replace(/\n/g, '<br>');
+        if (!content || typeof content !== 'string') return '';
+
+        // 1. 将所有数字替换为对应的Emoji
+        let formatted = content.replace(/[0-9]/g, (digit) => this.digitToEmojiMap[digit]);
+
+        // 2. 规范化所有连续的空格和换行符为单个空格
+        // 这确保了最终输出是一个连续的纯文本字符串，符合头条API的渲染行为
+        formatted = formatted.replace(/[\n\r]+/g, ' ').replace(/[ \t]+/g, ' ').trim();
         
         return formatted;
-    }
-    
-    // 转换为纯文本格式（保持原有的\n换行）
-    formatForPlainText(content) {
-        return this.formatLongContent(content);
     }
     
     // 规范化标题长度
@@ -1665,7 +1645,6 @@ class AIContentProcessor {
     // 主处理函数
     processMessage(message) {
         try {
-            // 1. 获取原始文本
             const rawText = message.text || message.caption || '';
             if (!rawText.trim()) {
                 return {
@@ -1674,75 +1653,146 @@ class AIContentProcessor {
                 };
             }
             
-            // 2. 基础清理
-            let cleanedText = this.cleanContent(rawText);
+            let cleanedTextInitial = this.cleanContent(rawText);
+
+            const { title: rawExtractedTitle, content: rawExtractedContent } = this.separateTitleAndContent(cleanedTextInitial);
             
-            // 3. 移除用户前缀
-            cleanedText = this.removeUserPrefixes(cleanedText);
-            
-            // 4. 处理AI回复
+            let processedContent = rawExtractedContent;
+            processedContent = this.removeUserPrefixes(processedContent);
             if (this.isAIResponse(message)) {
-                cleanedText = this.removeAIIdentifiers(cleanedText);
+                processedContent = this.removeAIIdentifiers(processedContent);
+            }
+            const finalContent = this.formatContent(processedContent);
+            
+            let processedTitle = rawExtractedTitle;
+            processedTitle = this.removeUserPrefixes(processedTitle);
+            if (this.isAIResponse(message)) {
+                processedTitle = this.removeAIIdentifiers(processedTitle);
+            }
+            let finalTitle = this.normalizeTitle(processedTitle);
+            
+            if (!finalTitle.trim() || finalTitle === '聊天记录') {
+                 finalTitle = this.normalizeTitle(rawExtractedTitle); 
+                 if (!finalTitle.trim() || finalTitle === '聊天记录') {
+                    finalTitle = finalContent.substring(0, Math.min(finalContent.length, 30)).trim();
+                    if (!finalTitle || finalTitle.length < 2) {
+                        finalTitle = message.type === 'image' ? '图片分享' : '聊天记录';
+                    } else if (finalTitle.length > 30) {
+                        finalTitle = finalTitle.substring(0, 27) + '...';
+                    }
+                 }
+            }
+
+
+            if (!finalContent.trim() && !finalTitle.trim()) {
+                return {
+                    title: message.type === 'image' ? '图片分享' : '空消息',
+                    content: message.type === 'image' ? '用户分享了一张图片' : '消息内容为空'
+                };
+            } else if (!finalContent.trim()) {
+                return {
+                    title: finalTitle,
+                    content: finalTitle
+                };
             }
             
-            // 5. 分离标题和内容
-            const { title: rawTitle, content: rawContent } = this.separateTitleAndContent(cleanedText);
-            
-            // 6. 格式化 - 根据平台选择格式
-            const title = this.normalizeTitle(rawTitle);
-            const content = this.formatForHTML(rawContent); // 使用HTML格式
-            
-            // 7. 最终检查
             return {
-                title: title || '聊天记录',
-                content: content || cleanedText || '无内容'
+                title: finalTitle,
+                content: finalContent 
             };
             
         } catch (error) {
             console.error('处理消息时出错:', error);
             return {
                 title: '处理失败',
-                content: '消息处理过程中发生错误'
+                content: '消息处理过程中发生错误: ' + error.message
             };
         }
     }
 }
-
-// 使用示例
+// publishToToutiao 功能 (保持不变)
 async function publishToToutiao(message) {
     try {
+        logDebug('尝试通过后端代理发布消息到头条...', LOG_LEVELS.INFO, {
+            messageObject: message,
+            originalTextSnippet: (message.text || message.caption || '').substring(0, 100) + '...'
+        });
+
         const processor = new AIContentProcessor();
-        const { title, content } = processor.processMessage(message, 'text'); // 指定text格式
+        let { title, content } = processor.processMessage(message);
+
+        if (message.type === 'image' && message.imageUrl) {
+            if (title === '聊天记录' || title === '无内容' || title === '空消息' || title === '处理失败') {
+                title = '图片分享';
+            }
+            if (content.trim()) {
+                content += ` 图片链接: ${message.imageUrl}`;
+            } else {
+                content = `用户分享了一张图片。图片链接: ${message.imageUrl}`;
+            }
+            title = processor.normalizeTitle(title);
+        }
+
+        title = processor.normalizeTitle(title);
+
+        if (!title.trim()) {
+            title = message.type === 'image' ? '无标题图片分享' : '无标题聊天记录';
+        }
+        if (!content.trim()) {
+            content = title;
+        }
         
-        console.log('处理结果:', { title, content });
-        
-        // 显示加载提示
+        const finalContentToSend = content; 
+
+        logDebug('准备发送到头条的数据', LOG_LEVELS.INFO, {
+            finalTitle: title,
+            finalContentSnippet: finalContentToSend.substring(0, Math.min(finalContentToSend.length, 200)) + '...',
+            messageType: message.type,
+            extractedSuccessfully: title.trim().length > 0 && content.trim().length > 0,
+        });
+
+        if (!title.trim() || !content.trim()) {
+            logDebug("❗ 内部错误：最终标题或内容为空，无法发送。", LOG_LEVELS.ERROR, { finalTitle: title, finalContent: content });
+            throw new Error("内部错误：无法提取有效的标题或内容。请尝试其他消息或手动复制。");
+        }
+
         showAppNotification('正在发布到头条...', 2000);
-        
-        // 发送到后端
-        const response = await fetch('https://api.yuangs.cc/api/toutiaopost', {
+
+        const YOUR_FLASK_PROXY_API_URL = window.FLASK_API_URL || 'https://your.domain.path/to/toutiaopost';
+
+        const response = await fetch(YOUR_FLASK_PROXY_API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ title, content })
+            body: JSON.stringify({
+                title: title,
+                content: finalContentToSend
+            })
         });
-        
+
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`发布失败: ${response.status} - ${errorText}`);
+            let errorDetails = errorText;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorDetails = errorJson.error || errorJson.details || errorText;
+            } catch (parseErr) {
+                // Not a JSON error, use raw text
+            }
+            throw new Error(`后端代理返回错误: ${response.status} - ${errorDetails}`);
         }
-        
+
         const data = await response.json();
-        console.log('发布成功:', data);
-        showAppNotification('已提交到头条，等待审核', 3000);
-        
+
+        logDebug('✅ 已通过自有api提交到头条成功 (待头条审核)', LOG_LEVELS.SUCCESS, data);
+        showAppNotification('已通过自有api提交到头条。', 5000);
+
     } catch (error) {
-        console.error('发布失败:', error);
-        showAppNotification(`发布失败: ${error.message}`, 5000, true);
+        logDebug(`❗通过后端代理发布到头条失败: ${error.message}`, LOG_LEVELS.ERROR, error);
+        showAppNotification(`发布到头条失败: ${error.message}.`, 5000, true);
     }
 }
-
 
 
 function processMessageQueue() {
@@ -1867,10 +1917,51 @@ function showContextMenu(element, messageData, x, y) {
         return;
     }
     
-    // 设置菜单位置并显示
-    contextMenu.style.top = `${y}px`;
-    contextMenu.style.left = `${x}px`;
+    // 设置菜单位置并显示，确保菜单在屏幕边界内
+    const menuWidth = contextMenu.offsetWidth || 200; // 估计菜单宽度
+    const menuHeight = contextMenu.offsetHeight || 200; // 估计菜单高度
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // 计算菜单位置，确保不会超出屏幕边界
+    let menuX = x;
+    let menuY = y;
+    
+    // 检查右边界
+    if (x + menuWidth > viewportWidth) {
+        menuX = viewportWidth - menuWidth - 10; // 留10px边距
+    }
+    
+    // 检查下边界
+    if (y + menuHeight > viewportHeight) {
+        menuY = viewportHeight - menuHeight - 10; // 留10px边距
+    }
+    
+    // 确保菜单不会超出左边界和上边界
+    menuX = Math.max(10, menuX);
+    menuY = Math.max(10, menuY);
+    
+    contextMenu.style.top = `${menuY}px`;
+    contextMenu.style.left = `${menuX}px`;
     contextMenu.style.display = 'block';
+    
+    // 重新计算实际尺寸，如果估计不准确
+    const actualWidth = contextMenu.offsetWidth;
+    const actualHeight = contextMenu.offsetHeight;
+    
+    // 如果实际尺寸导致超出边界，再次调整
+    if (menuX + actualWidth > viewportWidth) {
+        menuX = viewportWidth - actualWidth - 5;
+    }
+    if (menuY + actualHeight > viewportHeight) {
+        menuY = viewportHeight - actualHeight - 5;
+    }
+    
+    menuX = Math.max(5, menuX);
+    menuY = Math.max(5, menuY);
+    
+    contextMenu.style.top = `${menuY}px`;
+    contextMenu.style.left = `${menuX}px`;
 
     const messageType = messageData.type; // Use messageData.type
     const isSelf = messageData.username === username; // Use messageData.username
