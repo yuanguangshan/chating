@@ -1758,8 +1758,8 @@ async function publishToToutiao(message) {
 
         const data = await response.json();
 
-        logDebug('✅ 通过后端代理发布到头条成功 (可能需要审核)', LOG_LEVELS.SUCCESS, data);
-        showAppNotification('已通过后端提交到头条，等待审核。', 3000);
+        logDebug('✅ 已通过自有api提交到头条成功 (待头条审核)', LOG_LEVELS.SUCCESS, data);
+        showAppNotification('已通过自有api提交到头条。', 5000);
 
     } catch (error) {
         logDebug(`❗通过后端代理发布到头条失败: ${error.message}`, LOG_LEVELS.ERROR, error);
