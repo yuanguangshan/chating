@@ -94,7 +94,7 @@ const getFuturesData = async () => {
     const zdfData = zdfResponse.list
     const marginDataMap = new Map(marginResponse.data.map((item) => [item.uniqueIdEx, item]))
 
-    return zdfData
+    const processedData = zdfData
       .map((zdfItem) => {
         const marginItem = marginDataMap.get(zdfItem.dm)
 
@@ -130,7 +130,7 @@ const getFuturesData = async () => {
         }
       })
       .filter(Boolean)
-    console.log(`[期货数据] 成功获取并处理了 ${zdfData.length} 条期货数据。`);
+    console.log(`[期货数据] 成功获取并处理了 ${processedData.length} 条期货数据。`);
     return processedData;
   } catch (error) {
     console.error('[期货数据] 获取期货数据失败:', error);
