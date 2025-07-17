@@ -2383,15 +2383,15 @@ messageForm.addEventListener('submit', async (e) => {
             let aiModel = null;
             let cleanText = text;
             
-            if (text.includes('@deepseek')) {
+            if (text.includes('@deepseek') || text.includes('@d')) {
                 aiModel = 'deepseek';
-                cleanText = text.replace(/@deepseek\s*/g, '').trim();
-            } else if (text.includes('@gemini')) {
+                cleanText = text.replace(/@deepseek\s*|@d\s*/g, '').trim();
+            } else if (text.includes('@gemini') || text.includes('@g')) {
                 aiModel = 'gemini';
-                cleanText = text.replace(/@gemini\s*/g, '').trim();
-            } else if (text.includes('@kimi')) {
+                cleanText = text.replace(/@gemini\s*|@g\s*/g, '').trim();
+            } else if (text.includes('@kimi') || text.includes('@k')) {
                 aiModel = 'kimi';
-                cleanText = text.replace(/@kimi\s*/g, '').trim();
+                cleanText = text.replace(/@kimi\s*|@k\s*/g, '').trim();
             } else if (/^\@|^@机器人小助手/.test(text)) {
                 aiModel = 'gemini';
                 cleanText = text.replace(/^@机器人小助手/, '').trim();
