@@ -438,6 +438,52 @@ export class HibernatingChating extends DurableObject {
         }
     })());
 }
+
+
+// 在 HibernatingChating 类内部，例如放在 handleToutiaoTask 函数后面
+
+    /**
+     * [安全网机制] 由 Cron 定时任务触发，处理可能积压的头条任务队列。
+     * 在正常情况下（即时处理成功），这个队列应该是空的。
+     * @param {string} secret - 用于验证请求来源的密钥
+     */
+    async processToutiaoQueue(secret) {
+        // 简单的安全验证，确保不是随便就能调用
+        if (secret !== this.env.CRON_SECRET) {
+            this.debugLog('🚫 processToutiaoQueue 收到无效的 secret，拒绝执行。', 'WARN');
+            return;
+        }
+
+        this.debugLog('⏰ Cron 触发的安全网机制启动，检查积压的头条任务...', 'INFO');
+
+        // 使用事务来安全地读取和清空队列
+        let queue = await this.ctx.storage.get(TOUTIAO_QUEUE_KEY) || [];
+        if (queue.length === 0) {
+            this.debugLog('✅ 头条任务队列为空，无需处理。', 'INFO');
+            return;
+        }
+
+        // 清空队列，防止重复处理
+        await this.ctx.storage.delete(TOUTIAO_QUEUE_KEY);
+        this.debugLog(`🗂️ 从队列中取出 ${queue.length} 个积压任务进行处理。`, 'INFO');
+
+        // 遍历并处理所有积压的任务
+        for (const task of queue) {
+            this.debugLog(`- 正在处理积压任务 (ID: ${task.originalMessageId})`, 'INFO');
+            
+            // 这里我们复用即时处理的逻辑，但传入的是队列中的任务信息
+            // 注意：因为是从队列中取出，我们没有实时的 session，所以用户名等信息从任务中获取
+            const fakeSession = { username: task.username };
+            const fakePayload = { 
+                id: task.originalMessageId, 
+                text: task.originalText 
+            };
+            
+            // 调用我们强大的 handleToutiaoTask 函数来完成所有工作！
+            // 使用 this.ctx.waitUntil 确保即使这个函数返回了，处理也能在后台继续
+            this.ctx.waitUntil(this.handleToutiaoTask(fakeSession, fakePayload));
+        }
+    }
     // ============ 主要入口点 ============
     async fetch(request) {
         const url = new URL(request.url);
