@@ -870,7 +870,16 @@ async handleSessionInitialization(ws, url) {
 
         try {
             const data = JSON.parse(message);
-            
+            const textPayload = data.payload?.text || '';
+
+            // ✨ 核心修复：优先处理 @头条 任务，无论前端发送的 type 是什么
+            if (textPayload.includes('@头条')) {
+                // 强制将此消息作为普通聊天消息处理，以触发我们的特殊逻辑
+                await this.handleChatMessage(session, data.payload);
+                return; // 处理完毕，直接返回，避免进入下面的 switch
+            }
+
+            // 如果不是@头条任务，则按原逻辑继续
             switch (data.type) {
                 case MSG_TYPE_CHAT:
                     await this.handleChatMessage(session, data.payload); 
@@ -888,7 +897,7 @@ async handleSessionInitialization(ws, url) {
                     await this.handleDeleteMessageRequest(session, data.payload);
                     break;
                 case MSG_TYPE_HEARTBEAT:
-                    this.debugLog(`💓 收到心跳包💓 👦  ${session.username}`, 'HEARTBEAT');
+                    // this.debugLog(`💓 收到心跳包💓 👦  ${session.username}`, 'HEARTBEAT');
                     break;
                 case 'offer':
                 case 'answer':
@@ -902,24 +911,6 @@ async handleSessionInitialization(ws, url) {
         } catch (e) { 
             this.debugLog(`❌ 解析来自 👦 ${session.username} 的WebSocket消息失败: ${e.message}`, 'ERROR');
         }
-    }
-
-    async webSocketClose(ws, code, reason, wasClean) {
-        const sessionId = ws.sessionId;
-        const session = this.sessions.get(sessionId);
-        const username = session ? session.username : 'unknown';
-        
-        this.debugLog(`💤 断开连接: 👦 ${username} (Session: ${sessionId}). Code: ${code}, 原因: ${reason}, 清理: ${wasClean}`);
-        this.cleanupSession(sessionId, { code, reason, wasClean });
-    }
-    
-    async webSocketError(ws, error) {
-        const sessionId = ws.sessionId;
-        const session = this.sessions.get(sessionId);
-        const username = session ? session.username : 'unknown';
-        
-        this.debugLog(`💥 用户 👦 ${username} 的WebSocket错误: ${error}`, 'ERROR');
-        this.cleanupSession(sessionId, { code: 1011, reason: "发生错误", wasClean: false });
     }
 
     // ============ 核心业务逻辑 ============
