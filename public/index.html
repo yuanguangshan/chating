@@ -3053,7 +3053,7 @@ async function onSocketMessage(event) {
     // --- 原有的重连逻辑只在非永久性错误时执行 ---
     let reason = `Code: ${event.code}, Reason: ${event.reason || '无'}, Was Clean: ${event.wasClean}`;
     logDebug(`❗WebSocket连接已断开❌。${reason}`, LOG_LEVELS.WARNING);
-    showAppNotification(`已断开，尝试重连... (${event.reason || ''})`, 3000, true); 
+    showAppNotification(`已断开，尝试重连... (${event.reason || '😭'})`, 3000, true); 
 
     logDebug(`将在${reconnectInterval/1000}秒后重连`, LOG_LEVELS.WARNING);
     setTimeout(connectWebSocket, reconnectInterval);
