@@ -308,7 +308,7 @@ export default {
                 }
 
                 // 需要转发给DO的API
-                let roomName;
+                let roomName = null;
                 // 对于这些API，房间名在查询参数里
                 if (pathname.startsWith('/api/messages') || pathname.startsWith('/api/reset-room')|| pathname.startsWith('/api/debug')|| pathname.startsWith('/api/room')) {
                     roomName = url.searchParams.get('roomName');
@@ -410,7 +410,7 @@ export default {
                         }
                         const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
                         const stub = env.TOUTIAO_SERVICE_DO.get(doId);
-                        const result = await stub.fetch(new Request(new URL(`/task/${taskId}`, request.url).toString()));
+                        const result = await stub.fetch(new Request(new URL(`/results?id=${taskId}`, request.url).toString()));
                         return new Response(result.body, {
                             headers: { 'Content-Type': 'application/json', ...corsHeaders },
                         });
@@ -428,7 +428,7 @@ export default {
                     try {
                         const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
                         const stub = env.TOUTIAO_SERVICE_DO.get(doId);
-                        const result = await stub.fetch(new Request(new URL('/queue', request.url).toString()));
+                    const result = await stub.fetch(new Request(new URL(`/queue`, request.url).toString()));
                         return new Response(result.body, {
                             headers: { 'Content-Type': 'application/json', ...corsHeaders },
                         });
@@ -441,46 +441,7 @@ export default {
                     }
                 }
 
-                // 需要转发给DO的API
-                let roomName;
-                // 对于这些API，房间名在查询参数里
-                if (pathname.startsWith('/api/messages') || pathname.startsWith('/api/reset-room')|| pathname.startsWith('/api/debug')|| pathname.startsWith('/api/room')) {
-                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                    }
-                    
-                    try {
-                        const taskId = url.searchParams.get('taskId');
-                        const roomName = url.searchParams.get('roomName') || 'external';
-                        
-                        if (!taskId) {
-                            return new Response(JSON.stringify({ error: 'Missing taskId parameter' }), {
-                                status: 400,
-                                headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                            });
-                        }
 
-                        // 转发到聊天室DO查询状态
-                        if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
-                        const doId = env.CHAT_ROOM_DO.idFromName(roomName);
-                        const stub = env.CHAT_ROOM_DO.get(doId);
-                        
-                        const response = await stub.fetch(new Request(`${request.url}&action=getTaskStatus`, {
-                            method: 'GET'
-                        }));
-
-                        const result = await response.json();
-                        return new Response(JSON.stringify(result), {
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-
-                    } catch (error) {
-                        console.error('Toutiao status API error:', error);
-                        return new Response(JSON.stringify({ error: error.message }), {
-                            status: 500,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                }
 
                 // (未来可以为其他API在这里添加 roomName 的获取逻辑)
 
