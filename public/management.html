@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>用户组管理</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>  //--CONFIG-PLACEHOLDER--//</script>
   <style>
     /* ====== THEME VARIABLES ====== */
@@ -37,11 +37,7 @@
       background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
       padding: 20px;
       min-height: 100vh;
-      min-height: 100dvh;
-      min-height: -webkit-fill-available;
       overflow-y: auto;
-      padding-top: max(20px, env(safe-area-inset-top, 0px));
-      padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
     }
     .container {
       width: 100%;
@@ -425,19 +421,11 @@
     @media (max-width: 768px) {
       body {
         padding: 10px;
-        padding-top: max(10px, env(safe-area-inset-top, 0px));
-        padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
         background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
-        min-height: 100vh;
-        min-height: 100dvh;
-        min-height: -webkit-fill-available;
       }
       .container {
         padding: 20px;
         border-radius: 16px;
-        max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
       }
       h1 {
         font-size: 1.8em;
