@@ -120,8 +120,9 @@ export class ToutiaoServiceDO extends DurableObject {
         
         const results = await this.queueManager.processQueue(this.processor);
         
-        // 更新统计信息
+        // 保存结果并更新统计信息
         for (const result of results) {
+            await this.saveTaskResult(result);
             await this.updateStats(result.success);
         }
         
