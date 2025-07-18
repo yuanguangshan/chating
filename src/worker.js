@@ -17,6 +17,7 @@ globalThis.global = globalThis;
 
 
 import { HibernatingChating } from './chatroom_do.js';
+import { ToutiaoServiceDO } from './toutiaoDO.js';
 import html from '../public/index.html';
 import managementHtml from '../public/management.html';
 import { generateAndPostCharts } from './chart_generator.js';
@@ -32,7 +33,7 @@ import {
 import { getPrice } from './futuresDataService.js';
 
 // 导出Durable Object类，以便Cloudflare平台能够识别和实例化它。
-export { HibernatingChating };
+export { HibernatingChating, ToutiaoServiceDO };
 
 /**
  * 统一的环境变量注入函数

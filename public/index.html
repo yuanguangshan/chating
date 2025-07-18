@@ -93,12 +93,18 @@
             justify-content: center;
             align-items: center;
             overscroll-behavior: auto; /* 允许正常滚动 */
+            min-height: 100vh; /* 兼容旧浏览器 */
+            min-height: 100dvh; /* 现代浏览器动态视口高度 */
+            min-height: -webkit-fill-available; /* iOS Safari */
         }
         
         .chat-container {
             width: 90%;
             max-width: 800px;
             height: 100%;
+            height: 100dvh; /* 动态视口高度 */
+            max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
+            max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
             background: var(--bg-panel);
             border-radius: 12px;
             box-shadow: 0 10px 30px var(--shadow);
@@ -618,14 +624,20 @@
         @media (max-width: 768px) {
             html, body { 
                 height: 100%; /* 使用固定高度 */
+                height: 100dvh; /* 动态视口高度 */
+                height: -webkit-fill-available; /* iOS Safari */
                 overflow: auto; /* 允许整页滚动 */
                 position: relative; /* 相对定位 */
                 width: 100%; /* 确保宽度100% */
                 -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
+                padding-top: env(safe-area-inset-top, 0px);
+                padding-bottom: env(safe-area-inset-bottom, 0px);
             }
             .chat-container { 
                 width: 100%; 
                 height: 100vh; /* 使用视口高度 */
+                height: 100dvh; /* 动态视口高度 */
+                height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
                 max-width: 100%; /* 覆盖桌面端的 max-width */
                 border-radius: 0;
                 box-shadow: none;
