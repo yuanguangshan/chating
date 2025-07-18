@@ -276,9 +276,7 @@ export class ToutiaoServiceDO extends DurableObject {
 
                 case '/clearQueue':
                     if (method === 'POST') {
-                        console.log('Attempting to clear queue with key:', this.toutiaoService.queueKey);
-                        await this.toutiaoService.clearQueue();
-                        console.log('Queue clear operation completed.');
+                        await this.ctx.storage.delete(TOUTIAO_QUEUE_KEY);
                         return new Response(JSON.stringify({ message: 'Queue cleared successfully' }), {
                             headers: { 'Content-Type': 'application/json' }
                         });
