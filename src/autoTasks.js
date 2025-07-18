@@ -192,7 +192,9 @@ async function executeToutiaoTask(env, ctx) {
         const stub = env.CHAT_ROOM_DO.get(doId);
         
         // 使用 RPC 调用 DO 的新方法
-        ctx.waitUntil(stub.processToutiaoQueue(env.CRON_SECRET));
+        ctx.waitUntil(stub.processToutiaoQueue(env.CRON_SECRET).catch(error => {
+            console.error(`[Cron Task] Toutiao queue processing failed for room: ${roomName}`, error);
+        }));
         
         console.log(`[Cron Task] Successfully dispatched Toutiao queue processing to room: ${roomName}`);
         return { success: true, roomName: roomName, message: "头条队列处理任务已分发。" };

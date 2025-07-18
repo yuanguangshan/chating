@@ -24,11 +24,22 @@ bucket_name = "yuangs" # ✨ 请确保这是您正确的R2桶名称
 tag = "v1"
 new_sqlite_classes = [ "HibernatingChating" ]
 
+# 头条相关服务---
+[[durable_objects.bindings]]
+name = "TOUTIAO_SERVICE_DO"
+class_name = "ToutiaoServiceDO"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["ToutiaoServiceDO"]
+# 头条相关服务---
+
 # 【新增】定义管理页面要检查的房间列表 
 [vars]
 MANAGEMENT_ROOMS_LIST = "test,future,kerry,program" # 逗号分隔的房间名
 API_DOMAIN = "chat.want.biz"
 YOUR_FLASK_PROXY_API_URL="https://api.yuangs.cc/api/toutiaopost"
+MAX_CONTENT_LENGTH=10000
 
 [observability.logs]
 enabled = true
