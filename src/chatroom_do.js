@@ -1793,7 +1793,7 @@ async handleDeleteMessageRequest(session, payload) {
             // 提交任务到头条服务
             await toutiaoClient.submitTask(task);
             
-            this.debugLog(`📝 外部API提交头条任务: ${task.id}`);
+            this.debugLog(`📝外部API提交头条任务: ${task.id}`);
             
             return new Response(JSON.stringify({
                 success: true,
