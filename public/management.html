@@ -796,16 +796,10 @@
     <div id="toutiao-content-management" class="tab-content">
         <div class="section-container">
             <div class="section-box">
-                <h2>任务队列</h2>
-                <p>当前队列长度: <span id="toutiao-queue-length">0</span></p>
-                <div class="form-group" style="gap: 10px;">
-                    <button onclick="fetchToutiaoQueueStatus()">刷新队列</button>
-                    <button onclick="clearToutiaoQueue()" class="delete-button">清空队列</button>
-                    <button onclick="processToutiaoQueue()">处理队列</button>
-                </div>
-                <h3>待处理任务</h3>
-                <ul id="toutiao-pending-tasks-list">
-                    <li>队列为空</li>
+                <h2>历史发布结果</h2>
+                <button onclick="fetchToutiaoResults()">刷新结果</button>
+                <ul id="toutiao-results-list">
+                    <li>加载中...</li>
                 </ul>
             </div>
 
@@ -823,13 +817,17 @@
             </div>
 
             <div class="section-box">
-                <h2>任务状态查询</h2>
-                <div class="form-group">
-                    <input type="text" id="toutiao-check-task-id" placeholder="输入任务ID">
-                    <button onclick="checkToutiaoTaskStatus()">查询状态</button>
+                <h2>任务队列</h2>
+                <p>当前队列长度: <span id="toutiao-queue-length">0</span></p>
+                <div class="form-group" style="gap: 10px;">
+                    <button onclick="fetchToutiaoQueueStatus()">刷新队列</button>
+                    <button onclick="clearToutiaoQueue()" class="delete-button">清空队列</button>
+                    <button onclick="processToutiaoQueue()">处理队列</button>
                 </div>
-                <h3>任务详情:</h3>
-                <pre id="toutiao-task-status-display">无任务信息</pre>
+                <h3>待处理任务</h3>
+                <ul id="toutiao-pending-tasks-list">
+                    <li>队列为空</li>
+                </ul>
             </div>
 
             <div class="section-box">
@@ -839,11 +837,13 @@
             </div>
 
             <div class="section-box">
-                <h2>历史发布结果</h2>
-                <button onclick="fetchToutiaoResults()">刷新结果</button>
-                <ul id="toutiao-results-list">
-                    <li>加载中...</li>
-                </ul>
+                <h2>任务状态查询</h2>
+                <div class="form-group">
+                    <input type="text" id="toutiao-check-task-id" placeholder="输入任务ID">
+                    <button onclick="checkToutiaoTaskStatus()">查询状态</button>
+                </div>
+                <h3>任务详情:</h3>
+                <pre id="toutiao-task-status-display">无任务信息</pre>
             </div>
         </div>
     </div>
