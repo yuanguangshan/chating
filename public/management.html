@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>用户组管理</title>
+  <title>管理面板</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>  //--CONFIG-PLACEHOLDER--//</script>
   <style>
@@ -41,7 +41,7 @@
     }
     .container {
       width: 100%;
-      max-width: 600px;
+      max-width: 900px; /* 增加最大宽度以容纳更多内容 */
       margin: 20px auto;
       background: color-mix(in srgb, var(--bg-panel) 95%, transparent);
       backdrop-filter: blur(10px);
@@ -62,6 +62,47 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+    }
+
+    /* ====== Tabs ====== */
+    .tabs {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: 0 4px 15px var(--shadow);
+    }
+    .tab-button {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      background: transparent;
+      color: var(--text-sub);
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+    .tab-button.active {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    .tab-button:hover:not(.active) {
+      background: var(--border);
+      color: var(--text);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
     }
 
     /* ====== 已激活房间 ====== */
@@ -137,7 +178,7 @@
       align-items: stretch;
       width: 100%;
     }
-    input[type="text"] {
+    input[type="text"], textarea {
       flex-grow: 1;
       padding: 16px 20px;
       border: 2px solid var(--border);
@@ -148,13 +189,17 @@
       transition: all 0.3s ease;
       box-shadow: 0 2px 10px var(--shadow);
     }
-    input[type="text"]::placeholder { color: var(--text-sub); }
-    input[type="text"]:focus {
+    input[type="text"]::placeholder, textarea::placeholder { color: var(--text-sub); }
+    input[type="text"]:focus, textarea:focus {
       outline: none;
       border-color: var(--accent);
       box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent), 0 4px 20px var(--shadow);
       background: var(--bg-panel);
       transform: translateY(-2px);
+    }
+    textarea {
+        min-height: 120px;
+        resize: vertical;
     }
     button {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -200,14 +245,14 @@
     }
 
     /* ====== 用户列表 ====== */
-    #user-list-section {
+    #user-list-section, .kimi-search-section, .toutiao-section {
       background: var(--bg-panel);
       border: 1px solid var(--border);
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 4px 20px var(--shadow);
     }
-    #user-list-section h2 {
+    #user-list-section h2, .kimi-search-section h2, .toutiao-section h2 {
       margin: 0;
       padding: 20px 24px;
       background: linear-gradient(135deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 90%, black) 100%);
@@ -289,18 +334,8 @@
 
     /* ====== Kimi 查询 ====== */
     .kimi-search-section {
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
       padding: 20px;
       margin-top: 20px;
-      box-shadow: 0 4px 20px var(--shadow);
-    }
-    .kimi-search-section h2 {
-      margin: 0 0 16px;
-      font-size: 1.3em;
-      color: var(--text);
-      font-weight: 600;
     }
     #kimi-result-section {
       margin-top: 16px;
@@ -417,6 +452,162 @@
         color: var(--accent);
       }
 
+    /* ====== Toutiao Section Specific Styles ====== */
+    .toutiao-section {
+        padding: 20px;
+    }
+    .toutiao-section h3 {
+        font-size: 1.1em;
+        color: var(--text);
+        margin-bottom: 10px;
+        border-bottom: 1px dashed var(--border);
+        padding-bottom: 5px;
+    }
+    .toutiao-stats, .toutiao-queue-status {
+        background: var(--bg);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        margin-bottom: 20px;
+    }
+    .toutiao-stats p, .toutiao-queue-status p {
+        margin: 5px 0;
+        color: var(--text-sub);
+    }
+    .toutiao-queue-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        padding: 10px;
+        margin-top: 10px;
+    }
+    .toutiao-queue-list ul {
+        list-style: none;
+        padding: 0;
+    }
+    .toutiao-queue-list li {
+        padding: 8px 0;
+        border-bottom: 1px dashed var(--border);
+        color: var(--text);
+        font-size: 0.9em;
+    }
+    .toutiao-queue-list li:last-child {
+        border-bottom: none;
+    }
+    .toutiao-history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        font-size: 0.9em;
+    }
+    .toutiao-history-table th, .toutiao-history-table td {
+        border: 1px solid var(--border);
+        padding: 10px;
+        text-align: left;
+        color: var(--text);
+    }
+    .toutiao-history-table th {
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+        color: white;
+        font-weight: 600;
+    }
+    .toutiao-history-table tr:nth-child(even) {
+        background-color: var(--bg);
+    }
+    .toutiao-history-table tr:hover {
+        background-color: color-mix(in srgb, var(--bg) 80%, var(--accent) 10%);
+    }
+    .toutiao-history-table .status-success { color: #27ae60; font-weight: bold; }
+    .toutiao-history-table .status-error { color: #e74c3c; font-weight: bold; }
+    .toutiao-history-table .status-pending { color: #f39c12; font-weight: bold; }
+    .toutiao-history-table button {
+        padding: 6px 12px;
+        font-size: 0.8em;
+        border-radius: 6px;
+        margin-right: 5px;
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+    }
+    .toutiao-history-table button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+    }
+    .toutiao-history-table button.delete-btn {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+    }
+    .toutiao-history-table button.delete-btn:hover {
+        box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+    }
+    .toutiao-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    .toutiao-actions button {
+        flex: 1;
+    }
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.6);
+        justify-content: center;
+        align-items: center;
+    }
+    .modal-content {
+        background: var(--bg-panel);
+        margin: auto;
+        padding: 30px;
+        border-radius: 15px;
+        width: 80%;
+        max-width: 700px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        position: relative;
+        max-height: 90vh;
+        overflow-y: auto;
+        color: var(--text);
+    }
+    .close-button {
+        color: var(--text-sub);
+        position: absolute;
+        top: 15px;
+        right: 25px;
+        font-size: 35px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.3s;
+    }
+    .close-button:hover,
+    .close-button:focus {
+        color: var(--accent);
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .modal-content h3 {
+        color: var(--accent);
+        margin-bottom: 15px;
+        font-size: 1.5em;
+    }
+    .modal-content pre {
+        background: var(--bg);
+        padding: 15px;
+        border-radius: 8px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: 'Courier New', Courier, monospace;
+        color: var(--text);
+        border: 1px solid var(--border);
+    }
+
+
     /* ====== 响应式：768px 以下 ====== */
     @media (max-width: 768px) {
       body {
@@ -461,6 +652,18 @@
       .api-links-list {
         grid-template-columns: 1fr;
       }
+      .toutiao-history-table th, .toutiao-history-table td {
+          padding: 8px;
+          font-size: 0.8em;
+      }
+      .toutiao-history-table button {
+          padding: 4px 8px;
+          font-size: 0.7em;
+      }
+      .modal-content {
+          width: 95%;
+          padding: 20px;
+      }
     }
 
     /* ====== 响应式：480px 以下 ====== */
@@ -496,117 +699,212 @@
       .api-quick-links h2 {
         font-size: 1.2em;
       }
+      .tabs {
+          flex-direction: column;
+      }
+      .tab-button {
+          margin-bottom: 5px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div style="position: relative; text-align: center;">
-      <h1>聊天室白名单</h1>
+      <h1>管理面板</h1>
       <button onclick="toggleTheme()" class="theme-toggle-btn" title="切换深色模式">🌓</button>
     </div>
 
-    <div class="activated-rooms-section">
-      <h2>已激活的房间</h2>
-      <ul id="activated-room-list">
-        <li class="no-rooms">正在加载房间...</li>
-      </ul>
-    </div>
-
-    <div class="controls">
-      <input type="text" id="room-name-input" placeholder="输入或选择房间名 (e.g., test)">
-      <button id="load-users-btn">加载</button>
+    <div class="tabs">
+      <button class="tab-button active" data-tab="user-management">用户管理</button>
+      <button class="tab-button" data-tab="kimi-query">Kimi 查询</button>
+      <button class="tab-button" data-tab="toutiao-management">头条内容管理</button>
+      <button class="tab-button" data-tab="api-links">API 快速链接</button>
     </div>
 
     <div id="status-message" class="status-info"></div>
 
-    <div id="user-list-section">
-      <h2>当前房间白名单用户</h2>
-      <ul id="user-list">
-        <li style="justify-content:center; color:#7f8c8d;">
-          请选择或输入房间名加载白名单
-        </li>
-      </ul>
-    </div>
+    <!-- 用户管理 Tab 内容 -->
+    <div id="user-management" class="tab-content active">
+      <div class="activated-rooms-section">
+        <h2>已激活的房间</h2>
+        <ul id="activated-room-list">
+          <li class="no-rooms">正在加载房间...</li>
+        </ul>
+      </div>
 
-    <div class="form-group">
-      <input type="text" id="new-user-input" placeholder="输入要添加的用户名">
-      <button id="add-user-btn">添加</button>
-    </div>
+      <div class="controls">
+        <input type="text" id="room-name-input" placeholder="输入或选择房间名 (e.g., test)">
+        <button id="load-users-btn">加载</button>
+      </div>
 
-    <!-- Kimi 查询 -->
-    <div class="kimi-search-section">
-      <h2>Kimi 查询</h2>
+      <div id="user-list-section">
+        <h2>当前房间白名单用户</h2>
+        <ul id="user-list">
+          <li style="justify-content:center; color:#7f8c8d;">
+            请选择或输入房间名加载白名单
+          </li>
+        </ul>
+      </div>
+
       <div class="form-group">
-        <input type="text" id="kimi-query-input" placeholder="输入查询内容">
-        <button id="kimi-search-btn">查询</button>
-      </div>
-      <div id="kimi-result-section">
-        <pre id="kimi-result"></pre>
+        <input type="text" id="new-user-input" placeholder="输入要添加的用户名">
+        <button id="add-user-btn">添加</button>
       </div>
     </div>
-   
-    <!-- API 快速链接区域 -->
-    <div class="api-quick-links">
-      <h2>管理工具</h2>
-      <div class="api-links-list">
-        <a data-template="/api/room/status?roomName={roomName}" href="#" target="_blank" class="list-item">
-          <span class="item-icon">🏠</span>
-          <div class="item-content">
-            <h3>房间状态</h3>
-            <p class="description">查看房间的当前状态和配置信息</p>
-          </div>
-        </a>
-        <a data-template="/api/debug/sessions?roomName={roomName}" href="#" target="_blank" class="list-item">
-          <span class="item-icon">👥</span>
-          <div class="item-content">
-            <h3>活跃用户</h3>
-            <p class="description">查看当前在线的用户列表</p>
-          </div>
-        </a>
-        <a data-template="/api/debug/logs?roomName={roomName}" href="#" target="_blank" class="list-item">
-          <span class="item-icon">📝</span>
-          <div class="item-content">
-            <h3>调试日志</h3>
-            <p class="description">查看房间的详细运行日志</p>
-          </div>
-        </a>
-        <a data-template="/api/messages/history?roomName={roomName}&since=0" href="#" target="_blank" class="list-item">
-          <span class="item-icon">💬</span>
-          <div class="item-content">
-            <h3>消息历史</h3>
-            <p class="description">查看房间的历史消息记录</p>
-          </div>
-        </a>
-        <a data-template="/api/messages/delete?roomName={roomName}&id=msg-123&secret=ADMIN_SECRET" href="#" target="_blank" class="list-item">
-          <span class="item-icon">🗑️</span>
-          <div class="item-content">
-            <h3>删除消息</h3>
-            <p class="description">删除指定的消息内容</p>
-          </div>
-        </a>
-        <a data-template="/api/reset-room?roomName={roomName}&secret=ADMIN_SECRET" href="#" target="_blank" class="list-item">
-          <span class="item-icon">🔄</span>
-          <div class="item-content">
-            <h3>重置房间</h3>
-            <p class="description">重置房间状态和所有配置</p>
-          </div>
-        </a>
-        <a data-template="/api/debug/clear?roomName={roomName}" href="#" target="_blank" class="list-item">
-          <span class="item-icon">🧹</span>
-          <div class="item-content">
-            <h3>清空日志</h3>
-            <p class="description">清空房间的所有调试日志</p>
-          </div>
-        </a>
-        <a data-template="/api/ai/kimi?roomName={roomName}&query=你好" href="#" target="_blank" class="list-item">
-          <span class="item-icon">🤖</span>
-          <div class="item-content">
-            <h3>Kimi AI</h3>
-            <p class="description">使用 Kimi 进行查询</p>
-          </div>
-        </a>
+
+    <!-- Kimi 查询 Tab 内容 -->
+    <div id="kimi-query" class="tab-content">
+      <div class="kimi-search-section">
+        <h2>Kimi 查询</h2>
+        <div class="form-group">
+          <input type="text" id="kimi-query-input" placeholder="输入查询内容">
+          <button id="kimi-search-btn">查询</button>
+        </div>
+        <div id="kimi-result-section">
+          <pre id="kimi-result"></pre>
+        </div>
       </div>
+    </div>
+
+    <!-- 头条内容管理 Tab 内容 -->
+    <div id="toutiao-management" class="tab-content">
+        <div class="toutiao-section">
+            <h2>提交新文章</h2>
+            <div class="form-group">
+                <textarea id="new-toutiao-content" placeholder="输入要生成头条文章的内容..."></textarea>
+            </div>
+            <div class="form-group">
+                <input type="text" id="toutiao-submit-username" placeholder="提交用户 (可选, 默认: admin)" value="admin">
+                <button id="submit-toutiao-btn">提交文章</button>
+            </div>
+        </div>
+
+        <div class="toutiao-section">
+            <h2>头条服务统计</h2>
+            <div class="toutiao-stats">
+                <p>总任务数: <span id="stats-total">0</span></p>
+                <p>成功任务数: <span id="stats-success">0</span></p>
+                <p>失败任务数: <span id="stats-failed">0</span></p>
+                <p>最后处理时间: <span id="stats-last-processed">N/A</span></p>
+            </div>
+        </div>
+
+        <div class="toutiao-section">
+            <h2>任务队列</h2>
+            <div class="toutiao-queue-status">
+                <p>当前队列长度: <span id="queue-length">0</span></p>
+                <div class="toutiao-queue-list">
+                    <ul id="pending-tasks-list">
+                        <li>队列为空</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="toutiao-actions">
+                <button id="process-queue-btn">处理队列</button>
+                <button id="clear-queue-btn" class="delete-btn">清空队列</button>
+            </div>
+        </div>
+
+        <div class="toutiao-section">
+            <h2>历史发布文章</h2>
+            <table class="toutiao-history-table">
+                <thead>
+                    <tr>
+                        <th>标题</th>
+                        <th>状态</th>
+                        <th>发布时间</th>
+                        <th>用户</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="toutiao-history-body">
+                    <tr><td colspan="5" style="text-align:center; color:#7f8c8d;">暂无历史文章</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- API 快速链接区域 -->
+    <div id="api-links" class="tab-content">
+      <div class="api-quick-links">
+        <h2>管理工具</h2>
+        <div class="api-links-list">
+          <a data-template="/api/room/status?roomName={roomName}" href="#" target="_blank" class="list-item">
+            <span class="item-icon">🏠</span>
+            <div class="item-content">
+              <h3>房间状态</h3>
+              <p class="description">查看房间的当前状态和配置信息</p>
+            </div>
+          </a>
+          <a data-template="/api/debug/sessions?roomName={roomName}" href="#" target="_blank" class="list-item">
+            <span class="item-icon">👥</span>
+            <div class="item-content">
+              <h3>活跃用户</h3>
+              <p class="description">查看当前在线的用户列表</p>
+            </div>
+          </a>
+          <a data-template="/api/debug/logs?roomName={roomName}" href="#" target="_blank" class="list-item">
+            <span class="item-icon">📝</span>
+            <div class="item-content">
+              <h3>调试日志</h3>
+              <p class="description">查看房间的详细运行日志</p>
+            </div>
+          </a>
+          <a data-template="/api/messages/history?roomName={roomName}&since=0" href="#" target="_blank" class="list-item">
+            <span class="item-icon">💬</span>
+            <div class="item-content">
+              <h3>消息历史</h3>
+              <p class="description">查看房间的历史消息记录</p>
+            </div>
+          </a>
+          <a data-template="/api/messages/delete?roomName={roomName}&id=msg-123&secret=ADMIN_SECRET" href="#" target="_blank" class="list-item">
+            <span class="item-icon">🗑️</span>
+            <div class="item-content">
+              <h3>删除消息</h3>
+              <p class="description">删除指定的消息内容</p>
+            </div>
+          </a>
+          <a data-template="/api/reset-room?roomName={roomName}&secret=ADMIN_SECRET" href="#" target="_blank" class="list-item">
+            <span class="item-icon">🔄</span>
+            <div class="item-content">
+              <h3>重置房间</h3>
+              <p class="description">重置房间状态和所有配置</p>
+            </div>
+          </a>
+          <a data-template="/api/debug/clear?roomName={roomName}" href="#" target="_blank" class="list-item">
+            <span class="item-icon">🧹</span>
+            <div class="item-content">
+              <h3>清空日志</h3>
+              <p class="description">清空房间的所有调试日志</p>
+            </div>
+          </a>
+          <a data-template="/api/ai/kimi?roomName={roomName}&query=你好" href="#" target="_blank" class="list-item">
+            <span class="item-icon">🤖</span>
+            <div class="item-content">
+              <h3>Kimi AI</h3>
+              <p class="description">使用 Kimi 进行查询</p>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框用于显示文章详情 -->
+  <div id="article-detail-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-button">&times;</span>
+      <h3 id="modal-title"></h3>
+      <p><strong>用户:</strong> <span id="modal-username"></span></p>
+      <p><strong>状态:</strong> <span id="modal-status"></span></p>
+      <p><strong>发布时间:</strong> <span id="modal-timestamp"></span></p>
+      <p><strong>处理耗时:</strong> <span id="modal-processing-time"></span></p>
+      <p><strong>摘要:</strong> <span id="modal-summary"></span></p>
+      <h4>完整内容:</h4>
+      <pre id="modal-content"></pre>
+      <h4>发布结果:</h4>
+      <pre id="modal-publish-result"></pre>
     </div>
   </div>
 
@@ -634,7 +932,9 @@
     const potentialRoomsToCheck = window.MANAGEMENT_ROOMS_LIST || ['general', 'test', 'future', 'admin', 'kerry'];
     const envConfig = window.ENV_CONFIG || {};
     const apiDomain = window.ENV_CONFIG.apiDomain;
-    console.log(apiDomain)
+    const flaskApiUrl = window.ENV_CONFIG.flaskApiUrl; // 获取 Flask 代理 URL
+    console.log("API Domain:", apiDomain);
+    console.log("Flask API URL:", flaskApiUrl);
 
     // 声明 urlParams，因为它不依赖其他变量，且 adminSecret 和 initialRoom 依赖它
     const urlParams     = new URLSearchParams(window.location.search);
@@ -649,15 +949,85 @@
     const loadUsersBtn       = document.getElementById('load-users-btn');
     const statusMessage      = document.getElementById('status-message');
     const activatedRoomList  = document.getElementById('activated-room-list');
-    const apiLinks           = document.querySelectorAll('.api-quick-links-grid a');
+    const apiLinks           = document.querySelectorAll('.api-links-list a'); // 修正选择器
     const kimiQueryInput     = document.getElementById('kimi-query-input');
     const kimiSearchBtn      = document.getElementById('kimi-search-btn');
     const kimiResult         = document.getElementById('kimi-result');
+
+    // 新增头条相关 DOM 元素
+    const newToutiaoContentInput = document.getElementById('new-toutiao-content');
+    const toutiaoSubmitUsernameInput = document.getElementById('toutiao-submit-username');
+    const submitToutiaoBtn = document.getElementById('submit-toutiao-btn');
+    const statsTotal = document.getElementById('stats-total');
+    const statsSuccess = document.getElementById('stats-success');
+    const statsFailed = document.getElementById('stats-failed');
+    const statsLastProcessed = document.getElementById('stats-last-processed');
+    const queueLength = document.getElementById('queue-length');
+    const pendingTasksList = document.getElementById('pending-tasks-list');
+    const processQueueBtn = document.getElementById('process-queue-btn');
+    const clearQueueBtn = document.getElementById('clear-queue-btn');
+    const toutiaoHistoryBody = document.getElementById('toutiao-history-body');
+
+    // 模态框元素
+    const articleDetailModal = document.getElementById('article-detail-modal');
+    const closeModalButton = articleDetailModal.querySelector('.close-button');
+    const modalTitle = document.getElementById('modal-title');
+    const modalUsername = document.getElementById('modal-username');
+    const modalStatus = document.getElementById('modal-status');
+    const modalTimestamp = document.getElementById('modal-timestamp');
+    const modalProcessingTime = document.getElementById('modal-processing-time');
+    const modalSummary = document.getElementById('modal-summary');
+    const modalContent = document.getElementById('modal-content');
+    const modalPublishResult = document.getElementById('modal-publish-result');
+
 
     function showStatus(msg, type='info') {
       statusMessage.textContent = msg;
       statusMessage.className = `status-${type}`;
     }
+
+    // ====== Tab 切换功能 ======
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    function switchTab(tabId) {
+        tabButtons.forEach(button => {
+            if (button.dataset.tab === tabId) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+
+        tabContents.forEach(content => {
+            if (content.id === tabId) {
+                content.classList.add('active');
+            } else {
+                content.classList.remove('active');
+            }
+        });
+
+        // 根据切换的Tab执行不同的初始化操作
+        if (tabId === 'user-management') {
+            fetchActivatedRooms();
+            updateApiLinks(); // 确保API链接更新
+            if (roomNameInput.value.trim()) {
+                fetchUsers();
+            }
+        } else if (tabId === 'toutiao-management') {
+            fetchToutiaoStats();
+            fetchToutiaoQueueStatus();
+            fetchToutiaoHistory();
+        }
+        // Kimi 和 API Links Tab 暂时不需要特殊初始化
+    }
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            switchTab(button.dataset.tab);
+        });
+    });
+
 
     async function fetchActivatedRooms() {
       showStatus('正在加载已激活房间...');
@@ -810,7 +1180,7 @@
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'secret': adminSecret 
+            'secret': adminSecret // Kimi API 路由在 worker.js 中没有 secret 校验，但这里保留以防万一
           },
           body: JSON.stringify({ query: query })
         });
@@ -833,6 +1203,233 @@
       }
     }
 
+    // ====== 头条功能实现 ======
+
+    // 提交新文章
+    async function submitNewToutiaoArticle() {
+        const content = newToutiaoContentInput.value.trim();
+        const username = toutiaoSubmitUsernameInput.value.trim() || 'admin';
+        const room = roomNameInput.value.trim() || 'test'; // 默认房间，因为 /api/toutiao/direct 需要 roomName
+
+        if (!content) {
+            return showStatus('请输入文章内容！', 'error');
+        }
+
+        submitToutiaoBtn.disabled = true;
+        submitToutiaoBtn.textContent = '提交中…';
+        showStatus('正在提交头条文章生成任务...', 'info');
+
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/direct?roomName=${encodeURIComponent(room)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'secret': adminSecret // /api/toutiao/direct 路由在 worker.js 中没有 secret 校验，但这里保留以防万一
+                },
+                body: JSON.stringify({ text: content, username: username })
+            });
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`提交失败: ${errorText}`);
+            }
+
+            const data = await res.json();
+            showStatus(`文章提交成功！任务ID: ${data.taskId || 'N/A'}`, 'success');
+            newToutiaoContentInput.value = '';
+            // 刷新队列和历史
+            await fetchToutiaoQueueStatus();
+            await fetchToutiaoHistory();
+            await fetchToutiaoStats();
+
+        } catch (e) {
+            showStatus(`提交文章失败: ${e.message}`, 'error');
+        } finally {
+            submitToutiaoBtn.disabled = false;
+            submitToutiaoBtn.textContent = '提交文章';
+        }
+    }
+
+    // 获取头条服务统计
+    async function fetchToutiaoStats() {
+        showStatus('正在加载头条服务统计...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/stats`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+
+            statsTotal.textContent = data.totalTasks || 0;
+            statsSuccess.textContent = data.successfulTasks || 0;
+            statsFailed.textContent = data.failedTasks || 0;
+            statsLastProcessed.textContent = data.lastProcessedAt ? new Date(data.lastProcessedAt).toLocaleString() : 'N/A';
+            showStatus('头条服务统计加载成功。', 'success');
+        } catch (e) {
+            showStatus(`加载统计失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 获取任务队列状态
+    async function fetchToutiaoQueueStatus() {
+        showStatus('正在加载任务队列...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/queue`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+
+            queueLength.textContent = data.length || 0;
+            pendingTasksList.innerHTML = '';
+            if (data.tasks && data.tasks.length > 0) {
+                data.tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    li.textContent = `ID: ${task.id.substring(0, 8)}... | 用户: ${task.username} | 内容: ${task.text.substring(0, 50)}... | 状态: ${task.status || 'pending'}`;
+                    pendingTasksList.appendChild(li);
+                });
+            } else {
+                pendingTasksList.innerHTML = '<li>队列为空</li>';
+            }
+            showStatus('任务队列加载成功。', 'success');
+        } catch (e) {
+            showStatus(`加载队列失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 处理队列
+    async function processToutiaoQueue() {
+        if (!confirm('确认处理队列中所有任务？此操作将触发AI生成和发布。')) return;
+        processQueueBtn.disabled = true;
+        processQueueBtn.textContent = '处理中…';
+        showStatus('正在处理任务队列...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            // worker.js 中 /api/toutiao/queue 的 DELETE 方法会触发处理队列
+            const res = await fetch(`${domain}/api/toutiao/queue`, {
+                method: 'DELETE',
+                headers: {
+                    'secret': adminSecret // worker.js 中 processToutiaoQueue RPC 检查 secret
+                }
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            showStatus(`队列处理完成。成功: ${data.results.filter(r => r.success).length}, 失败: ${data.results.filter(r => !r.success).length}`, 'success');
+            await fetchToutiaoQueueStatus();
+            await fetchToutiaoHistory();
+            await fetchToutiaoStats();
+        } catch (e) {
+            showStatus(`处理队列失败: ${e.message}`, 'error');
+        } finally {
+            processQueueBtn.disabled = false;
+            processQueueBtn.textContent = '处理队列';
+        }
+    }
+
+    // 清空队列
+    async function clearToutiaoQueue() {
+        if (!confirm('确认清空所有待处理任务？此操作不可逆。')) return;
+        clearQueueBtn.disabled = true;
+        clearQueueBtn.textContent = '清空中…';
+        showStatus('正在清空任务队列...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            // worker.js 中 /api/toutiao/clearQueue 的 POST 方法会触发清空队列
+            const res = await fetch(`${domain}/api/toutiao/clearQueue`, {
+                method: 'POST',
+                headers: {
+                    'secret': adminSecret // worker.js 中 processToutiaoQueue RPC 检查 secret
+                }
+            });
+            if (!res.ok) throw new Error(await res.text());
+            showStatus('任务队列已清空。', 'success');
+            await fetchToutiaoQueueStatus();
+            await fetchToutiaoHistory(); // 清空队列也可能影响历史，刷新一下
+            await fetchToutiaoStats();
+        } catch (e) {
+            showStatus(`清空队列失败: ${e.message}`, 'error');
+        } finally {
+            clearQueueBtn.disabled = false;
+            clearQueueBtn.textContent = '清空队列';
+        }
+    }
+
+    // 获取历史发布文章
+    async function fetchToutiaoHistory() {
+        showStatus('正在加载历史发布文章...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/results?limit=50`); // 获取最近50条
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+
+            toutiaoHistoryBody.innerHTML = '';
+            if (data && data.length > 0) {
+                data.forEach(article => {
+                    const tr = document.createElement('tr');
+                    const statusClass = article.success ? 'status-success' : 'status-error';
+                    const statusText = article.success ? '成功' : '失败';
+                    const publishTime = article.completedAt ? new Date(article.completedAt).toLocaleString() : 'N/A';
+
+                    tr.innerHTML = `
+                        <td>${article.title || '无标题'}</td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${publishTime}</td>
+                        <td>${article.username || '未知'}</td>
+                        <td>
+                            <button onclick="viewArticleDetail('${article.taskId}')">查看</button>
+                        </td>
+                    `;
+                    toutiaoHistoryBody.appendChild(tr);
+                });
+            } else {
+                toutiaoHistoryBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#7f8c8d;">暂无历史文章</td></tr>';
+            }
+            showStatus('历史发布文章加载成功。', 'success');
+        } catch (e) {
+            showStatus(`加载历史文章失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 查看文章详情
+    async function viewArticleDetail(taskId) {
+        showStatus(`正在加载任务 ${taskId} 详情...`, 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/status/${taskId}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+
+            if (data) {
+                modalTitle.textContent = data.title || '无标题';
+                modalUsername.textContent = data.username || '未知';
+                modalStatus.textContent = data.success ? '成功' : '失败';
+                modalStatus.className = data.success ? 'status-success' : 'status-error';
+                modalTimestamp.textContent = data.completedAt ? new Date(data.completedAt).toLocaleString() : 'N/A';
+                modalProcessingTime.textContent = data.processingTime ? `${data.processingTime}ms` : 'N/A';
+                modalSummary.textContent = data.summary || '无摘要';
+                modalContent.textContent = data.content || '无内容';
+                modalPublishResult.textContent = JSON.stringify(data.publishResult, null, 2) || '无发布结果';
+                articleDetailModal.style.display = 'flex'; // 显示模态框
+                showStatus('文章详情加载成功。', 'success');
+            } else {
+                showStatus('未找到该任务的详情。', 'error');
+            }
+        } catch (e) {
+            showStatus(`加载文章详情失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 关闭模态框
+    closeModalButton.onclick = function() {
+        articleDetailModal.style.display = 'none';
+    }
+    window.onclick = function(event) {
+        if (event.target == articleDetailModal) {
+            articleDetailModal.style.display = 'none';
+        }
+    }
+
+
     // ====== API 链接更新 ======
     function updateApiLinks() {
       const room = roomNameInput.value.trim() || 'test';
@@ -848,14 +1445,23 @@
     document.addEventListener('DOMContentLoaded', ()=>{
       if (initialRoom) {
         roomNameInput.value = initialRoom;
-        fetchUsers();
+        // 初始加载用户管理Tab
+        switchTab('user-management');
+      } else {
+        // 默认加载用户管理Tab
+        switchTab('user-management');
       }
-      fetchActivatedRooms();
-      updateApiLinks();
+      
+      // 绑定事件监听器
       loadUsersBtn.onclick = fetchUsers;
       addUserBtn.onclick  = addUser;
       kimiSearchBtn.onclick = queryKimi;
       roomNameInput.addEventListener('input', updateApiLinks);
+
+      // 绑定头条功能按钮
+      submitToutiaoBtn.onclick = submitNewToutiaoArticle;
+      processQueueBtn.onclick = processToutiaoQueue;
+      clearQueueBtn.onclick = clearToutiaoQueue;
     });
   </script>
 </body>
