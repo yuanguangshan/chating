@@ -752,7 +752,9 @@ async handleSessionInitialization(ws, url) {
             ['/debug/logs', this.handleDebugLogs.bind(this)],
             ['/debug/sessions', this.handleDebugSessions.bind(this)],
             ['/debug/clear', this.handleClearDebugLogs.bind(this)],
-            ['/reset-room', this.handleResetRoom.bind(this)]
+            ['/reset-room', this.handleResetRoom.bind(this)],
+            ['/toutiao/submit', this.handleToutiaoSubmit.bind(this)],
+            ['/toutiao/status', this.handleToutiaoStatus.bind(this)]
         ]);
         
         // 查找匹配的路由处理器
@@ -1756,5 +1758,90 @@ async handleDeleteMessageRequest(session, payload) {
         await this.saveState();
         
         this.debugLog("🧹 清理结束");
+    }
+
+    // ============ 头条外部API处理器 ============
+    async handleToutiaoSubmit(request, url) {
+        if (request.method !== 'POST') {
+            return new Response('方法不允许', { status: 405 });
+        }
+
+        try {
+            const { content, topic, platform = 'default' } = await request.json();
+            
+            if (!content) {
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: '缺少content参数'
+                }), { headers: JSON_HEADERS });
+            }
+
+            // 创建头条任务
+            const task = {
+                id: `external_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                content,
+                topic: topic || '外部提交',
+                platform,
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+                source: 'external_api'
+            };
+
+            // 使用头条服务客户端
+            const toutiaoClient = new ToutiaoServiceClient(this.env, 'default');
+            
+            // 提交任务到头条服务
+            await toutiaoClient.submitTask(task);
+            
+            this.debugLog(`📝外部API提交头条任务: ${task.id}`);
+            
+            return new Response(JSON.stringify({
+                success: true,
+                taskId: task.id,
+                status: 'submitted',
+                message: '任务已提交到队列'
+            }), { headers: JSON_HEADERS });
+
+        } catch (error) {
+            this.debugLog(`❌ 外部API提交任务失败: ${error.message}`, 'ERROR');
+            return new Response(JSON.stringify({
+                success: false,
+                error: error.message
+            }), { headers: JSON_HEADERS });
+        }
+    }
+
+    async handleToutiaoStatus(request, url) {
+        if (request.method !== 'GET') {
+            return new Response('方法不允许', { status: 405 });
+        }
+
+        try {
+            const taskId = url.searchParams.get('taskId');
+            
+            const { ToutiaoService } = await import('./toutiaoService.js');
+            const toutiaoService = new ToutiaoService(this.env);
+            
+            let status;
+            if (taskId) {
+                // 查询特定任务状态
+                status = await toutiaoService.getTaskStatus(taskId);
+            } else {
+                // 获取队列概览
+                status = await toutiaoService.getQueueStatus();
+            }
+
+            return new Response(JSON.stringify({
+                success: true,
+                data: status
+            }), { headers: JSON_HEADERS });
+
+        } catch (error) {
+            this.debugLog(`❌ 外部API查询状态失败: ${error.message}`, 'ERROR');
+            return new Response(JSON.stringify({
+                success: false,
+                error: error.message
+            }), { headers: JSON_HEADERS });
+        }
     }
 }

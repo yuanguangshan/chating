@@ -274,6 +274,14 @@ export class ToutiaoServiceDO extends DurableObject {
                     }
                     break;
 
+                case '/clearQueue':
+                    if (method === 'POST') {
+                        await this.ctx.storage.delete(TOUTIAO_QUEUE_KEY);
+                        return new Response(JSON.stringify({ message: 'Queue cleared successfully' }), {
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                    }
+                    break;
                 case '/stats':
                     if (method === 'GET') {
                         const stats = await this.getStats();
