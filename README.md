@@ -679,3 +679,8 @@ AI驱动的创新内容创作工作流:
 📄 许可
 
 本项目采用 MIT 许可证 发布。
+
+curl -X POST https://chat.want.biz/api/toutiao/clearQueue 
+curl -s https://chat.want.biz/api/toutiao/queue
+curl -s https://chat.want.biz/api/toutiao/direct -X POST -H "Content-Type: application/json" -d '{"text":"测试任务提交","username":"tester"}'
+curl -s https://chat.want.biz/api/toutiao/status/external_1752824358287_b7b3dkzeq
