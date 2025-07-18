@@ -1234,6 +1234,15 @@
             showStatus(`任务提交成功！任务ID: ${data.taskId}`, 'success');
             toutiaoSubmitText.value = '';
             fetchToutiaoQueueStatus(); // 刷新队列显示
+            
+            // 2秒后自动将任务ID填入查询框并自动查询
+            setTimeout(() => {
+                toutiaoCheckTaskId.value = data.taskId || '';
+                if (data.taskId) {
+                    checkToutiaoTaskStatus(); // 自动查询任务状态
+                }
+            }, 2000);
+            
         } catch (e) {
             showStatus(`提交任务失败: ${e.message}`, 'error');
         }
