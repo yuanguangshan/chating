@@ -396,8 +396,55 @@ export default {
                     }
                 }
 
-                if (pathname === '/api/toutiao/status') {
+                if (pathname.startsWith('/api/toutiao/status/')) {
                     if (request.method !== 'GET') {
+                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                    }
+                    try {
+                        const taskId = pathname.substring('/api/toutiao/status/'.length);
+                        if (!taskId) {
+                            return new Response(JSON.stringify({ error: 'Missing taskId parameter' }), {
+                                status: 400,
+                                headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                            });
+                        }
+                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
+                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
+                        const result = await stub.fetch(new Request(new URL(`/task/${taskId}`, request.url).toString()));
+                        return new Response(result.body, {
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    } catch (error) {
+                        console.error('Toutiao status API error:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                } else if (pathname === '/api/toutiao/queue') {
+                    if (request.method !== 'GET') {
+                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                    }
+                    try {
+                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
+                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
+                        const result = await stub.fetch(new Request(new URL('/queue', request.url).toString()));
+                        return new Response(result.body, {
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    } catch (error) {
+                        console.error('Toutiao queue API error:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                }
+
+                // 需要转发给DO的API
+                let roomName;
+                // 对于这些API，房间名在查询参数里
+                if (pathname.startsWith('/api/messages') || pathname.startsWith('/api/reset-room')|| pathname.startsWith('/api/debug')|| pathname.startsWith('/api/room')) {
                         return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
                     }
                     
