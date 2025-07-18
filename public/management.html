@@ -1128,6 +1128,7 @@
     // 获取任务队列状态
     async function fetchToutiaoQueueStatus() {
         showStatus('正在加载头条任务队列...', 'info');
+        toutiaoPendingTasksList.innerHTML = '<li>加载中...</li>';
         try {
             const domain = `https://${apiDomain}`;
             const res = await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`);
@@ -1139,19 +1140,28 @@
             if (data.tasks && data.tasks.length > 0) {
                 data.tasks.forEach(task => {
                     const li = document.createElement('li');
-                    // 健壮性检查：防止 task.text 为 undefined
-                    const taskText = task.text ? task.text.substring(0, Math.min(task.text.length, 50)) + (task.text.length > 50 ? '...' : '') : '无内容';
-                    const taskIdShort = task.id ? task.id.substring(0, Math.min(task.id.length, 8)) + (task.id.length > 8 ? '...' : '') : 'N/A';
+                    // 更健壮的数据访问
+                    const taskText = (task.text || task.content || '无内容').substring(0, 50) + ((task.text || task.content || '').length > 50 ? '...' : '');
+                    const taskIdShort = (task.id || 'unknown').substring(0, 8);
+                    const username = task.username || task.user || '系统';
+                    const status = task.status || '待处理';
+                    const timestamp = new Date(task.createdAt || task.enqueuedAt || Date.now()).toLocaleString();
 
-                    li.textContent = `ID: ${taskIdShort} | 用户: ${task.username || '未知'} | 内容: ${taskText} | 状态: ${task.status || 'pending'} | 创建时间: ${new Date(task.createdAt).toLocaleString()}`;
+                    li.innerHTML = `<strong>ID:</strong> ${taskIdShort}<br>
+                                   <strong>用户:</strong> ${username}<br>
+                                   <strong>内容:</strong> ${taskText}<br>
+                                   <strong>状态:</strong> ${status}<br>
+                                   <strong>时间:</strong> ${timestamp}`;
+                    li.style.cssText = 'padding: 10px; border-bottom: 1px solid var(--border); margin-bottom: 5px;';
                     toutiaoPendingTasksList.appendChild(li);
                 });
             } else {
-                toutiaoPendingTasksList.innerHTML = '<li>队列为空</li>';
+                toutiaoPendingTasksList.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--text-sub);">当前队列中没有待处理任务</li>';
             }
             showStatus('头条任务队列加载成功。', 'success');
         } catch (e) {
             showStatus(`加载队列失败: ${e.message}`, 'error');
+            toutiaoPendingTasksList.innerHTML = `<li style="color: #e74c3c; padding: 20px;">加载失败: ${e.message}</li>`;
         }
     }
 
@@ -1269,6 +1279,7 @@
     // 获取历史发布结果
     async function fetchToutiaoResults() {
         showStatus('正在加载历史发布结果...', 'info');
+        toutiaoResultsList.innerHTML = '<li>加载中...</li>';
         try {
             const domain = `https://${apiDomain}`;
             const res = await fetch(`${domain}/api/toutiao/results?secret=${adminSecret}`);
@@ -1278,22 +1289,35 @@
             if (data && data.length > 0) {
                 data.forEach(result => {
                     const li = document.createElement('li');
-                    const title = result.title || '无标题';
-                    const status = result.success ? '成功' : '失败';
+                    const title = result.title || result.topic || '无标题';
+                    const status = result.success ? '✅ 成功' : '❌ 失败';
                     const completedAt = result.completedAt ? new Date(result.completedAt).toLocaleString() : 'N/A';
                     const errorMsg = result.publishResult && result.publishResult.error ? ` (错误: ${result.publishResult.error})` : '';
-                    const url = result.publishResult && result.publishResult.url ? `<a href="${result.publishResult.url}" target="_blank">查看文章</a>` : '';
+                    const url = result.publishResult && result.publishResult.url ? `<a href="${result.publishResult.url}" target="_blank" style="color: var(--accent); text-decoration: none;">🔗 查看文章</a>` : '';
+                    
+                    const taskId = result.taskId || result.id || 'unknown';
+                    const idShort = taskId.substring(0, 8);
 
-                    li.innerHTML = `<strong>${title}</strong><br>
-                                    ID: ${result.id.substring(0, Math.min(result.id.length, 8))}... | 状态: ${status}${errorMsg} | 完成时间: ${completedAt} ${url}`;
+                    li.innerHTML = `
+                        <div style="padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; background: var(--bg);">
+                            <div style="font-weight: bold; color: var(--text); margin-bottom: 5px;">${title}</div>
+                            <div style="font-size: 0.9em; color: var(--text-sub); line-height: 1.4;">
+                                <div><strong>ID:</strong> ${idShort}...</div>
+                                <div><strong>状态:</strong> ${status}${errorMsg}</div>
+                                <div><strong>完成时间:</strong> ${completedAt}</div>
+                                <div>${url}</div>
+                            </div>
+                        </div>
+                    `;
                     toutiaoResultsList.appendChild(li);
                 });
             } else {
-                toutiaoResultsList.innerHTML = '<li>没有历史发布结果</li>';
+                toutiaoResultsList.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--text-sub); font-style: italic;">暂无历史发布结果</li>';
             }
             showStatus('历史发布结果加载成功。', 'success');
         } catch (e) {
             showStatus(`加载历史发布结果失败: ${e.message}`, 'error');
+            toutiaoResultsList.innerHTML = `<li style="color: #e74c3c; padding: 20px;">加载失败: ${e.message}</li>`;
         }
     }
 
