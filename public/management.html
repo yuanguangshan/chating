@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>用户组管理</title>
+  <title>管理面板</title> <!-- 标题改为更通用的“管理面板” -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>  //--CONFIG-PLACEHOLDER--//</script>
   <style>
@@ -41,7 +41,7 @@
     }
     .container {
       width: 100%;
-      max-width: 600px;
+      max-width: 1200px; /* 增加最大宽度以容纳更多内容 */
       margin: 20px auto;
       background: color-mix(in srgb, var(--bg-panel) 95%, transparent);
       backdrop-filter: blur(10px);
@@ -62,6 +62,54 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+    }
+
+    /* ====== Tabs Styles (新增) ====== */
+    .tabs {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 24px;
+        border-bottom: 2px solid var(--border);
+        padding-bottom: 5px;
+        gap: 10px; /* Spacing between buttons */
+    }
+    .tab-button {
+        background: var(--bg); /* Use theme background */
+        border: 1px solid var(--border);
+        padding: 12px 20px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text-sub);
+        transition: all 0.3s ease;
+        border-radius: 10px 10px 0 0; /* Rounded top corners */
+        box-shadow: 0 2px 8px var(--shadow);
+        position: relative;
+        overflow: hidden;
+    }
+    .tab-button:hover {
+        background: var(--bg-panel);
+        color: var(--accent);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px var(--shadow);
+    }
+    .tab-button.active {
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+        color: white;
+        border-color: var(--accent);
+        border-bottom: 2px solid var(--accent); /* Highlight active tab */
+        box-shadow: 0 4px 15px color-mix(in srgb, var(--accent) 30%, transparent);
+        transform: translateY(0); /* Reset transform for active */
+    }
+    .tab-button.active:hover {
+        transform: translateY(0); /* No hover transform for active */
+    }
+    .tab-content {
+        display: none;
+        padding-top: 10px; /* Space below tabs */
+    }
+    .tab-content.active {
+        display: block;
     }
 
     /* ====== 已激活房间 ====== */
@@ -137,7 +185,8 @@
       align-items: stretch;
       width: 100%;
     }
-    input[type="text"] {
+    input[type="text"],
+    textarea { /* 为 textarea 添加样式 */
       flex-grow: 1;
       padding: 16px 20px;
       border: 2px solid var(--border);
@@ -148,13 +197,19 @@
       transition: all 0.3s ease;
       box-shadow: 0 2px 10px var(--shadow);
     }
-    input[type="text"]::placeholder { color: var(--text-sub); }
-    input[type="text"]:focus {
+    input[type="text"]::placeholder,
+    textarea::placeholder { color: var(--text-sub); }
+    input[type="text"]:focus,
+    textarea:focus {
       outline: none;
       border-color: var(--accent);
       box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent), 0 4px 20px var(--shadow);
       background: var(--bg-panel);
       transform: translateY(-2px);
+    }
+    textarea {
+        min-height: 120px; /* 默认高度 */
+        resize: vertical;
     }
     button {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -417,6 +472,112 @@
         color: var(--accent);
       }
 
+    /* ====== Section Container for Toutiao (新增) ====== */
+    .section-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* 调整最小宽度 */
+        gap: 20px;
+        margin-top: 0; /* 移除顶部间距，由 tab-content 统一控制 */
+    }
+    .section-box {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 20px var(--shadow);
+        display: flex; /* 使用 flex for internal layout */
+        flex-direction: column;
+        gap: 15px; /* Spacing between elements inside box */
+    }
+    .section-box h2, .section-box h3 {
+        margin: 0;
+        font-size: 1.3em;
+        color: var(--text);
+        font-weight: 600;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+    }
+    .section-box h3 {
+        font-size: 1.1em;
+        font-weight: 500;
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 10px;
+    }
+    .section-box p {
+        color: var(--text-sub);
+        margin-bottom: 10px;
+    }
+    .section-box ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        max-height: 250px; /* Limit height for scroll */
+        overflow-y: auto;
+        background: var(--bg);
+    }
+    .section-box li {
+        padding: 10px 15px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-size: 0.95em;
+        word-break: break-word;
+    }
+    .section-box li:last-child {
+        border-bottom: none;
+    }
+    .section-box pre {
+        background: var(--bg);
+        padding: 15px;
+        border-radius: 8px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.9em;
+        max-height: 200px;
+        overflow-y: auto;
+        color: var(--text-sub);
+        border: 1px solid var(--border);
+    }
+    .section-box textarea {
+        min-height: 80px; /* Adjusted for smaller sections */
+        resize: vertical;
+        width: calc(100% - 2px); /* Adjust for border */
+        padding: 12px;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        font-size: 1em;
+        background: linear-gradient(135deg, var(--bg) 0%, var(--bg-panel) 100%);
+        color: var(--text);
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px var(--shadow);
+    }
+    .section-box textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent), 0 4px 20px var(--shadow);
+        background: var(--bg-panel);
+        transform: translateY(-2px);
+    }
+    .section-box .form-group {
+        margin-bottom: 0; /* Reset margin from global form-group */
+        gap: 10px; /* Smaller gap for internal forms */
+    }
+    .section-box button {
+        padding: 10px 15px; /* Smaller buttons for sections */
+        font-size: 0.9em;
+        border-radius: 8px;
+    }
+    .section-box .delete-button {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    }
+    .section-box .delete-button:hover {
+        background: linear-gradient(135deg, #c0392b 0%, #a03020 100%);
+    }
+
     /* ====== 响应式：768px 以下 ====== */
     @media (max-width: 768px) {
       body {
@@ -461,6 +622,19 @@
       .api-links-list {
         grid-template-columns: 1fr;
       }
+      /* Toutiao sections responsive */
+      .section-container {
+          grid-template-columns: 1fr; /* Stack sections on smaller screens */
+      }
+      .section-box {
+          padding: 15px;
+      }
+      .section-box h2, .section-box h3 {
+          font-size: 1.2em;
+      }
+      .section-box textarea {
+          min-height: 60px;
+      }
     }
 
     /* ====== 响应式：480px 以下 ====== */
@@ -502,111 +676,176 @@
 <body>
   <div class="container">
     <div style="position: relative; text-align: center;">
-      <h1>聊天室白名单</h1>
+      <h1>管理面板</h1> <!-- 标题改为更通用 -->
       <button onclick="toggleTheme()" class="theme-toggle-btn" title="切换深色模式">🌓</button>
     </div>
 
-    <div class="activated-rooms-section">
-      <h2>已激活的房间</h2>
-      <ul id="activated-room-list">
-        <li class="no-rooms">正在加载房间...</li>
-      </ul>
+    <!-- Tabs 区域 -->
+    <div class="tabs">
+        <button class="tab-button active" onclick="switchTab('chat-whitelist-management')">聊天室白名单</button>
+        <button class="tab-button" onclick="switchTab('toutiao-content-management')">头条内容管理</button>
     </div>
 
-    <div class="controls">
-      <input type="text" id="room-name-input" placeholder="输入或选择房间名 (e.g., test)">
-      <button id="load-users-btn">加载</button>
+    <!-- 聊天室白名单 Tab 内容 -->
+    <div id="chat-whitelist-management" class="tab-content active">
+        <div class="activated-rooms-section">
+            <h2>已激活的房间</h2>
+            <ul id="activated-room-list">
+                <li class="no-rooms">正在加载房间...</li>
+            </ul>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="room-name-input" placeholder="输入或选择房间名 (e.g., test)">
+            <button id="load-users-btn">加载</button>
+        </div>
+
+        <div id="status-message" class="status-info"></div>
+
+        <div id="user-list-section">
+            <h2>当前房间白名单用户</h2>
+            <ul id="user-list">
+                <li style="justify-content:center; color:#7f8c8d;">
+                    请选择或输入房间名加载白名单
+                </li>
+            </ul>
+        </div>
+
+        <div class="form-group">
+            <input type="text" id="new-user-input" placeholder="输入要添加的用户名">
+            <button id="add-user-btn">添加</button>
+        </div>
+
+        <!-- Kimi 查询 -->
+        <div class="kimi-search-section">
+            <h2>Kimi 查询</h2>
+            <div class="form-group">
+                <input type="text" id="kimi-query-input" placeholder="输入查询内容">
+                <button id="kimi-search-btn">查询</button>
+            </div>
+            <div id="kimi-result-section">
+                <pre id="kimi-result"></pre>
+            </div>
+        </div>
+    
+        <!-- API 快速链接区域 -->
+        <div class="api-quick-links">
+            <h2>管理工具</h2>
+            <div class="api-links-list">
+                <a data-template="/api/room/status?roomName={roomName}" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">🏠</span>
+                    <div class="item-content">
+                        <h3>房间状态</h3>
+                        <p class="description">查看房间的当前状态和配置信息</p>
+                    </div>
+                </a>
+                <a data-template="/api/debug/sessions?roomName={roomName}" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">👥</span>
+                    <div class="item-content">
+                        <h3>活跃用户</h3>
+                        <p class="description">查看当前在线的用户列表</p>
+                    </div>
+                </a>
+                <a data-template="/api/debug/logs?roomName={roomName}" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">📝</span>
+                    <div class="item-content">
+                        <h3>调试日志</h3>
+                        <p class="description">查看房间的详细运行日志</p>
+                    </div>
+                </a>
+                <a data-template="/api/messages/history?roomName={roomName}&since=0" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">💬</span>
+                    <div class="item-content">
+                        <h3>消息历史</h3>
+                        <p class="description">查看房间的历史消息记录</p>
+                    </div>
+                </a>
+                <a data-template="/api/messages/delete?roomName={roomName}&id=msg-123&secret=ADMIN_SECRET" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">🗑️</span>
+                    <div class="item-content">
+                        <h3>删除消息</h3>
+                        <p class="description">删除指定的消息内容</p>
+                    </div>
+                </a>
+                <a data-template="/api/reset-room?roomName={roomName}&secret=ADMIN_SECRET" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">🔄</span>
+                    <div class="item-content">
+                        <h3>重置房间</h3>
+                        <p class="description">重置房间状态和所有配置</p>
+                    </div>
+                </a>
+                <a data-template="/api/debug/clear?roomName={roomName}" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">🧹</span>
+                    <div class="item-content">
+                        <h3>清空日志</h3>
+                        <p class="description">清空房间的所有调试日志</p>
+                    </div>
+                </a>
+                <a data-template="/api/ai/kimi?roomName={roomName}&query=你好" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">🤖</span>
+                    <div class="item-content">
+                        <h3>Kimi AI</h3>
+                        <p class="description">使用 Kimi 进行查询</p>
+                    </div>
+                </a>
+            </div>
+        </div>
     </div>
 
-    <div id="status-message" class="status-info"></div>
+    <!-- 头条内容管理 Tab 内容 (新增) -->
+    <div id="toutiao-content-management" class="tab-content">
+        <div class="section-container">
+            <div class="section-box">
+                <h2>任务队列</h2>
+                <p>当前队列长度: <span id="toutiao-queue-length">0</span></p>
+                <div class="form-group" style="gap: 10px;">
+                    <button onclick="fetchToutiaoQueueStatus()">刷新队列</button>
+                    <button onclick="clearToutiaoQueue()" class="delete-button">清空队列</button>
+                    <button onclick="processToutiaoQueue()">处理队列</button>
+                </div>
+                <h3>待处理任务</h3>
+                <ul id="toutiao-pending-tasks-list">
+                    <li>队列为空</li>
+                </ul>
+            </div>
 
-    <div id="user-list-section">
-      <h2>当前房间白名单用户</h2>
-      <ul id="user-list">
-        <li style="justify-content:center; color:#7f8c8d;">
-          请选择或输入房间名加载白名单
-        </li>
-      </ul>
-    </div>
+            <div class="section-box">
+                <h2>提交新任务</h2>
+                <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                    <label for="toutiao-submit-text" style="margin-bottom: 5px;">文章主题/内容:</label>
+                    <textarea id="toutiao-submit-text" placeholder="输入文章主题或详细内容"></textarea>
+                </div>
+                <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                    <label for="toutiao-submit-username" style="margin-bottom: 5px;">提交者用户名:</label>
+                    <input type="text" id="toutiao-submit-username" value="苑广山">
+                </div>
+                <button onclick="submitToutiaoTask()">提交任务</button>
+            </div>
 
-    <div class="form-group">
-      <input type="text" id="new-user-input" placeholder="输入要添加的用户名">
-      <button id="add-user-btn">添加</button>
-    </div>
+            <div class="section-box">
+                <h2>任务状态查询</h2>
+                <div class="form-group">
+                    <input type="text" id="toutiao-check-task-id" placeholder="输入任务ID">
+                    <button onclick="checkToutiaoTaskStatus()">查询状态</button>
+                </div>
+                <h3>任务详情:</h3>
+                <pre id="toutiao-task-status-display">无任务信息</pre>
+            </div>
 
-    <!-- Kimi 查询 -->
-    <div class="kimi-search-section">
-      <h2>Kimi 查询</h2>
-      <div class="form-group">
-        <input type="text" id="kimi-query-input" placeholder="输入查询内容">
-        <button id="kimi-search-btn">查询</button>
-      </div>
-      <div id="kimi-result-section">
-        <pre id="kimi-result"></pre>
-      </div>
-    </div>
-   
-    <!-- API 快速链接区域 -->
-    <div class="api-quick-links">
-      <h2>管理工具</h2>
-      <div class="api-links-list">
-        <a data-template="/api/room/status?roomName={roomName}" href="#" target="_blank" class="list-item">
-          <span class="item-icon">🏠</span>
-          <div class="item-content">
-            <h3>房间状态</h3>
-            <p class="description">查看房间的当前状态和配置信息</p>
-          </div>
-        </a>
-        <a data-template="/api/debug/sessions?roomName={roomName}" href="#" target="_blank" class="list-item">
-          <span class="item-icon">👥</span>
-          <div class="item-content">
-            <h3>活跃用户</h3>
-            <p class="description">查看当前在线的用户列表</p>
-          </div>
-        </a>
-        <a data-template="/api/debug/logs?roomName={roomName}" href="#" target="_blank" class="list-item">
-          <span class="item-icon">📝</span>
-          <div class="item-content">
-            <h3>调试日志</h3>
-            <p class="description">查看房间的详细运行日志</p>
-          </div>
-        </a>
-        <a data-template="/api/messages/history?roomName={roomName}&since=0" href="#" target="_blank" class="list-item">
-          <span class="item-icon">💬</span>
-          <div class="item-content">
-            <h3>消息历史</h3>
-            <p class="description">查看房间的历史消息记录</p>
-          </div>
-        </a>
-        <a data-template="/api/messages/delete?roomName={roomName}&id=msg-123&secret=ADMIN_SECRET" href="#" target="_blank" class="list-item">
-          <span class="item-icon">🗑️</span>
-          <div class="item-content">
-            <h3>删除消息</h3>
-            <p class="description">删除指定的消息内容</p>
-          </div>
-        </a>
-        <a data-template="/api/reset-room?roomName={roomName}&secret=ADMIN_SECRET" href="#" target="_blank" class="list-item">
-          <span class="item-icon">🔄</span>
-          <div class="item-content">
-            <h3>重置房间</h3>
-            <p class="description">重置房间状态和所有配置</p>
-          </div>
-        </a>
-        <a data-template="/api/debug/clear?roomName={roomName}" href="#" target="_blank" class="list-item">
-          <span class="item-icon">🧹</span>
-          <div class="item-content">
-            <h3>清空日志</h3>
-            <p class="description">清空房间的所有调试日志</p>
-          </div>
-        </a>
-        <a data-template="/api/ai/kimi?roomName={roomName}&query=你好" href="#" target="_blank" class="list-item">
-          <span class="item-icon">🤖</span>
-          <div class="item-content">
-            <h3>Kimi AI</h3>
-            <p class="description">使用 Kimi 进行查询</p>
-          </div>
-        </a>
-      </div>
+            <div class="section-box">
+                <h2>服务统计</h2>
+                <button onclick="fetchToutiaoStats()">刷新统计</button>
+                <pre id="toutiao-stats-display">加载中...</pre>
+            </div>
+
+            <div class="section-box">
+                <h2>历史发布结果</h2>
+                <button onclick="fetchToutiaoResults()">刷新结果</button>
+                <ul id="toutiao-results-list">
+                    <li>加载中...</li>
+                </ul>
+            </div>
+        </div>
     </div>
   </div>
 
@@ -649,14 +888,53 @@
     const loadUsersBtn       = document.getElementById('load-users-btn');
     const statusMessage      = document.getElementById('status-message');
     const activatedRoomList  = document.getElementById('activated-room-list');
-    const apiLinks           = document.querySelectorAll('.api-quick-links-grid a');
+    const apiLinks           = document.querySelectorAll('.api-links-list a'); // 修正选择器
     const kimiQueryInput     = document.getElementById('kimi-query-input');
     const kimiSearchBtn      = document.getElementById('kimi-search-btn');
     const kimiResult         = document.getElementById('kimi-result');
 
+    // Toutiao DOM elements
+    const toutiaoQueueLength = document.getElementById('toutiao-queue-length');
+    const toutiaoPendingTasksList = document.getElementById('toutiao-pending-tasks-list');
+    const toutiaoSubmitText = document.getElementById('toutiao-submit-text');
+    const toutiaoSubmitUsername = document.getElementById('toutiao-submit-username');
+    const toutiaoCheckTaskId = document.getElementById('toutiao-check-task-id');
+    const toutiaoTaskStatusDisplay = document.getElementById('toutiao-task-status-display');
+    const toutiaoStatsDisplay = document.getElementById('toutiao-stats-display');
+    const toutiaoResultsList = document.getElementById('toutiao-results-list');
+
+
     function showStatus(msg, type='info') {
       statusMessage.textContent = msg;
       statusMessage.className = `status-${type}`;
+    }
+
+    // 辅助函数：切换 Tab (新增)
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('active');
+        });
+
+        document.getElementById(tabId).classList.add('active');
+        document.querySelector(`.tab-button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+
+        // 根据切换的 Tab 刷新数据
+        if (tabId === 'chat-whitelist-management') {
+            fetchActivatedRooms();
+            // 如果有初始房间，也加载用户
+            if (initialRoom) {
+                roomNameInput.value = initialRoom;
+                fetchUsers();
+            }
+            updateApiLinks();
+        } else if (tabId === 'toutiao-content-management') {
+            fetchToutiaoQueueStatus();
+            fetchToutiaoStats();
+            fetchToutiaoResults();
+        }
     }
 
     async function fetchActivatedRooms() {
@@ -839,19 +1117,222 @@
       const domain = `https://${apiDomain}`;
       document.querySelectorAll('.api-links-list a').forEach(a=>{
         const tpl = a.dataset.template;
-        const url = domain + tpl.replace('{roomName}', encodeURIComponent(room));
+        // 确保 secret 参数被正确替换
+        const url = domain + tpl.replace('{roomName}', encodeURIComponent(room)).replace('ADMIN_SECRET', adminSecret);
         a.href = url;
       });
     }
 
+    // --- 头条内容管理功能 (新增) ---
+
+    // 获取任务队列状态
+    async function fetchToutiaoQueueStatus() {
+        showStatus('正在加载头条任务队列...', 'info');
+        toutiaoPendingTasksList.innerHTML = '<li>加载中...</li>';
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+
+            toutiaoQueueLength.textContent = data.length || 0;
+            toutiaoPendingTasksList.innerHTML = '';
+            if (data.tasks && data.tasks.length > 0) {
+                data.tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    // 更健壮的数据访问
+                    const taskText = (task.text || task.content || '无内容').substring(0, 50) + ((task.text || task.content || '').length > 50 ? '...' : '');
+                    const taskIdShort = (task.id || 'unknown').substring(0, 8);
+                    const username = task.username || task.user || '系统';
+                    const status = task.status || '待处理';
+                    const timestamp = new Date(task.createdAt || task.enqueuedAt || Date.now()).toLocaleString();
+
+                    li.innerHTML = `<strong>ID:</strong> ${taskIdShort}<br>
+                                   <strong>用户:</strong> ${username}<br>
+                                   <strong>内容:</strong> ${taskText}<br>
+                                   <strong>状态:</strong> ${status}<br>
+                                   <strong>时间:</strong> ${timestamp}`;
+                    li.style.cssText = 'padding: 10px; border-bottom: 1px solid var(--border); margin-bottom: 5px;';
+                    toutiaoPendingTasksList.appendChild(li);
+                });
+            } else {
+                toutiaoPendingTasksList.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--text-sub);">当前队列中没有待处理任务</li>';
+            }
+            showStatus('头条任务队列加载成功。', 'success');
+        } catch (e) {
+            showStatus(`加载队列失败: ${e.message}`, 'error');
+            toutiaoPendingTasksList.innerHTML = `<li style="color: #e74c3c; padding: 20px;">加载失败: ${e.message}</li>`;
+        }
+    }
+
+    // 清空任务队列
+    async function clearToutiaoQueue() {
+        if (!confirm('确定要清空所有待处理的头条任务队列吗？此操作不可逆！')) {
+            return;
+        }
+        showStatus('正在清空头条任务队列...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/clearQueue?secret=${adminSecret}`, {
+                method: 'POST'
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            showStatus(`队列清空成功: ${data.message}`, 'success');
+            fetchToutiaoQueueStatus(); // 刷新队列显示
+        } catch (e) {
+            showStatus(`清空队列失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 处理队列中的所有任务
+    async function processToutiaoQueue() {
+        if (!confirm('确定要立即处理队列中的所有头条任务吗？这可能需要一些时间。')) {
+            return;
+        }
+        showStatus('正在处理头条任务队列...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`, {
+                method: 'DELETE' // 使用 DELETE 方法触发处理
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            showStatus(`队列处理完成。处理结果: ${JSON.stringify(data.results)}`, 'success');
+            fetchToutiaoQueueStatus(); // 刷新队列显示
+            fetchToutiaoStats(); // 刷新统计
+            fetchToutiaoResults(); // 刷新结果
+        } catch (e) {
+            showStatus(`处理队列失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 提交新任务
+    async function submitToutiaoTask() {
+        const text = toutiaoSubmitText.value.trim();
+        const username = toutiaoSubmitUsername.value.trim();
+
+        if (!text) {
+            showStatus('请输入文章主题或内容。', 'error');
+            return;
+        }
+        if (!username) {
+            showStatus('请输入提交者用户名。', 'error');
+            return;
+        }
+
+        showStatus('正在提交头条任务...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/direct?secret=${adminSecret}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, username, roomName: 'management_panel' }) // 标记来源
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            showStatus(`任务提交成功！任务ID: ${data.taskId}`, 'success');
+            toutiaoSubmitText.value = '';
+            fetchToutiaoQueueStatus(); // 刷新队列显示
+        } catch (e) {
+            showStatus(`提交任务失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 查询任务状态
+    async function checkToutiaoTaskStatus() {
+        const taskId = toutiaoCheckTaskId.value.trim();
+        if (!taskId) {
+            showStatus('请输入要查询的任务ID。', 'error');
+            return;
+        }
+        showStatus(`正在查询任务 ${taskId} 的状态...`, 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/status/${taskId}?secret=${adminSecret}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            toutiaoTaskStatusDisplay.textContent = JSON.stringify(data, null, 2);
+            showStatus('任务状态查询成功。', 'success');
+        } catch (e) {
+            toutiaoTaskStatusDisplay.textContent = `查询失败: ${e.message}`;
+            showStatus(`查询任务状态失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 获取服务统计
+    async function fetchToutiaoStats() {
+        showStatus('正在加载头条服务统计...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/stats?secret=${adminSecret}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            toutiaoStatsDisplay.textContent = JSON.stringify(data, null, 2);
+            showStatus('服务统计加载成功。', 'success');
+        } catch (e) {
+            toutiaoStatsDisplay.textContent = `加载失败: ${e.message}`;
+            showStatus(`加载服务统计失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 获取历史发布结果
+    async function fetchToutiaoResults() {
+        showStatus('正在加载历史发布结果...', 'info');
+        toutiaoResultsList.innerHTML = '<li>加载中...</li>';
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/results?secret=${adminSecret}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            toutiaoResultsList.innerHTML = '';
+            if (data && data.length > 0) {
+                data.forEach(result => {
+                    const li = document.createElement('li');
+                    const title = result.title || result.topic || '无标题';
+                    const status = result.success ? '✅ 成功' : '❌ 失败';
+                    const completedAt = result.completedAt ? new Date(result.completedAt).toLocaleString() : 'N/A';
+                    const errorMsg = result.publishResult && result.publishResult.error ? ` (错误: ${result.publishResult.error})` : '';
+                    const url = result.publishResult && result.publishResult.url ? `<a href="${result.publishResult.url}" target="_blank" style="color: var(--accent); text-decoration: none;">🔗 查看文章</a>` : '';
+                    
+                    const taskId = result.taskId || result.id || 'unknown';
+                    const idShort = taskId.substring(0, 8);
+
+                    li.innerHTML = `
+                        <div style="padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; background: var(--bg);">
+                            <div style="font-weight: bold; color: var(--text); margin-bottom: 5px;">${title}</div>
+                            <div style="font-size: 0.9em; color: var(--text-sub); line-height: 1.4;">
+                                <div><strong>ID:</strong> ${idShort}...</div>
+                                <div><strong>状态:</strong> ${status}${errorMsg}</div>
+                                <div><strong>完成时间:</strong> ${completedAt}</div>
+                                <div>${url}</div>
+                            </div>
+                        </div>
+                    `;
+                    toutiaoResultsList.appendChild(li);
+                });
+            } else {
+                toutiaoResultsList.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--text-sub); font-style: italic;">暂无历史发布结果</li>';
+            }
+            showStatus('历史发布结果加载成功。', 'success');
+        } catch (e) {
+            showStatus(`加载历史发布结果失败: ${e.message}`, 'error');
+            toutiaoResultsList.innerHTML = `<li style="color: #e74c3c; padding: 20px;">加载失败: ${e.message}</li>`;
+        }
+    }
+
+
     // ===== 初始化 & 绑定 ====
     document.addEventListener('DOMContentLoaded', ()=>{
-      if (initialRoom) {
-        roomNameInput.value = initialRoom;
-        fetchUsers();
+      if (!adminSecret) {
+          showStatus('错误：URL 中缺少 secret 参数。请在 URL 后添加 ?secret=您的密钥', 'error');
+          document.getElementById('app').innerHTML = '<h1>未授权访问</h1><p>请在URL中提供正确的管理密钥。</p>';
+          return;
       }
-      fetchActivatedRooms();
-      updateApiLinks();
+
+      // 默认激活第一个 Tab
+      switchTab('chat-whitelist-management');
+
       loadUsersBtn.onclick = fetchUsers;
       addUserBtn.onclick  = addUser;
       kimiSearchBtn.onclick = queryKimi;

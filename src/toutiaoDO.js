@@ -101,7 +101,14 @@ export class ToutiaoServiceDO extends DurableObject {
      */
     async addTask(task) {
         await this.initialize();
-        return await this.queueManager.addTask(task);
+        const queueLength = await this.queueManager.addTask(task);
+        
+        // 自动处理队列（如果队列长度小于等于3，立即处理）
+        if (queueLength <= 3) {
+            this.ctx.waitUntil(this.processQueue());
+        }
+        
+        return queueLength;
     }
 
     /**
@@ -113,8 +120,9 @@ export class ToutiaoServiceDO extends DurableObject {
         
         const results = await this.queueManager.processQueue(this.processor);
         
-        // 更新统计信息
+        // 保存结果并更新统计信息
         for (const result of results) {
+            await this.saveTaskResult(result);
             await this.updateStats(result.success);
         }
         
