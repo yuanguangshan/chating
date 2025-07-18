@@ -1779,7 +1779,7 @@ async handleDeleteMessageRequest(session, payload) {
             // 创建头条任务
             const task = {
                 id: `external_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                content,
+                text: content,
                 topic: topic || '外部提交',
                 platform,
                 status: 'pending',
