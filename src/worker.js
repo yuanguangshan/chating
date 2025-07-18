@@ -459,6 +459,59 @@ export default {
                         headers: { 'Content-Type': 'application/json', ...corsHeaders },
                     });
                 }
+                } else if (pathname === '/api/toutiao/stats') {
+                    if (request.method !== 'GET') {
+                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                    }
+                    try {
+                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
+                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
+                        const result = await stub.fetch(new Request(new URL(`/stats`, request.url).toString()));
+                        return new Response(result.body, {
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    } catch (error) {
+                        console.error('Toutiao stats API error:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                } else if (pathname === '/api/toutiao/results') {
+                    if (request.method !== 'GET') {
+                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                    }
+                    try {
+                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
+                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
+                        const result = await stub.fetch(new Request(new URL(`/results`, request.url).toString()));
+                        return new Response(result.body, {
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    } catch (error) {
+                        console.error('Toutiao results API error:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                } else if (pathname === '/api/toutiao/queue' && request.method === 'DELETE') {
+                    try {
+                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
+                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
+                        const result = await stub.fetch(new Request(new URL(`/queue`, request.url).toString(), {
+                            method: 'DELETE'
+                        }));
+                        return new Response(result.body, {
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    } catch (error) {
+                        console.error('Toutiao process queue API error:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
             }
 
 
