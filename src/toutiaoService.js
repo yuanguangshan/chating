@@ -350,9 +350,78 @@ export class ToutiaoQueueManager {
         }
 
         await this.clearQueue();
-        this.logger.log(`🗂️ 开始处理队列中的 ${queue.length} 个任务`);
+        this.logger.log(`️ 开始处理队列中的 ${queue.length} 个任务`);
         
         return await processor.processTaskQueue(queue);
+    }
+
+    /**
+     * 获取特定任务状态
+     * @param {string} taskId - 任务ID
+     * @returns {Promise<Object>} 任务状态
+     */
+    async getTaskStatus(taskId) {
+        const queue = await this.getQueue();
+        const task = queue.find(t => t.id === taskId);
+        
+        if (task) {
+            return {
+                found: true,
+                task: task,
+                status: task.status || 'pending',
+                position: queue.indexOf(task) + 1,
+                queueLength: queue.length
+            };
+        }
+        
+        // 检查历史记录
+        const history = await this.storage.get('toutiao_history') || [];
+        const historicalTask = history.find(t => t.id === taskId);
+        
+        if (historicalTask) {
+            return {
+                found: true,
+                task: historicalTask,
+                status: historicalTask.status || 'completed',
+                inQueue: false
+            };
+        }
+        
+        return {
+            found: false,
+            error: '任务未找到'
+        };
+    }
+
+    /**
+     * 获取队列状态概览
+     * @returns {Promise<Object>} 队列状态
+     */
+    async getQueueStatus() {
+        const queue = await this.getQueue();
+        const history = await this.storage.get('toutiao_history') || [];
+        
+        const pendingTasks = queue.filter(t => t.status === 'pending' || !t.status);
+        const processingTasks = queue.filter(t => t.status === 'processing');
+        const completedTasks = history.filter(t => t.status === 'completed').slice(-10); // 最近10个
+        
+        return {
+            totalInQueue: queue.length,
+            pending: pendingTasks.length,
+            processing: processingTasks.length,
+            completedToday: history.filter(t => {
+                const taskDate = new Date(t.createdAt);
+                const today = new Date();
+                return taskDate.toDateString() === today.toDateString();
+            }).length,
+            recentCompleted: completedTasks,
+            queue: queue.map(t => ({
+                id: t.id,
+                topic: t.topic,
+                status: t.status || 'pending',
+                createdAt: t.createdAt
+            }))
+        };
     }
 }
 

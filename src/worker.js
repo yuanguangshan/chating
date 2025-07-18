@@ -347,6 +347,94 @@ export default {
                     }
                 }
 
+                // 新增：头条自动发文外部API路由
+                if (pathname === '/api/toutiao/direct') {
+                    if (request.method !== 'POST') {
+                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                    }
+                    
+                    try {
+                        const { text, username = 'external_user', roomName = 'external' } = await request.json();
+                        if (!text) {
+                            return new Response(JSON.stringify({ error: 'Missing text parameter' }), {
+                                status: 400,
+                                headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                            });
+                        }
+
+                        // 创建头条任务
+                        // 转发到聊天室DO的/toutiao/submit端点
+                if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+                const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+                const stub = env.CHAT_ROOM_DO.get(doId);
+                
+                // 调用DO的handleToutiaoSubmit方法
+                const apiUrl = new URL(request.url);
+                apiUrl.pathname = '/api/toutiao/submit';
+                
+                const response = await stub.fetch(new Request(apiUrl.toString(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: text,
+                        topic: '外部提交',
+                        platform: 'default'
+                    })
+                }));
+
+                const result = await response.json();
+                return new Response(JSON.stringify(result), {
+                    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                });
+
+                    } catch (error) {
+                        console.error('Toutiao direct API error:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                }
+
+                if (pathname === '/api/toutiao/status') {
+                    if (request.method !== 'GET') {
+                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                    }
+                    
+                    try {
+                        const taskId = url.searchParams.get('taskId');
+                        const roomName = url.searchParams.get('roomName') || 'external';
+                        
+                        if (!taskId) {
+                            return new Response(JSON.stringify({ error: 'Missing taskId parameter' }), {
+                                status: 400,
+                                headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                            });
+                        }
+
+                        // 转发到聊天室DO查询状态
+                        if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+                        const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+                        const stub = env.CHAT_ROOM_DO.get(doId);
+                        
+                        const response = await stub.fetch(new Request(`${request.url}&action=getTaskStatus`, {
+                            method: 'GET'
+                        }));
+
+                        const result = await response.json();
+                        return new Response(JSON.stringify(result), {
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+
+                    } catch (error) {
+                        console.error('Toutiao status API error:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                }
+
                 // (未来可以为其他API在这里添加 roomName 的获取逻辑)
 
                 if (!roomName) {
