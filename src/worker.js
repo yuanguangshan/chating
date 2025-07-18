@@ -439,7 +439,27 @@ export default {
                             headers: { 'Content-Type': 'application/json', ...corsHeaders },
                         });
                     }
+                } else if (pathname === '/api/toutiao/clearQueue') {
+                if (request.method !== 'POST') {
+                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
                 }
+                try {
+                    const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
+                    const stub = env.TOUTIAO_SERVICE_DO.get(doId);
+                    const result = await stub.fetch(new Request(new URL(`/clearQueue`, request.url).toString(), {
+                        method: 'POST'
+                    }));
+                    return new Response(result.body, {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                } catch (error) {
+                    console.error('Toutiao clearQueue API error:', error);
+                    return new Response(JSON.stringify({ error: error.message }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
+            }
 
 
 
