@@ -185,7 +185,138 @@ ${topic.excerpt}
             }
         ];
     }
+
+    /**
+     * 基于知乎热点生成相关话题
+     * @param {string} topicKeyword 话题关键词
+     * @param {number} count 生成话题数量
+     * @returns {Promise<Array>} 生成的话题数组
+     */
+    async generateRelatedTopics(topicKeyword, count = 10) {
+        try {
+            const prompt = `基于知乎热点话题"${topicKeyword}"，请生成${count}个与之高度相关且有趣的话题。
+
+要求：
+1. 每个话题都要有独特视角
+2. 话题要具有讨论性和传播性
+3. 提供简短的话题描述
+4. 格式为：
+话题标题|话题描述|相关标签
+
+请直接输出结果，不要添加额外说明。`;
+
+            // 这里应该调用Gemini API，暂时使用模拟数据
+            const mockResponse = await this.callGeminiAPI(prompt);
+            return this.parseGeneratedTopics(mockResponse, count);
+        } catch (error) {
+            console.error('生成相关话题失败:', error);
+            return this.getRelatedFallbackTopics(topicKeyword);
+        }
+    }
+
+    /**
+     * 调用Gemini API生成话题
+     * @param {string} prompt 提示词
+     * @returns {Promise<string>} API响应
+     */
+    async callGeminiAPI(prompt) {
+        // 模拟Gemini API调用
+        const topics = [
+            `${topicKeyword}的未来发展趋势|深入分析${topicKeyword}在未来5年的发展方向和机遇|趋势,预测,机遇`,
+            `${topicKeyword}对社会的深层影响|探讨${topicKeyword}如何改变我们的生活方式|社会,影响,变革`,
+            `${topicKeyword}的技术突破点|分析${topicKeyword}领域最新的技术突破|技术,创新,突破`,
+            `${topicKeyword}的商业化应用|研究${topicKeyword}在不同行业的商业应用|商业,应用,变现`,
+            `${topicKeyword}面临的挑战与解决方案|讨论${topicKeyword}发展过程中遇到的问题及解决思路|挑战,解决方案,思考`
+        ];
+        return topics.join('\n');
+    }
+
+    /**
+     * 解析生成的相关话题内容
+     * @param {string} content 生成的内容
+     * @param {number} maxCount 最大话题数量
+     * @returns {Array} 解析后的话题数组
+     */
+    parseGeneratedTopics(content, maxCount = 10) {
+        const topics = [];
+        const lines = content.split('\n').filter(line => line.trim());
+        
+        for (let i = 0; i < Math.min(lines.length, maxCount); i++) {
+            const line = lines[i].trim();
+            if (line.includes('|')) {
+                const parts = line.split('|');
+                if (parts.length >= 3) {
+                    topics.push({
+                        title: parts[0].replace(/^[\d.\s]+/, '').trim(),
+                        excerpt: parts[1].trim(),
+                        tags: parts[2].split(',').map(tag => tag.trim()),
+                        url: '#',
+                        hot: Math.floor(Math.random() * 1000) + 100,
+                        timestamp: Date.now()
+                    });
+                }
+            }
+        }
+        
+        // 如果没有解析到话题，使用备用方案
+        if (topics.length === 0) {
+            return this.getRelatedFallbackTopics('通用');
+        }
+        
+        return topics;
+    }
+
+    /**
+     * 获取备用相关话题
+     * @param {string} keyword 关键词
+     * @returns {Array} 备用话题数组
+     */
+    getRelatedFallbackTopics(keyword) {
+        const fallbackTopics = [
+            {
+                title: `${keyword}的未来发展趋势`,
+                excerpt: `深入分析${keyword}在未来5年的发展方向和机遇`,
+                tags: ['趋势', '预测', '机遇'],
+                url: '#',
+                hot: 888,
+                timestamp: Date.now()
+            },
+            {
+                title: `${keyword}对社会的深层影响`,
+                excerpt: `探讨${keyword}如何改变我们的生活方式`,
+                tags: ['社会', '影响', '变革'],
+                url: '#',
+                hot: 765,
+                timestamp: Date.now()
+            },
+            {
+                title: `${keyword}的技术突破点`,
+                excerpt: `分析${keyword}领域最新的技术突破`,
+                tags: ['技术', '创新', '突破'],
+                url: '#',
+                hot: 654,
+                timestamp: Date.now()
+            },
+            {
+                title: `${keyword}的商业化应用`,
+                excerpt: `研究${keyword}在不同行业的商业应用`,
+                tags: ['商业', '应用', '变现'],
+                url: '#',
+                hot: 543,
+                timestamp: Date.now()
+            },
+            {
+                title: `${keyword}面临的挑战与解决方案`,
+                excerpt: `讨论${keyword}发展过程中遇到的问题及解决思路`,
+                tags: ['挑战', '解决方案', '思考'],
+                url: '#',
+                hot: 432,
+                timestamp: Date.now()
+            }
+        ];
+        
+        return fallbackTopics.slice(0, 10);
+    }
 }
 
-// 创建单例实例
-export const zhihuHotService = new ZhihuHotService();
+export default ZhihuHotService;

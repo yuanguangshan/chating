@@ -3,7 +3,8 @@
 import { DurableObject } from "cloudflare:workers";
 import { getGeminiChatAnswer, getKimiChatAnswer } from './ai.js';
 import { ToutiaoServiceClient } from './toutiaoDO.js';
-import { zhihuHotService } from './zhihuHotService.js';
+import ZhihuHotService from './zhihuHotService.js';
+const zhihuHotService = new ZhihuHotService();
 
 // 消息类型常量
 const MSG_TYPE_CHAT = 'chat';
@@ -494,6 +495,92 @@ ${displayContent}`;
                     id: `zhihu_article_error_${Date.now()}`,
                     username: '系统消息',
                     text: `❌ 知乎文章生成失败\n\n**错误**: ${error.message}\n\n请检查话题索引或关键词后重试。`,
+                    timestamp: Date.now(),
+                    type: 'system'
+                };
+                
+                const messageIndex = this.messages.findIndex(m => m.id === processingMessage.id);
+                if (messageIndex !== -1) {
+                    this.messages[messageIndex] = errorMessage;
+                    await this.saveMessages();
+                    this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+                } else {
+                    await this.addAndBroadcastMessage(errorMessage);
+                }
+            }
+        })());
+    }
+
+    /**
+     * 基于知乎热点生成相关话题
+     * @param {Object} session 用户会话
+     * @param {string} keyword 话题关键词
+     */
+    async handleZhihuTopicGeneration(session, keyword) {
+        const taskId = crypto.randomUUID();
+        
+        // 1. 立即发送处理状态
+        const processingMessage = {
+            id: taskId,
+            username: session.username,
+            timestamp: Date.now(),
+            text: `🎯 正在基于"${keyword}"生成相关话题...
+
+> (⏳ 正在调用Gemini AI生成创意话题...)`,
+            type: 'text'
+        };
+        await this.addAndBroadcastMessage(processingMessage);
+
+        // 2. 后台生成相关话题
+        this.ctx.waitUntil((async () => {
+            try {
+                // 调用知乎服务生成相关话题
+                const relatedTopics = await zhihuHotService.generateRelatedTopics(keyword, 15);
+                
+                if (relatedTopics && relatedTopics.length > 0) {
+                    let response = `🎯 **基于"${keyword}"生成的相关话题**\n\n`;
+                    
+                    relatedTopics.forEach((topic, index) => {
+                        response += `${index + 1}. **${topic.title}**\n`;
+                        response += `   ${topic.excerpt}\n`;
+                        response += `   🏷️ 标签: ${topic.tags.join(' ')}\n\n`;
+                    });
+                    
+                    response += `💡 **使用建议**：\n`;
+                    response += `- 输入 /知乎文章 ${keyword} 生成相关文章\n`;
+                    response += `- 输入 /知乎话题 [新关键词] 探索更多话题\n`;
+                    response += `- 输入 /知乎 查看当前热点榜单`;
+                    
+                    const resultMessage = {
+                        id: `zhihu_topics_${Date.now()}`,
+                        username: '知乎话题助手',
+                        text: response,
+                        timestamp: Date.now(),
+                        type: 'system'
+                    };
+
+                    // 替换处理消息为最终结果
+                    const messageIndex = this.messages.findIndex(m => m.id === processingMessage.id);
+                    if (messageIndex !== -1) {
+                        this.messages[messageIndex] = resultMessage;
+                        await this.saveMessages();
+                        this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+                    } else {
+                        await this.addAndBroadcastMessage(resultMessage);
+                    }
+                } else {
+                    throw new Error('未能生成相关话题，请尝试其他关键词');
+                }
+
+            } catch (error) {
+                const errorMessage = {
+                    id: `zhihu_topics_error_${Date.now()}`,
+                    username: '系统消息',
+                    text: `❌ 话题生成失败
+
+**错误**: ${error.message}
+
+请稍后重试或尝试其他关键词。`,
                     timestamp: Date.now(),
                     type: 'system'
                 };
@@ -1258,13 +1345,22 @@ async handleSessionInitialization(ws, url) {
                 this.ctx.waitUntil(this.generateZhihuArticle(session, topicInfo || '1'));
                 message.text += `\n\n> (📝 正在基于知乎热点生成文章...)`;
             } else if (commandText.startsWith('/知乎话题')) {
-                // 搜索特定话题
+                // 基于热点生成相关话题
                 const keyword = commandText.replace('/知乎话题', '').trim();
                 if (keyword) {
-                    this.ctx.waitUntil(this.generateZhihuArticle(session, keyword));
-                    message.text += `\n\n> (🔍 正在搜索知乎话题: ${keyword}...)`;
+                    this.ctx.waitUntil(this.handleZhihuTopicGeneration(session, keyword));
+                    message.text += `\n\n> (🎯 正在基于"${keyword}"生成相关话题...)`;
                 } else {
-                    message.text += `\n\n> (❌ 请提供搜索关键词，例如: /知乎话题 人工智能)`;
+                    // 如果没有提供关键词，使用当前热门话题作为基础
+                    const topics = await zhihuHotService.getHotTopicsForContent(15);
+                    if (topics.length > 0) {
+                        const defaultKeyword = topics[0].title.split(' ')[0] || '热点';
+                        this.ctx.waitUntil(this.handleZhihuTopicGeneration(session, defaultKeyword));
+                        message.text += `\n\n> (🎯 正在基于当前热点"${defaultKeyword}"生成相关话题...)`;
+                    } else {
+                        this.ctx.waitUntil(this.handleZhihuTopicGeneration(session, '热门话题'));
+                        message.text += `\n\n> (🎯 正在基于热门话题生成相关话题...)`;
+                    }
                 }
             }
         }
