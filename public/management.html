@@ -1,705 +1,1319 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理面板</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f7f6;
-            color: #333;
-            line-height: 1.6;
-        }
-        #app {
-            max-width: 1200px;
-            margin: 20px auto;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            padding: 30px;
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-        }
-        h2 {
-            color: #34495e;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-            margin-top: 30px;
-            margin-bottom: 20px;
-            font-size: 1.8em;
-        }
-        .tabs {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-        .tab-button {
-            background-color: #ecf0f1;
-            border: none;
-            padding: 15px 25px;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #7f8c8d;
-            transition: background-color 0.3s, color 0.3s;
-            border-radius: 8px 8px 0 0;
-            margin: 0 5px;
-        }
-        .tab-button:hover {
-            background-color: #dfe6e9;
-        }
-        .tab-button.active {
-            background-color: #3498db;
-            color: #fff;
-            border-bottom: 2px solid #3498db;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        .tab-content {
-            display: none;
-            padding: 20px 0;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        #status-message {
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            font-weight: bold;
-            text-align: center;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-        }
-        #status-message.show {
-            opacity: 1;
-        }
-        #status-message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        #status-message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        #status-message.info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #555;
-        }
-        input[type="text"],
-        textarea,
-        select {
-            width: calc(100% - 22px);
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 1em;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-        }
-        input[type="text"]:focus,
-        textarea:focus,
-        select:focus {
-            border-color: #3498db;
-            outline: none;
-        }
-        textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-        button {
-            background-color: #3498db;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
-            transition: background-color 0.3s ease;
-            margin-right: 10px;
-        }
-        button:hover {
-            background-color: #2980b9;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .delete-button {
-            background-color: #e74c3c;
-        }
-        .delete-button:hover {
-            background-color: #c0392b;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            border: 1px solid #eee;
-            border-radius: 5px;
-            max-height: 400px;
-            overflow-y: auto;
-            background-color: #fdfdfd;
-        }
-        li {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            word-break: break-word; /* 防止长文本溢出 */
-        }
-        li:last-child {
-            border-bottom: none;
-        }
-        li button {
-            margin-left: 10px;
-            padding: 8px 12px;
-            font-size: 0.9em;
-        }
-        pre {
-            background-color: #ecf0f1;
-            padding: 15px;
-            border-radius: 5px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.9em;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .section-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .section-box {
-            background-color: #fdfdfd;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>管理面板</title> <!-- 标题改为更通用的“管理面板” -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>  //--CONFIG-PLACEHOLDER--//</script>
+  <style>
+    /* ====== THEME VARIABLES ====== */
+    :root {
+      /* 浅色默认值 */
+      --bg: #f8f9fa;
+      --bg-panel: #ffffff;
+      --text: #2c3e50;
+      --text-sub: #6c757d;
+      --border: #e9ecef;
+      --accent: #667eea;
+      --accent2: #764ba2;
+      --shadow: rgba(0,0,0,0.08);
+      transition: background-color 0.3s, color 0.3s;
+    }
+    [data-theme="dark"] {
+      --bg: #111827;
+      --bg-panel: #1f2937;
+      --text: #f9fafb;
+      --text-sub: #9ca3af;
+      --border: #374151;
+      --accent: #818cf8;
+      --accent2: #a78bfa;
+      --shadow: rgba(0,0,0,0.4);
+    }
+
+    /* ====== Base Styles ====== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      padding: 20px;
+      min-height: 100vh;
+      overflow-y: auto;
+    }
+    .container {
+      width: 100%;
+      max-width: 1200px; /* 增加最大宽度以容纳更多内容 */
+      margin: 20px auto;
+      background: color-mix(in srgb, var(--bg-panel) 95%, transparent);
+      backdrop-filter: blur(10px);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    h1 {
+      text-align: center;
+      color: var(--text);
+      margin: 0 0 8px;
+      font-size: 2.2em;
+      font-weight: 700;
+      background: linear-gradient(45deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ====== Tabs Styles (新增) ====== */
+    .tabs {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 24px;
+        border-bottom: 2px solid var(--border);
+        padding-bottom: 5px;
+        gap: 10px; /* Spacing between buttons */
+    }
+    .tab-button {
+        background: var(--bg); /* Use theme background */
+        border: 1px solid var(--border);
+        padding: 12px 20px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--text-sub);
+        transition: all 0.3s ease;
+        border-radius: 10px 10px 0 0; /* Rounded top corners */
+        box-shadow: 0 2px 8px var(--shadow);
+        position: relative;
+        overflow: hidden;
+    }
+    .tab-button:hover {
+        background: var(--bg-panel);
+        color: var(--accent);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px var(--shadow);
+    }
+    .tab-button.active {
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+        color: white;
+        border-color: var(--accent);
+        border-bottom: 2px solid var(--accent); /* Highlight active tab */
+        box-shadow: 0 4px 15px color-mix(in srgb, var(--accent) 30%, transparent);
+        transform: translateY(0); /* Reset transform for active */
+    }
+    .tab-button.active:hover {
+        transform: translateY(0); /* No hover transform for active */
+    }
+    .tab-content {
+        display: none;
+        padding-top: 10px; /* Space below tabs */
+    }
+    .tab-content.active {
+        display: block;
+    }
+
+    /* ====== 已激活房间 ====== */
+    .activated-rooms-section {
+      background: linear-gradient(135deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 90%, black) 100%);
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+    .activated-rooms-section h2 {
+      margin: 0 0 16px;
+      font-size: 1.3em;
+      color: var(--text);
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 12px;
+      font-weight: 600;
+    }
+    #activated-room-list {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    #activated-room-list li {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 10px 20px;
+      border-radius: 25px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.95em;
+      white-space: nowrap;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      font-weight: 500;
+      position: relative;
+      overflow: hidden;
+    }
+    #activated-room-list li::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    #activated-room-list li:hover::before {
+      left: 100%;
+    }
+    #activated-room-list li:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 25px color-mix(in srgb, var(--accent) 40%, transparent);
+    }
+    #activated-room-list li.no-rooms {
+      background: none;
+      border: 2px dashed var(--text-sub);
+      color: var(--text-sub);
+      cursor: default;
+      font-style: italic;
+      box-shadow: none;
+      font-weight: normal;
+    }
+    #activated-room-list li.no-rooms::before {
+      display: none;
+    }
+
+    /* ====== 表单与按钮 ====== */
+    .controls, .form-group {
+      display: flex;
+      gap: 15px;
+      align-items: stretch;
+      width: 100%;
+    }
+    input[type="text"],
+    textarea { /* 为 textarea 添加样式 */
+      flex-grow: 1;
+      padding: 16px 20px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      font-size: 1em;
+      background: linear-gradient(135deg, var(--bg) 0%, var(--bg-panel) 100%);
+      color: var(--text);
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 10px var(--shadow);
+    }
+    input[type="text"]::placeholder,
+    textarea::placeholder { color: var(--text-sub); }
+    input[type="text"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent), 0 4px 20px var(--shadow);
+      background: var(--bg-panel);
+      transform: translateY(-2px);
+    }
+    textarea {
+        min-height: 120px; /* 默认高度 */
+        resize: vertical;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 16px 24px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    button:hover::before {
+      left: 100%;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px color-mix(in srgb, var(--accent) 40%, transparent);
+    }
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 15px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    button:disabled {
+      background: linear-gradient(135deg, #bdc3c7 0%, #95a5a6 100%);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ====== 用户列表 ====== */
+    #user-list-section {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+    #user-list-section h2 {
+      margin: 0;
+      padding: 20px 24px;
+      background: linear-gradient(135deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 90%, black) 100%);
+      border-bottom: 1px solid var(--border);
+      font-size: 1.3em;
+      color: var(--text);
+      font-weight: 600;
+    }
+    #user-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #user-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      transition: all 0.3s ease;
+    }
+    #user-list li:last-child { border-bottom: none; }
+    #user-list li:hover { 
+      background: linear-gradient(135deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 90%, black) 100%);
+      transform: translateX(5px);
+    }
+    #user-list li span { 
+      color: var(--text); 
+      font-weight: 500;
+      font-size: 1.05em;
+    }
+    #user-list button {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9em;
+      box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3);
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+    #user-list button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+    }
+    #user-list button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3);
+    }
+
+    /* ====== 状态提示 ====== */
+    #status-message {
+      text-align: center;
+      min-height: 24px;
+      padding: 12px 16px;
+      font-size: 0.95em;
+      transition: all 0.3s ease;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+    .status-success { 
+      color: #27ae60; 
+      background: color-mix(in srgb, #27ae60 10%, transparent);
+      border: 1px solid color-mix(in srgb, #27ae60 20%, transparent);
+    }
+    .status-error { 
+      color: #e74c3c; 
+      background: color-mix(in srgb, #e74c3c 10%, transparent);
+      border: 1px solid color-mix(in srgb, #e74c3c 20%, transparent);
+    }
+    .status-info { 
+      color: #3498db; 
+      background: color-mix(in srgb, #3498db 10%, transparent);
+      border: 1px solid color-mix(in srgb, #3498db 20%, transparent);
+    }
+
+    /* ====== Kimi 查询 ====== */
+    .kimi-search-section {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+    .kimi-search-section h2 {
+      margin: 0 0 16px;
+      font-size: 1.3em;
+      color: var(--text);
+      font-weight: 600;
+    }
+    #kimi-result-section {
+      margin-top: 16px;
+      background: var(--bg);
+      padding: 16px;
+      border-radius: 8px;
+      min-height: 50px;
+    }
+    #kimi-result {
+      color: var(--text-sub);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: 'Courier New', Courier, monospace;
+      margin: 0;
+    }
+
+    /* ====== API快速链接 ====== */
+    .api-quick-links {
+      margin-top: 20px;
+    }
+    .api-quick-links h2 {
+      margin-bottom: 20px;
+      font-size: 1.3em;
+      color: var(--text);
+      font-weight: 600;
+      text-align: center;
+    }
+    .api-links-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .list-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg) 100%);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px var(--shadow);
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.3s ease;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .list-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+      transition: left 0.5s;
+    }
+    .list-item:hover::before {
+      left: 100%;
+    }
+    .list-item:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 8px 30px var(--shadow);
+      border-color: var(--accent);
+    }
+    .item-icon {
+      font-size: 2.2em;
+      line-height: 1;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    .item-content {
+      flex: 1;
+    }
+    .item-content h3 {
+      margin: 0 0 6px;
+      font-size: 1.1em;
+      font-weight: 600;
+      color: var(--text);
+    }
+      .item-content .description {
+        font-size: 0.9em;
+        color: var(--text-sub);
+        margin: 0;
+        font-weight: 400;
+      }
+      .theme-toggle-btn {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-sub);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .theme-toggle-btn:hover {
+        background-color: var(--bg);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+    /* ====== Section Container for Toutiao (新增) ====== */
+    .section-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* 调整最小宽度 */
+        gap: 20px;
+        margin-top: 0; /* 移除顶部间距，由 tab-content 统一控制 */
+    }
+    .section-box {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 20px var(--shadow);
+        display: flex; /* 使用 flex for internal layout */
+        flex-direction: column;
+        gap: 15px; /* Spacing between elements inside box */
+    }
+    .section-box h2, .section-box h3 {
+        margin: 0;
+        font-size: 1.3em;
+        color: var(--text);
+        font-weight: 600;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+    }
+    .section-box h3 {
+        font-size: 1.1em;
+        font-weight: 500;
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 10px;
+    }
+    .section-box p {
+        color: var(--text-sub);
+        margin-bottom: 10px;
+    }
+    .section-box ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        max-height: 250px; /* Limit height for scroll */
+        overflow-y: auto;
+        background: var(--bg);
+    }
+    .section-box li {
+        padding: 10px 15px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-size: 0.95em;
+        word-break: break-word;
+    }
+    .section-box li:last-child {
+        border-bottom: none;
+    }
+    .section-box pre {
+        background: var(--bg);
+        padding: 15px;
+        border-radius: 8px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.9em;
+        max-height: 200px;
+        overflow-y: auto;
+        color: var(--text-sub);
+        border: 1px solid var(--border);
+    }
+    .section-box textarea {
+        min-height: 80px; /* Adjusted for smaller sections */
+        resize: vertical;
+        width: calc(100% - 2px); /* Adjust for border */
+        padding: 12px;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        font-size: 1em;
+        background: linear-gradient(135deg, var(--bg) 0%, var(--bg-panel) 100%);
+        color: var(--text);
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px var(--shadow);
+    }
+    .section-box textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent), 0 4px 20px var(--shadow);
+        background: var(--bg-panel);
+        transform: translateY(-2px);
+    }
+    .section-box .form-group {
+        margin-bottom: 0; /* Reset margin from global form-group */
+        gap: 10px; /* Smaller gap for internal forms */
+    }
+    .section-box button {
+        padding: 10px 15px; /* Smaller buttons for sections */
+        font-size: 0.9em;
+        border-radius: 8px;
+    }
+    .section-box .delete-button {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    }
+    .section-box .delete-button:hover {
+        background: linear-gradient(135deg, #c0392b 0%, #a03020 100%);
+    }
+
+    /* ====== 响应式：768px 以下 ====== */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      }
+      .container {
+        padding: 20px;
+        border-radius: 16px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+      .activated-rooms-section { 
+        padding: 16px; 
+      }
+      #activated-room-list {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 10px;
+      }
+      #activated-room-list li { 
+        flex: 0 0 auto;
+        padding: 8px 16px;
+      }
+      .controls button,
+      .form-group button { 
+        padding: 16px 20px;
+      }
+      #user-list li span { 
+        flex: 1; 
+      }
+      #user-list li button { 
+        width: auto; 
+        flex-shrink: 0; 
+        margin-left: 8px; 
+      }
+      #user-list-section {
+        max-height: calc(100vh * 0.4);
+        overflow-y: auto;
+      }
+      .api-links-list {
+        grid-template-columns: 1fr;
+      }
+      /* Toutiao sections responsive */
+      .section-container {
+          grid-template-columns: 1fr; /* Stack sections on smaller screens */
+      }
+      .section-box {
+          padding: 15px;
+      }
+      .section-box h2, .section-box h3 {
+          font-size: 1.2em;
+      }
+      .section-box textarea {
+          min-height: 60px;
+      }
+    }
+
+    /* ====== 响应式：480px 以下 ====== */
+    @media (max-width: 480px) {
+      .container { 
+        padding: 16px; 
+      }
+      h1 { 
+        font-size: 1.6em; 
+      }
+      #activated-room-list li { 
+        padding: 6px 12px; 
+        font-size: 0.9em; 
+      }
+      #user-list-section { 
+        max-height: calc(100vh * 0.35); 
+      }
+      #user-list li { 
+        padding: 12px 16px; 
+      }
+      #user-list button { 
+        padding: 6px 12px; 
+        font-size: 0.85em; 
+      }
+      .list-item {
+        padding: 16px;
+      }
+      .item-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.8em;
+      }
+      .api-quick-links h2 {
+        font-size: 1.2em;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div id="app">
-        <h1>管理面板</h1>
+  <div class="container">
+    <div style="position: relative; text-align: center;">
+      <h1>管理面板</h1> <!-- 标题改为更通用 -->
+      <button onclick="toggleTheme()" class="theme-toggle-btn" title="切换深色模式">🌓</button>
+    </div>
 
-        <div id="status-message" class=""></div>
+    <!-- Tabs 区域 -->
+    <div class="tabs">
+        <button class="tab-button active" onclick="switchTab('chat-whitelist-management')">聊天室白名单</button>
+        <button class="tab-button" onclick="switchTab('toutiao-content-management')">头条内容管理</button>
+    </div>
 
-        <div class="tabs">
-            <button class="tab-button active" onclick="switchTab('chat-room-management')">聊天室管理</button>
-            <button class="tab-button" onclick="switchTab('user-management')">用户管理</button>
-            <button class="tab-button" onclick="switchTab('toutiao-content-management')">头条内容管理</button>
-        </div>
-
-        <!-- 聊天室管理 Tab 内容 -->
-        <div id="chat-room-management" class="tab-content active">
-            <h2>聊天室列表</h2>
-            <button onclick="fetchRoomList()">刷新房间列表</button>
-            <ul id="room-list">
-                <li>加载中...</li>
+    <!-- 聊天室白名单 Tab 内容 -->
+    <div id="chat-whitelist-management" class="tab-content active">
+        <div class="activated-rooms-section">
+            <h2>已激活的房间</h2>
+            <ul id="activated-room-list">
+                <li class="no-rooms">正在加载房间...</li>
             </ul>
-
-            <h2>创建新房间</h2>
-            <div class="form-group">
-                <label for="new-room-name">房间名称:</label>
-                <input type="text" id="new-room-name" placeholder="输入新房间名称">
-            </div>
-            <button onclick="createRoom()">创建房间</button>
         </div>
 
-        <!-- 用户管理 Tab 内容 -->
-        <div id="user-management" class="tab-content">
-            <h2>用户列表</h2>
-            <button onclick="fetchUserList()">刷新用户列表</button>
+        <div class="controls">
+            <input type="text" id="room-name-input" placeholder="输入或选择房间名 (e.g., test)">
+            <button id="load-users-btn">加载</button>
+        </div>
+
+        <div id="status-message" class="status-info"></div>
+
+        <div id="user-list-section">
+            <h2>当前房间白名单用户</h2>
             <ul id="user-list">
-                <li>加载中...</li>
+                <li style="justify-content:center; color:#7f8c8d;">
+                    请选择或输入房间名加载白名单
+                </li>
             </ul>
-
-            <h2>封禁/解封用户</h2>
-            <div class="form-group">
-                <label for="ban-username">用户名:</label>
-                <input type="text" id="ban-username" placeholder="输入要封禁/解封的用户名">
-            </div>
-            <button onclick="banUser()">封禁用户</button>
-            <button onclick="unbanUser()">解封用户</button>
         </div>
 
-        <!-- 头条内容管理 Tab 内容 -->
-        <div id="toutiao-content-management" class="tab-content">
-            <div class="section-container">
-                <div class="section-box">
-                    <h2>任务队列</h2>
-                    <p>当前队列长度: <span id="toutiao-queue-length">0</span></p>
-                    <button onclick="fetchToutiaoQueueStatus()">刷新队列</button>
-                    <button onclick="clearToutiaoQueue()" class="delete-button">清空队列</button>
-                    <button onclick="processToutiaoQueue()">处理队列</button>
-                    <h3>待处理任务</h3>
-                    <ul id="toutiao-pending-tasks-list">
-                        <li>队列为空</li>
-                    </ul>
-                </div>
+        <div class="form-group">
+            <input type="text" id="new-user-input" placeholder="输入要添加的用户名">
+            <button id="add-user-btn">添加</button>
+        </div>
 
-                <div class="section-box">
-                    <h2>提交新任务</h2>
-                    <div class="form-group">
-                        <label for="toutiao-submit-text">文章主题/内容:</label>
-                        <textarea id="toutiao-submit-text" placeholder="输入文章主题或详细内容"></textarea>
+        <!-- Kimi 查询 -->
+        <div class="kimi-search-section">
+            <h2>Kimi 查询</h2>
+            <div class="form-group">
+                <input type="text" id="kimi-query-input" placeholder="输入查询内容">
+                <button id="kimi-search-btn">查询</button>
+            </div>
+            <div id="kimi-result-section">
+                <pre id="kimi-result"></pre>
+            </div>
+        </div>
+    
+        <!-- API 快速链接区域 -->
+        <div class="api-quick-links">
+            <h2>管理工具</h2>
+            <div class="api-links-list">
+                <a data-template="/api/room/status?roomName={roomName}" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">🏠</span>
+                    <div class="item-content">
+                        <h3>房间状态</h3>
+                        <p class="description">查看房间的当前状态和配置信息</p>
                     </div>
-                    <div class="form-group">
-                        <label for="toutiao-submit-username">提交者用户名:</label>
-                        <input type="text" id="toutiao-submit-username" value="admin">
+                </a>
+                <a data-template="/api/debug/sessions?roomName={roomName}" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">👥</span>
+                    <div class="item-content">
+                        <h3>活跃用户</h3>
+                        <p class="description">查看当前在线的用户列表</p>
                     </div>
-                    <button onclick="submitToutiaoTask()">提交任务</button>
-                </div>
-
-                <div class="section-box">
-                    <h2>任务状态查询</h2>
-                    <div class="form-group">
-                        <label for="toutiao-check-task-id">任务ID:</label>
-                        <input type="text" id="toutiao-check-task-id" placeholder="输入任务ID">
+                </a>
+                <a data-template="/api/debug/logs?roomName={roomName}" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">📝</span>
+                    <div class="item-content">
+                        <h3>调试日志</h3>
+                        <p class="description">查看房间的详细运行日志</p>
                     </div>
-                    <button onclick="checkToutiaoTaskStatus()">查询状态</button>
-                    <h3>任务详情:</h3>
-                    <pre id="toutiao-task-status-display">无任务信息</pre>
-                </div>
-
-                <div class="section-box">
-                    <h2>服务统计</h2>
-                    <button onclick="fetchToutiaoStats()">刷新统计</button>
-                    <pre id="toutiao-stats-display">加载中...</pre>
-                </div>
-
-                <div class="section-box">
-                    <h2>历史发布结果</h2>
-                    <button onclick="fetchToutiaoResults()">刷新结果</button>
-                    <ul id="toutiao-results-list">
-                        <li>加载中...</li>
-                    </ul>
-                </div>
+                </a>
+                <a data-template="/api/messages/history?roomName={roomName}&since=0" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">💬</span>
+                    <div class="item-content">
+                        <h3>消息历史</h3>
+                        <p class="description">查看房间的历史消息记录</p>
+                    </div>
+                </a>
+                <a data-template="/api/messages/delete?roomName={roomName}&id=msg-123&secret=ADMIN_SECRET" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">🗑️</span>
+                    <div class="item-content">
+                        <h3>删除消息</h3>
+                        <p class="description">删除指定的消息内容</p>
+                    </div>
+                </a>
+                <a data-template="/api/reset-room?roomName={roomName}&secret=ADMIN_SECRET" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">🔄</span>
+                    <div class="item-content">
+                        <h3>重置房间</h3>
+                        <p class="description">重置房间状态和所有配置</p>
+                    </div>
+                </a>
+                <a data-template="/api/debug/clear?roomName={roomName}" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">🧹</span>
+                    <div class="item-content">
+                        <h3>清空日志</h3>
+                        <p class="description">清空房间的所有调试日志</p>
+                    </div>
+                </a>
+                <a data-template="/api/ai/kimi?roomName={roomName}&query=你好" href="#" target="_blank" class="list-item">
+                    <span class="item-icon">🤖</span>
+                    <div class="item-content">
+                        <h3>Kimi AI</h3>
+                        <p class="description">使用 Kimi 进行查询</p>
+                    </div>
+                </a>
             </div>
         </div>
     </div>
 
-    <script>
-        //--CONFIG-PLACEHOLDER--//
-        // 这里的 window.ENV_CONFIG 将由 Cloudflare Worker 注入
-        // 例如：window.ENV_CONFIG = {"apiDomain":"your-worker-domain.com","flaskApiUrl":"https://your-flask-proxy.example.com","MANAGEMENT_ROOMS_LIST":["general","test","admin"]};
+    <!-- 头条内容管理 Tab 内容 (新增) -->
+    <div id="toutiao-content-management" class="tab-content">
+        <div class="section-container">
+            <div class="section-box">
+                <h2>任务队列</h2>
+                <p>当前队列长度: <span id="toutiao-queue-length">0</span></p>
+                <div class="form-group" style="gap: 10px;">
+                    <button onclick="fetchToutiaoQueueStatus()">刷新队列</button>
+                    <button onclick="clearToutiaoQueue()" class="delete-button">清空队列</button>
+                    <button onclick="processToutiaoQueue()">处理队列</button>
+                </div>
+                <h3>待处理任务</h3>
+                <ul id="toutiao-pending-tasks-list">
+                    <li>队列为空</li>
+                </ul>
+            </div>
 
-        let apiDomain = '';
-        let adminSecret = '';
-        let flaskApiUrl = '';
-        let MANAGEMENT_ROOMS_LIST = [];
+            <div class="section-box">
+                <h2>提交新任务</h2>
+                <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                    <label for="toutiao-submit-text" style="margin-bottom: 5px;">文章主题/内容:</label>
+                    <textarea id="toutiao-submit-text" placeholder="输入文章主题或详细内容"></textarea>
+                </div>
+                <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                    <label for="toutiao-submit-username" style="margin-bottom: 5px;">提交者用户名:</label>
+                    <input type="text" id="toutiao-submit-username" value="admin">
+                </div>
+                <button onclick="submitToutiaoTask()">提交任务</button>
+            </div>
 
-        const statusMessageDiv = document.getElementById('status-message');
+            <div class="section-box">
+                <h2>任务状态查询</h2>
+                <div class="form-group">
+                    <input type="text" id="toutiao-check-task-id" placeholder="输入任务ID">
+                    <button onclick="checkToutiaoTaskStatus()">查询状态</button>
+                </div>
+                <h3>任务详情:</h3>
+                <pre id="toutiao-task-status-display">无任务信息</pre>
+            </div>
 
-        // 辅助函数：显示状态消息
-        function showStatus(message, type) {
-            statusMessageDiv.textContent = message;
-            statusMessageDiv.className = `show ${type}`;
-            setTimeout(() => {
-                statusMessageDiv.className = ''; // 隐藏消息
-            }, 5000);
-        }
+            <div class="section-box">
+                <h2>服务统计</h2>
+                <button onclick="fetchToutiaoStats()">刷新统计</button>
+                <pre id="toutiao-stats-display">加载中...</pre>
+            </div>
 
-        // 辅助函数：切换 Tab
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            document.querySelectorAll('.tab-button').forEach(button => {
-                button.classList.remove('active');
-            });
+            <div class="section-box">
+                <h2>历史发布结果</h2>
+                <button onclick="fetchToutiaoResults()">刷新结果</button>
+                <ul id="toutiao-results-list">
+                    <li>加载中...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+  </div>
 
-            document.getElementById(tabId).classList.add('active');
-            document.querySelector(`.tab-button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+  <script>
+    // 初始化主题
+    function initTheme() {
+      const saved = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = saved ? saved : (prefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+    window.addEventListener('DOMContentLoaded', initTheme);
 
-            // 根据切换的 Tab 刷新数据
-            if (tabId === 'chat-room-management') {
-                fetchRoomList();
-            } else if (tabId === 'user-management') {
-                fetchUserList();
-            } else if (tabId === 'toutiao-content-management') {
-                fetchToutiaoQueueStatus();
-                fetchToutiaoStats();
-                fetchToutiaoResults();
-            }
-        }
+    // 切换按钮示例
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      const themeName = next === 'dark' ? '深色' : '浅色';
+      showStatus(`切换主题 (${themeName}) 成功`, 'success');
+    }
 
-        // 页面加载时初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            // 从 URL 获取 secret
-            const urlParams = new URLSearchParams(window.location.search);
-            adminSecret = urlParams.get('secret');
+    // 从全局变量获取配置
+    const potentialRoomsToCheck = window.MANAGEMENT_ROOMS_LIST || ['general', 'test', 'future', 'admin', 'kerry'];
+    const envConfig = window.ENV_CONFIG || {};
+    const apiDomain = window.ENV_CONFIG.apiDomain;
+    console.log(apiDomain)
 
-            if (!adminSecret) {
-                showStatus('错误：URL 中缺少 secret 参数。请在 URL 后添加 ?secret=您的密钥', 'error');
-                document.getElementById('app').innerHTML = '<h1>未授权访问</h1><p>请在URL中提供正确的管理密钥。</p>';
-                return;
-            }
+    // 声明 urlParams，因为它不依赖其他变量，且 adminSecret 和 initialRoom 依赖它
+    const urlParams     = new URLSearchParams(window.location.search);
+    const adminSecret   = urlParams.get('secret');
+    const initialRoom   = urlParams.get('room');
 
-            // 注入的配置
-            if (window.ENV_CONFIG) {
-                apiDomain = window.ENV_CONFIG.apiDomain || window.location.hostname;
-                flaskApiUrl = window.ENV_CONFIG.flaskApiUrl;
-                MANAGEMENT_ROOMS_LIST = window.ENV_CONFIG.MANAGEMENT_ROOMS_LIST || [];
-            } else {
-                // 如果没有注入配置，尝试从当前域名获取
-                apiDomain = window.location.hostname;
-                showStatus('警告：未检测到 Worker 注入的 ENV_CONFIG。部分功能可能无法正常工作。', 'info');
-            }
+    // 声明所有 DOM 元素，它们不依赖其他变量，且相互独立
+    const roomNameInput      = document.getElementById('room-name-input');
+    const userList           = document.getElementById('user-list');
+    const newUserInput       = document.getElementById('new-user-input');
+    const addUserBtn         = document.getElementById('add-user-btn');
+    const loadUsersBtn       = document.getElementById('load-users-btn');
+    const statusMessage      = document.getElementById('status-message');
+    const activatedRoomList  = document.getElementById('activated-room-list');
+    const apiLinks           = document.querySelectorAll('.api-links-list a'); // 修正选择器
+    const kimiQueryInput     = document.getElementById('kimi-query-input');
+    const kimiSearchBtn      = document.getElementById('kimi-search-btn');
+    const kimiResult         = document.getElementById('kimi-result');
 
-            // 默认显示头条内容管理 Tab
-            switchTab('toutiao-content-management');
+    // Toutiao DOM elements
+    const toutiaoQueueLength = document.getElementById('toutiao-queue-length');
+    const toutiaoPendingTasksList = document.getElementById('toutiao-pending-tasks-list');
+    const toutiaoSubmitText = document.getElementById('toutiao-submit-text');
+    const toutiaoSubmitUsername = document.getElementById('toutiao-submit-username');
+    const toutiaoCheckTaskId = document.getElementById('toutiao-check-task-id');
+    const toutiaoTaskStatusDisplay = document.getElementById('toutiao-task-status-display');
+    const toutiaoStatsDisplay = document.getElementById('toutiao-stats-display');
+    const toutiaoResultsList = document.getElementById('toutiao-results-list');
+
+
+    function showStatus(msg, type='info') {
+      statusMessage.textContent = msg;
+      statusMessage.className = `status-${type}`;
+    }
+
+    // 辅助函数：切换 Tab (新增)
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('active');
         });
 
-        // --- 聊天室管理功能 ---
-        async function fetchRoomList() {
-            showStatus('正在加载房间列表...', 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/room/list?secret=${adminSecret}`);
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                const roomListUl = document.getElementById('room-list');
-                roomListUl.innerHTML = '';
-                if (data.rooms && data.rooms.length > 0) {
-                    data.rooms.forEach(room => {
-                        const li = document.createElement('li');
-                        li.textContent = room;
-                        const deleteButton = document.createElement('button');
-                        deleteButton.textContent = '删除';
-                        deleteButton.className = 'delete-button';
-                        deleteButton.onclick = () => deleteRoom(room);
-                        li.appendChild(deleteButton);
-                        roomListUl.appendChild(li);
-                    });
-                } else {
-                    roomListUl.innerHTML = '<li>没有房间</li>';
-                }
-                showStatus('房间列表加载成功。', 'success');
-            } catch (e) {
-                showStatus(`加载房间列表失败: ${e.message}`, 'error');
+        document.getElementById(tabId).classList.add('active');
+        document.querySelector(`.tab-button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+
+        // 根据切换的 Tab 刷新数据
+        if (tabId === 'chat-whitelist-management') {
+            fetchActivatedRooms();
+            // 如果有初始房间，也加载用户
+            if (initialRoom) {
+                roomNameInput.value = initialRoom;
+                fetchUsers();
             }
+            updateApiLinks();
+        } else if (tabId === 'toutiao-content-management') {
+            fetchToutiaoQueueStatus();
+            fetchToutiaoStats();
+            fetchToutiaoResults();
+        }
+    }
+
+    async function fetchActivatedRooms() {
+      showStatus('正在加载已激活房间...');
+      activatedRoomList.innerHTML = '<li class="no-rooms">正在加载房间...</li>';
+      const activeRooms = [];
+      const domain = `https://${apiDomain}`;
+      // 使用从环境变量获取的房间列表
+      const fetches = potentialRoomsToCheck.map(r =>
+        fetch(`${domain}/api/room/status?roomName=${encodeURIComponent(r)}`)
+          .then(res => res.json())
+          .then(d => d.active ? r : null)
+          .catch(()=>null)
+      );
+      const results = await Promise.all(fetches);
+      results.forEach(r=>r && activeRooms.push(r));
+      renderActivatedRooms(activeRooms);
+      showStatus(`已发现 ${activeRooms.length} 个已激活的房间。`, 'success');
+    }
+    function renderActivatedRooms(rooms) {
+      activatedRoomList.innerHTML = '';
+      if (!rooms.length) {
+        const li = document.createElement('li');
+        li.className = 'no-rooms';
+        li.textContent = '暂无已激活的房间';
+        activatedRoomList.appendChild(li);
+      } else {
+        rooms.forEach(r => {
+          const li = document.createElement('li');
+          li.textContent = r;
+          li.onclick = () => {
+            roomNameInput.value = r;
+            updateApiLinks();
+            fetchUsers();
+          };
+          activatedRoomList.appendChild(li);
+        });
+      }
+    }
+
+    async function fetchUsers() {
+      const room = roomNameInput.value.trim();
+      updateApiLinks();
+      if (!room) {
+        showStatus('请输入房间名！','error');
+        userList.innerHTML = '<li style="justify-content:center;color:#7f8c8d;">请选择或输入房间名加载白名单</li>';
+        return;
+      }
+      showStatus(`正在加载房间 "${room}" 的白名单…`, 'info');
+      try {
+        const domain = `https://${apiDomain}`;
+        const res = await fetch(`${domain}/api/users/list?roomName=${encodeURIComponent(room)}`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        renderUsers(data.users, data.active);
+        showStatus(`房间 "${room}" 白名单已加载。`, 'success');
+      } catch (e) {
+        showStatus(`错误: ${e.message}`, 'error');
+      }
+    }
+
+    function renderUsers(users, isActive) {
+      userList.innerHTML = '';
+      if (!isActive) {
+        userList.innerHTML = '<li style="justify-content:center;color:#7f8c8d;">此房间尚未激活白名单功能…</li>';
+      } else if (!users.length) {
+        userList.innerHTML = '<li style="justify-content:center;color:#7f8c8d;">此房间白名单已激活但为空…</li>';
+      } else {
+        users.forEach(u => {
+          const li = document.createElement('li');
+          const span = document.createElement('span'); span.textContent = u;
+          const btn  = document.createElement('button'); btn.textContent = '移除';
+          btn.onclick = () => removeUser(u);
+          li.append(span, btn);
+          userList.appendChild(li);
+        });
+      }
+    }
+
+    async function addUser() {
+      const room = roomNameInput.value.trim();
+      const u    = newUserInput.value.trim();
+      if (!room || !u) return showStatus('请输入房间名和要添加的用户名！','error');
+      if (!adminSecret) {
+        alert('URL 中缺少 secret 参数！');
+        return showStatus('无法执行管理员操作，缺少 secret','error');
+      }
+      addUserBtn.disabled = true;
+      addUserBtn.textContent = '添加中…';
+      showStatus(`正在添加用户 "${u}" 到房间 "${room}"…`,'info');
+      try {
+        const domain = `https://${apiDomain}`;
+        const res = await fetch(`${domain}/api/users/add?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({username:u})
+        });
+        if (!res.ok) throw new Error(await res.text());
+        newUserInput.value = '';
+        showStatus(`用户 "${u}" 已成功添加。`,'success');
+        await fetchUsers();
+        await fetchActivatedRooms();
+      } catch(e) {
+        showStatus(`错误: ${e.message}`,'error');
+      } finally {
+        addUserBtn.disabled = false;
+        addUserBtn.textContent = '添加';
+      }
+    }
+
+    async function removeUser(u) {
+      const room = roomNameInput.value.trim();
+      if (!room || !adminSecret) return showStatus('缺少 room 或 secret','error');
+      if (!confirm(`确认移除 "${u}"？`)) return;
+      showStatus(`正在移除 "${u}"…`,'info');
+      try {
+        const domain = `https://${apiDomain}`;
+        const res = await fetch(`${domain}/api/users/remove?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({username:u})
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showStatus(`"${u}" 已移除。`,'success');
+        await fetchUsers();
+        await fetchActivatedRooms();
+      } catch(e) {
+        showStatus(`错误: ${e.message}`,'error');
+      }
+    }
+
+    async function queryKimi() {
+      const room = roomNameInput.value.trim();
+      const query = kimiQueryInput.value.trim();
+
+      if (!room) {
+        return showStatus('请输入房间名！', 'error');
+      }
+      if (!query) {
+        return showStatus('请输入查询内容！', 'error');
+      }
+
+      kimiSearchBtn.disabled = true;
+      kimiSearchBtn.textContent = '查询中…';
+      showStatus(`正在使用 Kimi 查询: "${query}"...`, 'info');
+      kimiResult.textContent = '正在查询...';
+
+      try {
+        const domain = `https://${apiDomain}`;
+        const res = await fetch(`${domain}/api/ai/kimi?roomName=${encodeURIComponent(room)}`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'secret': adminSecret 
+          },
+          body: JSON.stringify({ query: query })
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Kimi API 错误: ${errorText}`);
         }
 
-        async function createRoom() {
-            const roomName = document.getElementById('new-room-name').value.trim();
-            if (!roomName) {
-                showStatus('请输入房间名称。', 'error');
-                return;
-            }
-            showStatus(`正在创建房间: ${roomName}...`, 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/room/create?secret=${adminSecret}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ roomName })
+        const data = await res.json();
+        kimiResult.textContent = data.result || JSON.stringify(data, null, 2);
+        showStatus('Kimi 查询成功。', 'success');
+
+      } catch (e) {
+        showStatus(`错误: ${e.message}`, 'error');
+        kimiResult.textContent = `查询失败: ${e.message}`;
+      } finally {
+        kimiSearchBtn.disabled = false;
+        kimiSearchBtn.textContent = '查询';
+      }
+    }
+
+    // ====== API 链接更新 ======
+    function updateApiLinks() {
+      const room = roomNameInput.value.trim() || 'test';
+      const domain = `https://${apiDomain}`;
+      document.querySelectorAll('.api-links-list a').forEach(a=>{
+        const tpl = a.dataset.template;
+        // 确保 secret 参数被正确替换
+        const url = domain + tpl.replace('{roomName}', encodeURIComponent(room)).replace('ADMIN_SECRET', adminSecret);
+        a.href = url;
+      });
+    }
+
+    // --- 头条内容管理功能 (新增) ---
+
+    // 获取任务队列状态
+    async function fetchToutiaoQueueStatus() {
+        showStatus('正在加载头条任务队列...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+
+            toutiaoQueueLength.textContent = data.length || 0;
+            toutiaoPendingTasksList.innerHTML = '';
+            if (data.tasks && data.tasks.length > 0) {
+                data.tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    // 健壮性检查：防止 task.text 为 undefined
+                    const taskText = task.text ? task.text.substring(0, Math.min(task.text.length, 50)) + (task.text.length > 50 ? '...' : '') : '无内容';
+                    const taskIdShort = task.id ? task.id.substring(0, Math.min(task.id.length, 8)) + (task.id.length > 8 ? '...' : '') : 'N/A';
+
+                    li.textContent = `ID: ${taskIdShort} | 用户: ${task.username || '未知'} | 内容: ${taskText} | 状态: ${task.status || 'pending'} | 创建时间: ${new Date(task.createdAt).toLocaleString()}`;
+                    toutiaoPendingTasksList.appendChild(li);
                 });
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                showStatus(`房间创建成功: ${data.message}`, 'success');
-                document.getElementById('new-room-name').value = '';
-                fetchRoomList();
-            } catch (e) {
-                showStatus(`创建房间失败: ${e.message}`, 'error');
+            } else {
+                toutiaoPendingTasksList.innerHTML = '<li>队列为空</li>';
             }
+            showStatus('头条任务队列加载成功。', 'success');
+        } catch (e) {
+            showStatus(`加载队列失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 清空任务队列
+    async function clearToutiaoQueue() {
+        if (!confirm('确定要清空所有待处理的头条任务队列吗？此操作不可逆！')) {
+            return;
+        }
+        showStatus('正在清空头条任务队列...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/clearQueue?secret=${adminSecret}`, {
+                method: 'POST'
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            showStatus(`队列清空成功: ${data.message}`, 'success');
+            fetchToutiaoQueueStatus(); // 刷新队列显示
+        } catch (e) {
+            showStatus(`清空队列失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 处理队列中的所有任务
+    async function processToutiaoQueue() {
+        if (!confirm('确定要立即处理队列中的所有头条任务吗？这可能需要一些时间。')) {
+            return;
+        }
+        showStatus('正在处理头条任务队列...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`, {
+                method: 'DELETE' // 使用 DELETE 方法触发处理
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            showStatus(`队列处理完成。处理结果: ${JSON.stringify(data.results)}`, 'success');
+            fetchToutiaoQueueStatus(); // 刷新队列显示
+            fetchToutiaoStats(); // 刷新统计
+            fetchToutiaoResults(); // 刷新结果
+        } catch (e) {
+            showStatus(`处理队列失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 提交新任务
+    async function submitToutiaoTask() {
+        const text = toutiaoSubmitText.value.trim();
+        const username = toutiaoSubmitUsername.value.trim();
+
+        if (!text) {
+            showStatus('请输入文章主题或内容。', 'error');
+            return;
+        }
+        if (!username) {
+            showStatus('请输入提交者用户名。', 'error');
+            return;
         }
 
-        async function deleteRoom(roomName) {
-            if (!confirm(`确定要删除房间 "${roomName}" 吗？这将删除所有消息和用户。`)) {
-                return;
-            }
-            showStatus(`正在删除房间: ${roomName}...`, 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/room/delete?secret=${adminSecret}`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ roomName })
+        showStatus('正在提交头条任务...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/direct?secret=${adminSecret}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, username, roomName: 'management_panel' }) // 标记来源
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            showStatus(`任务提交成功！任务ID: ${data.taskId}`, 'success');
+            toutiaoSubmitText.value = '';
+            fetchToutiaoQueueStatus(); // 刷新队列显示
+        } catch (e) {
+            showStatus(`提交任务失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 查询任务状态
+    async function checkToutiaoTaskStatus() {
+        const taskId = toutiaoCheckTaskId.value.trim();
+        if (!taskId) {
+            showStatus('请输入要查询的任务ID。', 'error');
+            return;
+        }
+        showStatus(`正在查询任务 ${taskId} 的状态...`, 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/status/${taskId}?secret=${adminSecret}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            toutiaoTaskStatusDisplay.textContent = JSON.stringify(data, null, 2);
+            showStatus('任务状态查询成功。', 'success');
+        } catch (e) {
+            toutiaoTaskStatusDisplay.textContent = `查询失败: ${e.message}`;
+            showStatus(`查询任务状态失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 获取服务统计
+    async function fetchToutiaoStats() {
+        showStatus('正在加载头条服务统计...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/stats?secret=${adminSecret}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            toutiaoStatsDisplay.textContent = JSON.stringify(data, null, 2);
+            showStatus('服务统计加载成功。', 'success');
+        } catch (e) {
+            toutiaoStatsDisplay.textContent = `加载失败: ${e.message}`;
+            showStatus(`加载服务统计失败: ${e.message}`, 'error');
+        }
+    }
+
+    // 获取历史发布结果
+    async function fetchToutiaoResults() {
+        showStatus('正在加载历史发布结果...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/results?secret=${adminSecret}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            toutiaoResultsList.innerHTML = '';
+            if (data && data.length > 0) {
+                data.forEach(result => {
+                    const li = document.createElement('li');
+                    const title = result.title || '无标题';
+                    const status = result.success ? '成功' : '失败';
+                    const completedAt = result.completedAt ? new Date(result.completedAt).toLocaleString() : 'N/A';
+                    const errorMsg = result.publishResult && result.publishResult.error ? ` (错误: ${result.publishResult.error})` : '';
+                    const url = result.publishResult && result.publishResult.url ? `<a href="${result.publishResult.url}" target="_blank">查看文章</a>` : '';
+
+                    li.innerHTML = `<strong>${title}</strong><br>
+                                    ID: ${result.id.substring(0, Math.min(result.id.length, 8))}... | 状态: ${status}${errorMsg} | 完成时间: ${completedAt} ${url}`;
+                    toutiaoResultsList.appendChild(li);
                 });
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                showStatus(`房间删除成功: ${data.message}`, 'success');
-                fetchRoomList();
-            } catch (e) {
-                showStatus(`删除房间失败: ${e.message}`, 'error');
+            } else {
+                toutiaoResultsList.innerHTML = '<li>没有历史发布结果</li>';
             }
+            showStatus('历史发布结果加载成功。', 'success');
+        } catch (e) {
+            showStatus(`加载历史发布结果失败: ${e.message}`, 'error');
         }
+    }
 
-        // --- 用户管理功能 ---
-        async function fetchUserList() {
-            showStatus('正在加载用户列表...', 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/users?secret=${adminSecret}`);
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                const userListUl = document.getElementById('user-list');
-                userListUl.innerHTML = '';
-                if (data.users && data.users.length > 0) {
-                    data.users.forEach(user => {
-                        const li = document.createElement('li');
-                        li.textContent = `${user.username} (ID: ${user.id}) - 状态: ${user.isBanned ? '已封禁' : '正常'}`;
-                        userListUl.appendChild(li);
-                    });
-                } else {
-                    userListUl.innerHTML = '<li>没有用户</li>';
-                }
-                showStatus('用户列表加载成功。', 'success');
-            } catch (e) {
-                showStatus(`加载用户列表失败: ${e.message}`, 'error');
-            }
-        }
 
-        async function banUser() {
-            const username = document.getElementById('ban-username').value.trim();
-            if (!username) {
-                showStatus('请输入要封禁的用户名。', 'error');
-                return;
-            }
-            showStatus(`正在封禁用户: ${username}...`, 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/users/ban?secret=${adminSecret}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
-                });
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                showStatus(`用户封禁成功: ${data.message}`, 'success');
-                document.getElementById('ban-username').value = '';
-                fetchUserList();
-            } catch (e) {
-                showStatus(`封禁用户失败: ${e.message}`, 'error');
-            }
-        }
+    // ===== 初始化 & 绑定 ====
+    document.addEventListener('DOMContentLoaded', ()=>{
+      if (!adminSecret) {
+          showStatus('错误：URL 中缺少 secret 参数。请在 URL 后添加 ?secret=您的密钥', 'error');
+          document.getElementById('app').innerHTML = '<h1>未授权访问</h1><p>请在URL中提供正确的管理密钥。</p>';
+          return;
+      }
 
-        async function unbanUser() {
-            const username = document.getElementById('ban-username').value.trim();
-            if (!username) {
-                showStatus('请输入要解封的用户名。', 'error');
-                return;
-            }
-            showStatus(`正在解封用户: ${username}...`, 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/users/unban?secret=${adminSecret}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
-                });
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                showStatus(`用户解封成功: ${data.message}`, 'success');
-                document.getElementById('ban-username').value = '';
-                fetchUserList();
-            } catch (e) {
-                showStatus(`解封用户失败: ${e.message}`, 'error');
-            }
-        }
+      // 默认激活第一个 Tab
+      switchTab('chat-whitelist-management');
 
-        // --- 头条内容管理功能 ---
-
-        // 获取任务队列状态
-        async function fetchToutiaoQueueStatus() {
-            showStatus('正在加载头条任务队列...', 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`);
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-
-                const queueLength = document.getElementById('toutiao-queue-length');
-                const pendingTasksList = document.getElementById('toutiao-pending-tasks-list');
-
-                queueLength.textContent = data.length || 0;
-                pendingTasksList.innerHTML = '';
-                if (data.tasks && data.tasks.length > 0) {
-                    data.tasks.forEach(task => {
-                        const li = document.createElement('li');
-                        // 健壮性检查：防止 task.text 为 undefined
-                        const taskText = task.text ? task.text.substring(0, Math.min(task.text.length, 50)) + (task.text.length > 50 ? '...' : '') : '无内容';
-                        const taskIdShort = task.id ? task.id.substring(0, Math.min(task.id.length, 8)) + (task.id.length > 8 ? '...' : '') : 'N/A';
-
-                        li.textContent = `ID: ${taskIdShort} | 用户: ${task.username || '未知'} | 内容: ${taskText} | 状态: ${task.status || 'pending'} | 创建时间: ${new Date(task.createdAt).toLocaleString()}`;
-                        pendingTasksList.appendChild(li);
-                    });
-                } else {
-                    pendingTasksList.innerHTML = '<li>队列为空</li>';
-                }
-                showStatus('头条任务队列加载成功。', 'success');
-            } catch (e) {
-                showStatus(`加载队列失败: ${e.message}`, 'error');
-            }
-        }
-
-        // 清空任务队列
-        async function clearToutiaoQueue() {
-            if (!confirm('确定要清空所有待处理的头条任务队列吗？此操作不可逆！')) {
-                return;
-            }
-            showStatus('正在清空头条任务队列...', 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/toutiao/clearQueue?secret=${adminSecret}`, {
-                    method: 'POST'
-                });
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                showStatus(`队列清空成功: ${data.message}`, 'success');
-                fetchToutiaoQueueStatus(); // 刷新队列显示
-            } catch (e) {
-                showStatus(`清空队列失败: ${e.message}`, 'error');
-            }
-        }
-
-        // 处理队列中的所有任务
-        async function processToutiaoQueue() {
-            if (!confirm('确定要立即处理队列中的所有头条任务吗？这可能需要一些时间。')) {
-                return;
-            }
-            showStatus('正在处理头条任务队列...', 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`, {
-                    method: 'DELETE' // 使用 DELETE 方法触发处理
-                });
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                showStatus(`队列处理完成。处理结果: ${JSON.stringify(data.results)}`, 'success');
-                fetchToutiaoQueueStatus(); // 刷新队列显示
-                fetchToutiaoStats(); // 刷新统计
-                fetchToutiaoResults(); // 刷新结果
-            } catch (e) {
-                showStatus(`处理队列失败: ${e.message}`, 'error');
-            }
-        }
-
-        // 提交新任务
-        async function submitToutiaoTask() {
-            const text = document.getElementById('toutiao-submit-text').value.trim();
-            const username = document.getElementById('toutiao-submit-username').value.trim();
-
-            if (!text) {
-                showStatus('请输入文章主题或内容。', 'error');
-                return;
-            }
-            if (!username) {
-                showStatus('请输入提交者用户名。', 'error');
-                return;
-            }
-
-            showStatus('正在提交头条任务...', 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/toutiao/direct?secret=${adminSecret}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text, username, roomName: 'management_panel' }) // 标记来源
-                });
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                showStatus(`任务提交成功！任务ID: ${data.taskId}`, 'success');
-                document.getElementById('toutiao-submit-text').value = '';
-                fetchToutiaoQueueStatus(); // 刷新队列显示
-            } catch (e) {
-                showStatus(`提交任务失败: ${e.message}`, 'error');
-            }
-        }
-
-        // 查询任务状态
-        async function checkToutiaoTaskStatus() {
-            const taskId = document.getElementById('toutiao-check-task-id').value.trim();
-            if (!taskId) {
-                showStatus('请输入要查询的任务ID。', 'error');
-                return;
-            }
-            showStatus(`正在查询任务 ${taskId} 的状态...`, 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/toutiao/status/${taskId}?secret=${adminSecret}`);
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                document.getElementById('toutiao-task-status-display').textContent = JSON.stringify(data, null, 2);
-                showStatus('任务状态查询成功。', 'success');
-            } catch (e) {
-                document.getElementById('toutiao-task-status-display').textContent = `查询失败: ${e.message}`;
-                showStatus(`查询任务状态失败: ${e.message}`, 'error');
-            }
-        }
-
-        // 获取服务统计
-        async function fetchToutiaoStats() {
-            showStatus('正在加载头条服务统计...', 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/toutiao/stats?secret=${adminSecret}`);
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                document.getElementById('toutiao-stats-display').textContent = JSON.stringify(data, null, 2);
-                showStatus('服务统计加载成功。', 'success');
-            } catch (e) {
-                document.getElementById('toutiao-stats-display').textContent = `加载失败: ${e.message}`;
-                showStatus(`加载服务统计失败: ${e.message}`, 'error');
-            }
-        }
-
-        // 获取历史发布结果
-        async function fetchToutiaoResults() {
-            showStatus('正在加载历史发布结果...', 'info');
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/toutiao/results?secret=${adminSecret}`);
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                const resultsList = document.getElementById('toutiao-results-list');
-                resultsList.innerHTML = '';
-                if (data && data.length > 0) {
-                    data.forEach(result => {
-                        const li = document.createElement('li');
-                        const title = result.title || '无标题';
-                        const status = result.success ? '成功' : '失败';
-                        const completedAt = result.completedAt ? new Date(result.completedAt).toLocaleString() : 'N/A';
-                        const errorMsg = result.publishResult && result.publishResult.error ? ` (错误: ${result.publishResult.error})` : '';
-                        const url = result.publishResult && result.publishResult.url ? `<a href="${result.publishResult.url}" target="_blank">查看文章</a>` : '';
-
-                        li.innerHTML = `<strong>${title}</strong><br>
-                                        ID: ${result.id.substring(0, 8)}... | 状态: ${status}${errorMsg} | 完成时间: ${completedAt} ${url}`;
-                        resultsList.appendChild(li);
-                    });
-                } else {
-                    resultsList.innerHTML = '<li>没有历史发布结果</li>';
-                }
-                showStatus('历史发布结果加载成功。', 'success');
-            } catch (e) {
-                showStatus(`加载历史发布结果失败: ${e.message}`, 'error');
-            }
-        }
-
-    </script>
+      loadUsersBtn.onclick = fetchUsers;
+      addUserBtn.onclick  = addUser;
+      kimiSearchBtn.onclick = queryKimi;
+      roomNameInput.addEventListener('input', updateApiLinks);
+    });
+  </script>
 </body>
 </html>
