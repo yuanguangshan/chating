@@ -308,7 +308,7 @@ export default {
                 }
 
                 // 需要转发给DO的API
-                let roomName;
+                let roomName = null;
                 // 对于这些API，房间名在查询参数里
                 if (pathname.startsWith('/api/messages') || pathname.startsWith('/api/reset-room')|| pathname.startsWith('/api/debug')|| pathname.startsWith('/api/room')) {
                     roomName = url.searchParams.get('roomName');
@@ -346,6 +346,122 @@ export default {
                         });
                     }
                 }
+
+                // 新增：头条自动发文外部API路由
+                if (pathname === '/api/toutiao/direct') {
+                    if (request.method !== 'POST') {
+                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                    }
+                    
+                    try {
+                        const { text, username = 'external_user', roomName = 'external' } = await request.json();
+                        if (!text) {
+                            return new Response(JSON.stringify({ error: 'Missing text parameter' }), {
+                                status: 400,
+                                headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                            });
+                        }
+
+                        // 创建头条任务
+                        // 转发到聊天室DO的/toutiao/submit端点
+                if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+                const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+                const stub = env.CHAT_ROOM_DO.get(doId);
+                
+                // 调用DO的handleToutiaoSubmit方法
+                const apiUrl = new URL(request.url);
+                apiUrl.pathname = '/api/toutiao/submit';
+                
+                const response = await stub.fetch(new Request(apiUrl.toString(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: text,
+                        topic: '外部提交',
+                        platform: 'default'
+                    })
+                }));
+
+                const result = await response.json();
+                return new Response(JSON.stringify(result), {
+                    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                });
+
+                    } catch (error) {
+                        console.error('Toutiao direct API error:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                }
+
+                if (pathname.startsWith('/api/toutiao/status/')) {
+                    if (request.method !== 'GET') {
+                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                    }
+                    try {
+                        const taskId = pathname.substring('/api/toutiao/status/'.length);
+                        if (!taskId) {
+                            return new Response(JSON.stringify({ error: 'Missing taskId parameter' }), {
+                                status: 400,
+                                headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                            });
+                        }
+                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
+                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
+                        const result = await stub.fetch(new Request(new URL(`/results?id=${taskId}`, request.url).toString()));
+                        return new Response(result.body, {
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    } catch (error) {
+                        console.error('Toutiao status API error:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                } else if (pathname === '/api/toutiao/queue') {
+                    if (request.method !== 'GET') {
+                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                    }
+                    try {
+                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
+                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
+                    const result = await stub.fetch(new Request(new URL(`/queue`, request.url).toString()));
+                        return new Response(result.body, {
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    } catch (error) {
+                        console.error('Toutiao queue API error:', error);
+                        return new Response(JSON.stringify({ error: error.message }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                } else if (pathname === '/api/toutiao/clearQueue') {
+                if (request.method !== 'POST') {
+                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                }
+                try {
+                    const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
+                    const stub = env.TOUTIAO_SERVICE_DO.get(doId);
+                    const result = await stub.fetch(new Request(new URL(`/clearQueue`, request.url).toString(), {
+                        method: 'POST'
+                    }));
+                    return new Response(result.body, {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                } catch (error) {
+                    console.error('Toutiao clearQueue API error:', error);
+                    return new Response(JSON.stringify({ error: error.message }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
+            }
+
+
 
                 // (未来可以为其他API在这里添加 roomName 的获取逻辑)
 
