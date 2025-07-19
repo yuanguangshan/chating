@@ -1596,7 +1596,7 @@
                         <div style="padding: 12px; ${cardStyle} border-radius: 8px; margin-bottom: 8px; transition: all 0.3s ease;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                 <div style="font-weight: bold; color: var(--text); font-size: 0.95em; flex: 1; margin-right: 8px;">
-                                    ${title}
+                                    ${result.pgc_id ? `<a href="https://www.toutiao.com/article/${result.pgc_id}/" target="_blank" style="color: var(--text); text-decoration: none;">${title}</a>` : title}
                                 </div>
                                 ${status}
                             </div>
