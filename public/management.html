@@ -1491,56 +1491,20 @@
                 }
             }, 2000);
 
-            // 提交任务后，每10秒尝试更新一次最新发布结果，检测到更新后停止
-            let checkCount = 0;
-            const maxChecks = 6; // 1分钟 / 10秒 = 6次
-            let previousResultsCount = 0;
-            
-            // 先获取当前结果数量作为基准
-            try {
-                const domain = `https://${apiDomain}`;
-                const res = await fetch(`${domain}/api/toutiao/results?secret=${adminSecret}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    previousResultsCount = data ? data.length : 0;
-                }
-            } catch (e) {
-                console.log('获取初始结果失败:', e.message);
-            }
-            
+            // 每20秒刷新一次结果，最多3次
+            let refreshCount = 0;
             const intervalId = setInterval(async () => {
-                checkCount++;
+                refreshCount++;
                 try {
-                    const domain = `https://${apiDomain}`;
-                    const res = await fetch(`${domain}/api/toutiao/results?secret=${adminSecret}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        const currentResultsCount = data ? data.length : 0;
-                        
-                        // 如果结果数量增加，说明有新发布，停止刷新
-                        if (currentResultsCount > previousResultsCount) {
-                            fetchToutiaoResults(); // 刷新结果
-                            clearInterval(intervalId);
-                            showStatus('检测到新发布结果，已停止自动刷新。', 'success');
-                            return;
-                        }
-                        
-                        // 如果任务状态显示已完成，也停止刷新
-                        if (data && data.length > 0 && data[0].status === 'completed') {
-                            fetchToutiaoResults();
-                            clearInterval(intervalId);
-                            showStatus('任务已完成，已停止自动刷新。', 'success');
-                            return;
-                        }
-                    }
+                    await fetchToutiaoResults(); // 直接刷新结果
+                    showStatus(`第${refreshCount}次自动刷新完成`, 'info');
                 } catch (e) {
                     console.log('刷新结果失败:', e.message);
                 }
                 
-                if (checkCount >= maxChecks) {
-                    fetchToutiaoResults(); // 只在最后一次刷新结果
+                if (refreshCount >= 4) {
                     clearInterval(intervalId);
-                    showStatus('1分钟内未检测到新结果，已停止自动刷新。', 'info');
+                    showStatus('已完成4次自动刷新', 'success');
                 }
             }, 10000); // 每10秒执行一次
             
