@@ -1367,10 +1367,39 @@
         }
     }
     
-    // 查看任务详情辅助函数
-    function checkTaskDetails(taskId) {
-        toutiaoCheckTaskId.value = taskId;
-        checkToutiaoTaskStatus();
+    // 查看任务详情 - 直接跳转到头条文章链接
+    async function checkTaskDetails(taskId) {
+        showStatus('正在获取文章链接...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/status/${taskId}?secret=${adminSecret}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            
+            // 检查是否有头条文章链接
+            let articleUrl = '';
+            if (data.publishResult && data.publishResult.data && data.publishResult.data.data && data.publishResult.data.data.pgc_id) {
+                articleUrl = `https://www.toutiao.com/article/${data.publishResult.data.data.pgc_id}/`;
+            } else if (data.publishResult && data.publishResult.url) {
+                articleUrl = data.publishResult.url;
+            }
+            
+            if (articleUrl) {
+                // 直接在新标签页打开头条文章
+                window.open(articleUrl, '_blank');
+                showStatus('正在打开头条文章...', 'success');
+            } else {
+                // 如果没有文章链接，回退到显示任务详情
+                toutiaoCheckTaskId.value = taskId;
+                checkToutiaoTaskStatus();
+                showStatus('未找到文章链接，显示任务详情。', 'info');
+            }
+        } catch (e) {
+            // 如果获取失败，回退到显示任务详情
+            toutiaoCheckTaskId.value = taskId;
+            checkToutiaoTaskStatus();
+            showStatus(`获取文章链接失败: ${e.message}，显示任务详情。`, 'error');
+        }
     }
 
     // 清空任务队列
@@ -1461,6 +1490,60 @@
                     checkToutiaoTaskStatus(); // 自动查询任务状态
                 }
             }, 2000);
+
+            // 提交任务后，每10秒尝试更新一次最新发布结果，检测到更新后停止
+            let checkCount = 0;
+            const maxChecks = 6; // 1分钟 / 10秒 = 6次
+            let previousResultsCount = 0;
+            
+            // 先获取当前结果数量作为基准
+            try {
+                const domain = `https://${apiDomain}`;
+                const res = await fetch(`${domain}/api/toutiao/results?secret=${adminSecret}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    previousResultsCount = data ? data.length : 0;
+                }
+            } catch (e) {
+                console.log('获取初始结果失败:', e.message);
+            }
+            
+            const intervalId = setInterval(async () => {
+                checkCount++;
+                try {
+                    const domain = `https://${apiDomain}`;
+                    const res = await fetch(`${domain}/api/toutiao/results?secret=${adminSecret}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const currentResultsCount = data ? data.length : 0;
+                        
+                        // 如果结果数量增加，说明有新发布，停止刷新
+                        if (currentResultsCount > previousResultsCount) {
+                            fetchToutiaoResults(); // 刷新结果
+                            clearInterval(intervalId);
+                            showStatus('检测到新发布结果，已停止自动刷新。', 'success');
+                            return;
+                        }
+                        
+                        // 如果任务状态显示已完成，也停止刷新
+                        if (data && data.length > 0 && data[0].status === 'completed') {
+                            fetchToutiaoResults();
+                            clearInterval(intervalId);
+                            showStatus('任务已完成，已停止自动刷新。', 'success');
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.log('刷新结果失败:', e.message);
+                }
+                
+                fetchToutiaoResults(); // 刷新结果
+                
+                if (checkCount >= maxChecks) {
+                    clearInterval(intervalId);
+                    showStatus('1分钟内未检测到新结果，已停止自动刷新。', 'info');
+                }
+            }, 10000); // 每10秒执行一次
             
         } catch (e) {
             showStatus(`❌ 提交任务失败: ${e.message}`, 'error');
@@ -1578,8 +1661,15 @@
                     const completedAt = result.completedAt ? new Date(result.completedAt).toLocaleString() : 'N/A';
                     const errorMsg = result.publishResult && result.publishResult.error ? 
                         `<div style="color: var(--error); margin-top: 4px; font-size: 0.85em;">错误: ${result.publishResult.error}</div>` : '';
-                    const url = result.publishResult && result.publishResult.url ? 
-                        `<a href="${result.publishResult.url}" target="_blank" style="color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; margin-top: 4px;">
+                    let articleUrl = '';
+                    if (result.publishResult && result.publishResult.data && result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
+                        articleUrl = `https://www.toutiao.com/article/${result.publishResult.data.data.pgc_id}/`;
+                    } else if (result.publishResult && result.publishResult.url) {
+                        articleUrl = result.publishResult.url;
+                    }
+                    
+                    const url = articleUrl ? 
+                        `<a href="${articleUrl}" target="_blank" style="color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; margin-top: 4px;">
                             <span style="margin-right: 4px;">🔗</span> 查看文章
                          </a>` : '';
                     
@@ -1596,7 +1686,7 @@
                         <div style="padding: 12px; ${cardStyle} border-radius: 8px; margin-bottom: 8px; transition: all 0.3s ease;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                 <div style="font-weight: bold; color: var(--text); font-size: 0.95em; flex: 1; margin-right: 8px;">
-                                    ${result.publishResult && result.publishResult.data && result.publishResult.data.pgc_id ? `<a href="https://www.toutiao.com/article/${result.publishResult.data.pgc_id}/" target="_blank" style="color: var(--text); text-decoration: none;">${title}</a>` : title}
+                                    ${articleUrl ? `<a href="${articleUrl}" target="_blank" style="color: var(--text); text-decoration: none;">${title}</a>` : title}
                                 </div>
                                 ${status}
                             </div>
@@ -1606,12 +1696,15 @@
                                     <div><strong>完成时间:</strong> ${completedAt}</div>
                                 </div>
                                 ${errorMsg}
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                                    ${url}
-                                    <button onclick="checkTaskDetails('${taskId}')" style="padding: 4px 8px; font-size: 0.8em; background: var(--bg); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px;">
-                                        查看详情
-                                    </button>
-                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; gap: 8px;">
+                        ${url}
+                        <button onclick="checkTaskDetails('${taskId}')" style="padding: 4px 8px; font-size: 0.8em; background: var(--bg); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px;">
+                            查看详情
+                        </button>
+                        ${articleUrl ? `<a href="${articleUrl}" target="_blank" style="padding: 4px 8px; font-size: 0.8em; background: var(--accent); color: white; border: 1px solid var(--accent); border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center;">
+                            查看头条
+                        </a>` : ''}
+                    </div>
                             </div>
                         </div>
                     `;
@@ -1666,8 +1759,15 @@
         const errorMsg = result.publishResult && result.publishResult.error ? 
             `<div style="color: var(--error); margin-top: 4px; font-size: 0.9em;">错误: ${result.publishResult.error}</div>` : '';
             
-        const url = result.publishResult && result.publishResult.url ? 
-            `<a href="${result.publishResult.url}" target="_blank" style="color: white; background: var(--accent); text-decoration: none; padding: 6px 12px; border-radius: 4px; display: inline-flex; align-items: center; margin-top: 8px; box-shadow: 0 4px 10px color-mix(in srgb, var(--accent) 40%, var(--shadow)); transition: all 0.3s ease;">
+        let articleUrl = '';
+        if (result.publishResult && result.publishResult.data && result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
+            articleUrl = `https://www.toutiao.com/article/${result.publishResult.data.data.pgc_id}/`;
+        } else if (result.publishResult && result.publishResult.url) {
+            articleUrl = result.publishResult.url;
+        }
+        
+        const url = articleUrl ? 
+            `<a href="${articleUrl}" target="_blank" style="color: white; background: var(--accent); text-decoration: none; padding: 6px 12px; border-radius: 4px; display: inline-flex; align-items: center; margin-top: 8px; box-shadow: 0 4px 10px color-mix(in srgb, var(--accent) 40%, var(--shadow)); transition: all 0.3s ease;">
                 <span style="margin-right: 4px;">🔗</span> 查看已发布文章
              </a>` : '';
              
@@ -1683,13 +1783,15 @@
                 <div><strong>任务ID:</strong> ${idShort}...</div>
             </div>
             ${errorMsg}
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px;">
                 ${url}
                 <button onclick="checkTaskDetails('${taskId}')" style="padding: 6px 12px; background: var(--bg); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; font-weight: 600;">
                     查看详情
                 </button>
-            </div>
-        `;
+                ${articleUrl ? `<a href="${articleUrl}" target="_blank" style="padding: 6px 12px; background: var(--accent); color: white; border: 1px solid var(--accent); border-radius: 4px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center;">
+                    查看头条
+                </a>` : ''}
+            </div>`;
     }
 
 
