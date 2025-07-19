@@ -781,20 +781,36 @@
                         <p class="description">清空房间的所有调试日志</p>
                     </div>
                 </a>
-                <a data-template="/api/ai/kimi?roomName={roomName}&query=你好" href="#" target="_blank" class="list-item">
-                    <span class="item-icon">🤖</span>
-                    <div class="item-content">
-                        <h3>Kimi AI</h3>
-                        <p class="description">使用 Kimi 进行查询</p>
-                    </div>
-                </a>
+
             </div>
         </div>
     </div>
 
     <!-- 头条内容管理 Tab 内容 (新增) -->
-    <div id="toutiao-content-management" class="tab-content">
+    <div id="toutiao-content-management" class="tab-content" style="padding-top: 10px;">
         <div class="section-container">
+            <div class="section-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h2 style="margin: 0;">历史发布结果</h2>
+                    <button onclick="fetchToutiaoResults()" style="padding: 8px 12px; font-size: 0.8em;">刷新</button>
+                </div>
+                <ul id="toutiao-results-list">
+                    <li>加载中...</li>
+                </ul>
+            </div>
+
+            <div class="section-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h2 style="margin: 0;">提交新任务</h2>
+                    <button onclick="submitToutiaoTask()" style="padding: 8px 12px; font-size: 0.8em;">提交</button>
+                </div>
+                <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                    <label for="toutiao-submit-text" style="margin-bottom: 5px;">文章主题/内容:</label>
+                    <textarea id="toutiao-submit-text" placeholder="输入文章主题或详细内容"></textarea>
+                </div>
+
+            </div>
+
             <div class="section-box">
                 <h2>任务队列</h2>
                 <p>当前队列长度: <span id="toutiao-queue-length">0</span></p>
@@ -810,16 +826,9 @@
             </div>
 
             <div class="section-box">
-                <h2>提交新任务</h2>
-                <div class="form-group" style="flex-direction: column; align-items: stretch;">
-                    <label for="toutiao-submit-text" style="margin-bottom: 5px;">文章主题/内容:</label>
-                    <textarea id="toutiao-submit-text" placeholder="输入文章主题或详细内容"></textarea>
-                </div>
-                <div class="form-group" style="flex-direction: column; align-items: stretch;">
-                    <label for="toutiao-submit-username" style="margin-bottom: 5px;">提交者用户名:</label>
-                    <input type="text" id="toutiao-submit-username" value="苑广山">
-                </div>
-                <button onclick="submitToutiaoTask()">提交任务</button>
+                <h2>服务统计</h2>
+                <button onclick="fetchToutiaoStats()">刷新统计</button>
+                <pre id="toutiao-stats-display">加载中...</pre>
             </div>
 
             <div class="section-box">
@@ -830,20 +839,6 @@
                 </div>
                 <h3>任务详情:</h3>
                 <pre id="toutiao-task-status-display">无任务信息</pre>
-            </div>
-
-            <div class="section-box">
-                <h2>服务统计</h2>
-                <button onclick="fetchToutiaoStats()">刷新统计</button>
-                <pre id="toutiao-stats-display">加载中...</pre>
-            </div>
-
-            <div class="section-box">
-                <h2>历史发布结果</h2>
-                <button onclick="fetchToutiaoResults()">刷新结果</button>
-                <ul id="toutiao-results-list">
-                    <li>加载中...</li>
-                </ul>
             </div>
         </div>
     </div>
@@ -1234,6 +1229,15 @@
             showStatus(`任务提交成功！任务ID: ${data.taskId}`, 'success');
             toutiaoSubmitText.value = '';
             fetchToutiaoQueueStatus(); // 刷新队列显示
+            
+            // 2秒后自动将任务ID填入查询框并自动查询
+            setTimeout(() => {
+                toutiaoCheckTaskId.value = data.taskId || '';
+                if (data.taskId) {
+                    checkToutiaoTaskStatus(); // 自动查询任务状态
+                }
+            }, 2000);
+            
         } catch (e) {
             showStatus(`提交任务失败: ${e.message}`, 'error');
         }
