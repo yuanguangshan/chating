@@ -975,7 +975,7 @@
                     <textarea id="toutiao-submit-text" placeholder="Gemini：随便输入什么主题或描述，秒速给你生成文章，并自动发头条，不信试试！"></textarea>
                 </div>
                 <button onclick="submitToutiaoTask()" class="submit-button" style="align-self: flex-end;">
-                    <span style="display: inline-block; margin-right: 6px;">✍️</span> 立即提交发布
+                    <span style="display: inline-block; margin-right: 6px;">✍️</span> 生成并发布
                 </button>
             </div>
 
@@ -1367,10 +1367,39 @@
         }
     }
     
-    // 查看任务详情辅助函数
-    function checkTaskDetails(taskId) {
-        toutiaoCheckTaskId.value = taskId;
-        checkToutiaoTaskStatus();
+    // 查看任务详情 - 直接跳转到头条文章链接
+    async function checkTaskDetails(taskId) {
+        showStatus('正在获取文章链接...', 'info');
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/toutiao/status/${taskId}?secret=${adminSecret}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            
+            // 检查是否有头条文章链接
+            let articleUrl = '';
+            if (data.publishResult && data.publishResult.data && data.publishResult.data.data && data.publishResult.data.data.pgc_id) {
+                articleUrl = `https://www.toutiao.com/article/${data.publishResult.data.data.pgc_id}/`;
+            } else if (data.publishResult && data.publishResult.url) {
+                articleUrl = data.publishResult.url;
+            }
+            
+            if (articleUrl) {
+                // 直接在新标签页打开头条文章
+                window.open(articleUrl, '_blank');
+                showStatus('正在打开头条文章...', 'success');
+            } else {
+                // 如果没有文章链接，回退到显示任务详情
+                toutiaoCheckTaskId.value = taskId;
+                checkToutiaoTaskStatus();
+                showStatus('未找到文章链接，显示任务详情。', 'info');
+            }
+        } catch (e) {
+            // 如果获取失败，回退到显示任务详情
+            toutiaoCheckTaskId.value = taskId;
+            checkToutiaoTaskStatus();
+            showStatus(`获取文章链接失败: ${e.message}，显示任务详情。`, 'error');
+        }
     }
 
     // 清空任务队列
@@ -1461,6 +1490,23 @@
                     checkToutiaoTaskStatus(); // 自动查询任务状态
                 }
             }, 2000);
+
+            // 每20秒刷新一次结果，最多3次
+            let refreshCount = 0;
+            const intervalId = setInterval(async () => {
+                refreshCount++;
+                try {
+                    await fetchToutiaoResults(); // 直接刷新结果
+                    showStatus(`第${refreshCount}次自动刷新完成`, 'info');
+                } catch (e) {
+                    console.log('刷新结果失败:', e.message);
+                }
+                
+                if (refreshCount >= 4) {
+                    clearInterval(intervalId);
+                    showStatus('已完成4次自动刷新', 'success');
+                }
+            }, 10000); // 每10秒执行一次
             
         } catch (e) {
             showStatus(`❌ 提交任务失败: ${e.message}`, 'error');
@@ -1578,10 +1624,7 @@
                     const completedAt = result.completedAt ? new Date(result.completedAt).toLocaleString() : 'N/A';
                     const errorMsg = result.publishResult && result.publishResult.error ? 
                         `<div style="color: var(--error); margin-top: 4px; font-size: 0.85em;">错误: ${result.publishResult.error}</div>` : '';
-                    const url = result.publishResult && result.publishResult.url ? 
-                        `<a href="${result.publishResult.url}" target="_blank" style="color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; margin-top: 4px;">
-                            <span style="margin-right: 4px;">🔗</span> 查看文章
-                         </a>` : '';
+
                     
                     const taskId = result.taskId || result.id || 'unknown';
                     const idShort = taskId.substring(0, 8);
@@ -1606,12 +1649,11 @@
                                     <div><strong>完成时间:</strong> ${completedAt}</div>
                                 </div>
                                 ${errorMsg}
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                                    ${url}
-                                    <button onclick="checkTaskDetails('${taskId}')" style="padding: 4px 8px; font-size: 0.8em; background: var(--bg); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px;">
-                                        查看详情
-                                    </button>
-                                </div>
+                                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px;">
+                        <button onclick="checkTaskDetails('${taskId}')" style="padding: 4px 8px; font-size: 0.8em; background: var(--bg); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px;">
+                            查看详情
+                        </button>
+                    </div>
                             </div>
                         </div>
                     `;
@@ -1666,10 +1708,7 @@
         const errorMsg = result.publishResult && result.publishResult.error ? 
             `<div style="color: var(--error); margin-top: 4px; font-size: 0.9em;">错误: ${result.publishResult.error}</div>` : '';
             
-        const url = result.publishResult && result.publishResult.url ? 
-            `<a href="${result.publishResult.url}" target="_blank" style="color: white; background: var(--accent); text-decoration: none; padding: 6px 12px; border-radius: 4px; display: inline-flex; align-items: center; margin-top: 8px; box-shadow: 0 4px 10px color-mix(in srgb, var(--accent) 40%, var(--shadow)); transition: all 0.3s ease;">
-                <span style="margin-right: 4px;">🔗</span> 查看已发布文章
-             </a>` : '';
+
              
         const taskId = result.taskId || result.id || 'unknown';
         const idShort = taskId.substring(0, 8);
@@ -1683,13 +1722,11 @@
                 <div><strong>任务ID:</strong> ${idShort}...</div>
             </div>
             ${errorMsg}
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                ${url}
+            <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 8px;">
                 <button onclick="checkTaskDetails('${taskId}')" style="padding: 6px 12px; background: var(--bg); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; font-weight: 600;">
                     查看详情
                 </button>
-            </div>
-        `;
+            </div>`;
     }
 
 
