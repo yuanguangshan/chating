@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>管理面板</title> <!-- 标题改为更通用的“管理面板” -->
+  <title>管理面板</title> <!-- 标题改为更通用的"管理面板" -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>  //--CONFIG-PLACEHOLDER--//</script>
   <style>
@@ -50,7 +50,7 @@
       box-shadow: 0 20px 40px var(--shadow);
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 20px; /* 减小整体间距 */
     }
     h1 {
       text-align: center;
@@ -68,7 +68,7 @@
     .tabs {
         display: flex;
         justify-content: center;
-        margin-bottom: 12px;
+        margin-bottom: 8px; /* 减小边距 */
         border-bottom: 2px solid var(--border);
         padding-bottom: 5px;
         gap: 10px; /* Spacing between buttons */
@@ -76,9 +76,9 @@
     .tab-button {
         background: var(--bg); /* Use theme background */
         border: 1px solid var(--border);
-        padding: 12px 20px;
+        padding: 10px 15px; /* 减小内边距 */
         cursor: pointer;
-        font-size: 1em;
+        font-size: 0.95em; /* 减小字体大小 */
         font-weight: 600;
         color: var(--text-sub);
         transition: all 0.3s ease;
@@ -106,7 +106,7 @@
     }
     .tab-content {
         display: none;
-        padding-top: 10px; /* Space below tabs */
+        padding-top: 8px; /* 减小间距 */
     }
     .tab-content.active {
         display: block;
@@ -116,32 +116,33 @@
     .activated-rooms-section {
       background: linear-gradient(135deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 90%, black) 100%);
       border-radius: 16px;
-      padding: 20px;
+      padding: 16px; /* 减小内边距 */
       border: 1px solid var(--border);
       box-shadow: 0 4px 20px var(--shadow);
+      margin-bottom: 16px; /* 添加底部间距 */
     }
     .activated-rooms-section h2 {
-      margin: 0 0 16px;
-      font-size: 1.3em;
+      margin: 0 0 12px; /* 减小边距 */
+      font-size: 1.2em; /* 减小字体大小 */
       color: var(--text);
       border-bottom: 2px solid var(--border);
-      padding-bottom: 12px;
+      padding-bottom: 8px; /* 减小内边距 */
       font-weight: 600;
     }
     #activated-room-list {
       list-style: none;
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 10px; /* 减小间距 */
     }
     #activated-room-list li {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      padding: 10px 20px;
+      padding: 8px 16px; /* 减小内边距 */
       border-radius: 25px;
       color: white;
       cursor: pointer;
       transition: all 0.3s ease;
-      font-size: 0.95em;
+      font-size: 0.9em; /* 减小字体大小 */
       white-space: nowrap;
       box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
       font-weight: 500;
@@ -181,17 +182,18 @@
     /* ====== 表单与按钮 ====== */
     .controls, .form-group {
       display: flex;
-      gap: 15px;
+      gap: 12px; /* 减小间距 */
       align-items: stretch;
       width: 100%;
+      margin-bottom: 12px; /* 添加底部间距 */
     }
     input[type="text"],
     textarea { /* 为 textarea 添加样式 */
       flex-grow: 1;
-      padding: 16px 20px;
+      padding: 12px 16px; /* 减小内边距 */
       border: 2px solid var(--border);
       border-radius: 12px;
-      font-size: 1em;
+      font-size: 0.95em; /* 减小字体大小 */
       background: linear-gradient(135deg, var(--bg) 0%, var(--bg-panel) 100%);
       color: var(--text);
       transition: all 0.3s ease;
@@ -208,17 +210,17 @@
       transform: translateY(-2px);
     }
     textarea {
-        min-height: 120px; /* 默认高度 */
+        min-height: 100px; /* 减小默认高度 */
         resize: vertical;
     }
     button {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border: none;
-      padding: 16px 24px;
+      padding: 12px 18px; /* 减小内边距 */
       border-radius: 12px;
       cursor: pointer;
-      font-size: 1em;
+      font-size: 0.95em; /* 减小字体大小 */
       font-weight: 600;
       transition: all 0.3s ease;
       flex-shrink: 0;
@@ -261,13 +263,14 @@
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 4px 20px var(--shadow);
+      margin-bottom: 16px; /* 添加底部间距 */
     }
     #user-list-section h2 {
       margin: 0;
-      padding: 20px 24px;
+      padding: 15px 20px; /* 减小内边距 */
       background: linear-gradient(135deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 90%, black) 100%);
       border-bottom: 1px solid var(--border);
-      font-size: 1.3em;
+      font-size: 1.2em; /* 减小字体大小 */
       color: var(--text);
       font-weight: 600;
     }
@@ -275,12 +278,14 @@
       list-style: none;
       padding: 0;
       margin: 0;
+      max-height: 250px; /* 限制高度，添加滚动条 */
+      overflow-y: auto;
     }
     #user-list li {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 24px;
+      padding: 12px 16px; /* 减小内边距 */
       border-bottom: 1px solid var(--border);
       transition: all 0.3s ease;
     }
@@ -292,16 +297,16 @@
     #user-list li span { 
       color: var(--text); 
       font-weight: 500;
-      font-size: 1.05em;
+      font-size: 0.95em; /* 减小字体大小 */
     }
     #user-list button {
       background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
       color: white;
       border: none;
-      padding: 8px 16px;
+      padding: 6px 12px; /* 减小内边距 */
       border-radius: 8px;
       cursor: pointer;
-      font-size: 0.9em;
+      font-size: 0.85em; /* 减小字体大小 */
       box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3);
       transition: all 0.3s ease;
       flex-shrink: 0;
@@ -320,11 +325,12 @@
     #status-message {
       text-align: center;
       min-height: 24px;
-      padding: 12px 16px;
-      font-size: 0.95em;
+      padding: 10px 14px; /* 减小内边距 */
+      font-size: 0.9em; /* 减小字体大小 */
       transition: all 0.3s ease;
       border-radius: 8px;
       font-weight: 500;
+      margin-bottom: 12px; /* 添加底部间距 */
     }
     .status-success { 
       color: #27ae60; 
@@ -347,20 +353,21 @@
       background: var(--bg-panel);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 20px;
-      margin-top: 20px;
+      padding: 16px; /* 减小内边距 */
+      margin-top: 16px;
+      margin-bottom: 16px; /* 添加底部间距 */
       box-shadow: 0 4px 20px var(--shadow);
     }
     .kimi-search-section h2 {
-      margin: 0 0 16px;
-      font-size: 1.3em;
+      margin: 0 0 12px; /* 减小边距 */
+      font-size: 1.2em; /* 减小字体大小 */
       color: var(--text);
       font-weight: 600;
     }
     #kimi-result-section {
-      margin-top: 16px;
+      margin-top: 12px; /* 减小上边距 */
       background: var(--bg);
-      padding: 16px;
+      padding: 12px; /* 减小内边距 */
       border-radius: 8px;
       min-height: 50px;
     }
@@ -370,29 +377,30 @@
       word-wrap: break-word;
       font-family: 'Courier New', Courier, monospace;
       margin: 0;
+      font-size: 0.9em; /* 减小字体大小 */
     }
 
     /* ====== API快速链接 ====== */
     .api-quick-links {
-      margin-top: 20px;
+      margin-top: 16px; /* 减小上边距 */
     }
     .api-quick-links h2 {
-      margin-bottom: 20px;
-      font-size: 1.3em;
+      margin-bottom: 16px; /* 减小下边距 */
+      font-size: 1.2em; /* 减小字体大小 */
       color: var(--text);
       font-weight: 600;
       text-align: center;
     }
     .api-links-list {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* 减小最小宽度 */
+      gap: 12px; /* 减小间距 */
     }
     .list-item {
       display: flex;
       align-items: center;
-      gap: 16px;
-      padding: 20px;
+      gap: 12px; /* 减小间距 */
+      padding: 16px; /* 减小内边距 */
       background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg) 100%);
       border-radius: 16px;
       box-shadow: 0 4px 20px var(--shadow);
@@ -422,11 +430,11 @@
       border-color: var(--accent);
     }
     .item-icon {
-      font-size: 2.2em;
+      font-size: 2em; /* 减小图标大小 */
       line-height: 1;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      width: 60px;
-      height: 60px;
+      width: 50px; /* 减小图标容器大小 */
+      height: 50px; /* 减小图标容器大小 */
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -437,77 +445,78 @@
       flex: 1;
     }
     .item-content h3 {
-      margin: 0 0 6px;
-      font-size: 1.1em;
+      margin: 0 0 4px; /* 减小边距 */
+      font-size: 1em; /* 减小字体大小 */
       font-weight: 600;
       color: var(--text);
     }
-      .item-content .description {
-        font-size: 0.9em;
-        color: var(--text-sub);
-        margin: 0;
-        font-weight: 400;
-      }
-      .theme-toggle-btn {
-        position: absolute;
-        top: 50%;
-        right: 0;
-        transform: translateY(-50%);
-        background: none;
-        border: 1px solid var(--border);
-        color: var(--text-sub);
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        font-size: 18px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .theme-toggle-btn:hover {
-        background-color: var(--bg);
-        border-color: var(--accent);
-        color: var(--accent);
-      }
+    .item-content .description {
+      font-size: 0.85em; /* 减小字体大小 */
+      color: var(--text-sub);
+      margin: 0;
+      font-weight: 400;
+    }
+    .theme-toggle-btn {
+      position: absolute;
+      top: 50%;
+      right: 0;
+      transform: translateY(-50%);
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-sub);
+      width: 36px; /* 减小按钮大小 */
+      height: 36px; /* 减小按钮大小 */
+      border-radius: 50%;
+      font-size: 16px; /* 减小字体大小 */
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .theme-toggle-btn:hover {
+      background-color: var(--bg);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
 
     /* ====== Section Container for Toutiao (新增) ====== */
     .section-container {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* 调整最小宽度 */
-        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* 调整最小宽度 */
+        gap: 16px; /* 减小间距 */
         margin-top: 0; /* 移除顶部间距，由 tab-content 统一控制 */
     }
     .section-box {
         background: var(--bg-panel);
         border: 1px solid var(--border);
         border-radius: 16px;
-        padding: 20px;
+        padding: 16px; /* 减小内边距 */
         box-shadow: 0 4px 20px var(--shadow);
         display: flex; /* 使用 flex for internal layout */
         flex-direction: column;
-        gap: 15px; /* Spacing between elements inside box */
+        gap: 12px; /* 减小内部元素间距 */
     }
     .section-box h2, .section-box h3 {
         margin: 0;
-        font-size: 1.3em;
+        font-size: 1.2em; /* 减小字体大小 */
         color: var(--text);
         font-weight: 600;
         border-bottom: 1px solid var(--border);
-        padding-bottom: 10px;
-        margin-bottom: 15px;
+        padding-bottom: 8px; /* 减小内边距 */
+        margin-bottom: 12px; /* 减小下边距 */
     }
     .section-box h3 {
-        font-size: 1.1em;
+        font-size: 1em; /* 减小字体大小 */
         font-weight: 500;
         border-bottom: none;
         padding-bottom: 0;
-        margin-bottom: 10px;
+        margin-bottom: 8px; /* 减小下边距 */
     }
     .section-box p {
         color: var(--text-sub);
-        margin-bottom: 10px;
+        margin-bottom: 8px; /* 减小下边距 */
+        font-size: 0.9em; /* 减小字体大小 */
     }
     .section-box ul {
         list-style: none;
@@ -515,15 +524,15 @@
         margin: 0;
         border: 1px solid var(--border);
         border-radius: 8px;
-        max-height: 250px; /* Limit height for scroll */
+        max-height: 200px; /* 减小最大高度 */
         overflow-y: auto;
         background: var(--bg);
     }
     .section-box li {
-        padding: 10px 15px;
+        padding: 8px 12px; /* 减小内边距 */
         border-bottom: 1px solid var(--border);
         color: var(--text);
-        font-size: 0.95em;
+        font-size: 0.9em; /* 减小字体大小 */
         word-break: break-word;
     }
     .section-box li:last-child {
@@ -531,25 +540,25 @@
     }
     .section-box pre {
         background: var(--bg);
-        padding: 15px;
+        padding: 12px; /* 减小内边距 */
         border-radius: 8px;
         white-space: pre-wrap;
         word-wrap: break-word;
         font-family: 'Courier New', Courier, monospace;
-        font-size: 0.9em;
-        max-height: 200px;
+        font-size: 0.85em; /* 减小字体大小 */
+        max-height: 150px; /* 减小最大高度 */
         overflow-y: auto;
         color: var(--text-sub);
         border: 1px solid var(--border);
     }
     .section-box textarea {
-        min-height: 80px; /* Adjusted for smaller sections */
+        min-height: 80px; /* 调整为更小的高度 */
         resize: vertical;
         width: calc(100% - 2px); /* Adjust for border */
-        padding: 12px;
+        padding: 10px; /* 减小内边距 */
         border: 2px solid var(--border);
         border-radius: 12px;
-        font-size: 1em;
+        font-size: 0.95em; /* 减小字体大小 */
         background: linear-gradient(135deg, var(--bg) 0%, var(--bg-panel) 100%);
         color: var(--text);
         transition: all 0.3s ease;
@@ -564,11 +573,11 @@
     }
     .section-box .form-group {
         margin-bottom: 0; /* Reset margin from global form-group */
-        gap: 10px; /* Smaller gap for internal forms */
+        gap: 8px; /* 减小间距 */
     }
     .section-box button {
-        padding: 10px 15px; /* Smaller buttons for sections */
-        font-size: 0.9em;
+        padding: 8px 12px; /* 减小内边距 */
+        font-size: 0.85em; /* 减小字体大小 */
         border-radius: 8px;
     }
     .section-box .delete-button {
@@ -581,94 +590,149 @@
     /* ====== 响应式：768px 以下 ====== */
     @media (max-width: 768px) {
       body {
-        padding: 10px;
+        padding: 8px; /* 减小内边距 */
         background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
       }
       .container {
-        padding: 20px;
+        padding: 16px; /* 减小内边距 */
         border-radius: 16px;
+        margin: 10px auto; /* 减小外边距 */
+        gap: 16px; /* 减小整体间距 */
       }
       h1 {
-        font-size: 1.8em;
+        font-size: 1.6em; /* 减小字体大小 */
       }
       .activated-rooms-section { 
-        padding: 16px; 
+        padding: 12px; /* 减小内边距 */
+        margin-bottom: 12px; /* 减小下边距 */
       }
       #activated-room-list {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        gap: 10px;
+        gap: 8px; /* 减小间距 */
+        padding-bottom: 4px; /* 添加底部内边距使滚动更明显 */
       }
       #activated-room-list li { 
         flex: 0 0 auto;
-        padding: 8px 16px;
+        padding: 6px 12px; /* 减小内边距 */
+        font-size: 0.85em; /* 减小字体大小 */
+      }
+      .controls, .form-group {
+        gap: 8px; /* 减小间距 */
+        margin-bottom: 10px; /* 减小下边距 */
       }
       .controls button,
       .form-group button { 
-        padding: 16px 20px;
+        padding: 12px 16px; /* 减小内边距 */
+        font-size: 0.9em; /* 减小字体大小 */
       }
       #user-list li span { 
         flex: 1; 
+        font-size: 0.9em; /* 减小字体大小 */
       }
       #user-list li button { 
         width: auto; 
         flex-shrink: 0; 
-        margin-left: 8px; 
+        margin-left: 6px; /* 减小左边距 */
+        padding: 5px 10px; /* 减小内边距 */
+        font-size: 0.8em; /* 减小字体大小 */
       }
       #user-list-section {
-        max-height: calc(100vh * 0.4);
+        max-height: calc(100vh * 0.35); /* 减小最大高度 */
         overflow-y: auto;
+        margin-bottom: 12px; /* 减小下边距 */
+      }
+      #user-list-section h2 {
+        padding: 12px 16px; /* 减小内边距 */
+        font-size: 1.1em; /* 减小字体大小 */
       }
       .api-links-list {
         grid-template-columns: 1fr;
       }
+      .kimi-search-section {
+        padding: 12px; /* 减小内边距 */
+        margin-top: 12px; /* 减小上边距 */
+        margin-bottom: 12px; /* 减小下边距 */
+      }
+      .kimi-search-section h2 {
+        font-size: 1.1em; /* 减小字体大小 */
+        margin-bottom: 10px; /* 减小下边距 */
+      }
+      #kimi-result-section {
+        padding: 10px; /* 减小内边距 */
+      }
       /* Toutiao sections responsive */
       .section-container {
           grid-template-columns: 1fr; /* Stack sections on smaller screens */
+          gap: 12px; /* 减小间距 */
       }
       .section-box {
-          padding: 15px;
+          padding: 12px; /* 减小内边距 */
       }
       .section-box h2, .section-box h3 {
-          font-size: 1.2em;
+          font-size: 1.1em; /* 减小字体大小 */
+          padding-bottom: 6px; /* 减小内边距 */
+          margin-bottom: 10px; /* 减小下边距 */
       }
       .section-box textarea {
-          min-height: 60px;
+          min-height: 60px; /* 减小高度 */
+      }
+      .tabs {
+        flex-wrap: wrap; /* 允许在小屏幕上换行 */
+        justify-content: center;
+      }
+      .tab-button {
+        flex: 1 0 auto;
+        font-size: 0.9em; /* 减小字体大小 */
+        padding: 8px 12px; /* 减小内边距 */
+        text-align: center;
       }
     }
 
     /* ====== 响应式：480px 以下 ====== */
     @media (max-width: 480px) {
       .container { 
-        padding: 16px; 
+        padding: 12px; /* 进一步减小内边距 */
+        gap: 12px; /* 进一步减小整体间距 */
       }
       h1 { 
-        font-size: 1.6em; 
+        font-size: 1.5em; /* 进一步减小字体大小 */
       }
       #activated-room-list li { 
-        padding: 6px 12px; 
-        font-size: 0.9em; 
+        padding: 5px 10px; /* 进一步减小内边距 */
+        font-size: 0.8em; /* 进一步减小字体大小 */
       }
       #user-list-section { 
-        max-height: calc(100vh * 0.35); 
+        max-height: calc(100vh * 0.3); /* 进一步减小最大高度 */
       }
       #user-list li { 
-        padding: 12px 16px; 
+        padding: 10px 12px; /* 进一步减小内边距 */
       }
       #user-list button { 
-        padding: 6px 12px; 
-        font-size: 0.85em; 
+        padding: 4px 8px; /* 进一步减小内边距 */
+        font-size: 0.75em; /* 进一步减小字体大小 */
       }
       .list-item {
-        padding: 16px;
+        padding: 12px; /* 进一步减小内边距 */
       }
       .item-icon {
-        width: 50px;
-        height: 50px;
-        font-size: 1.8em;
+        width: 40px; /* 进一步减小图标容器大小 */
+        height: 40px; /* 进一步减小图标容器大小 */
+        font-size: 1.6em; /* 进一步减小图标大小 */
       }
       .api-quick-links h2 {
-        font-size: 1.2em;
+        font-size: 1.1em; /* 进一步减小字体大小 */
+      }
+      .item-content h3 {
+        font-size: 0.95em; /* 进一步减小字体大小 */
+      }
+      .item-content .description {
+        font-size: 0.8em; /* 进一步减小字体大小 */
+      }
+      /* 确保表单在小屏幕上垂直堆叠 */
+      .section-box .form-group {
+        flex-direction: column;
+        gap: 8px;
       }
     }
   </style>
@@ -787,12 +851,12 @@
     </div>
 
     <!-- 头条内容管理 Tab 内容 (新增) -->
-    <div id="toutiao-content-management" class="tab-content" style="padding-top: 10px;">
+    <div id="toutiao-content-management" class="tab-content" style="padding-top: 8px;">
         <div class="section-container">
             <div class="section-box">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <h2 style="margin: 0;">历史发布结果</h2>
-                    <button onclick="fetchToutiaoResults()" style="padding: 8px 12px; font-size: 0.8em;">刷新</button>
+                    <button onclick="fetchToutiaoResults()" style="padding: 6px 10px; font-size: 0.8em;">刷新</button>
                 </div>
                 <ul id="toutiao-results-list">
                     <li>加载中...</li>
@@ -802,22 +866,21 @@
             <div class="section-box">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <h2 style="margin: 0;">提交新任务</h2>
-                    <button onclick="submitToutiaoTask()" style="padding: 8px 12px; font-size: 0.8em;">提交</button>
+                    <button onclick="submitToutiaoTask()" style="padding: 6px 10px; font-size: 0.8em;">提交</button>
                 </div>
-                <div class="form-group" style="flex-direction: column; align-items: stretch;">
-                    <label for="toutiao-submit-text" style="margin-bottom: 5px;">文章主题/内容:</label>
+                <div class="form-group" style="flex-direction: column; align-items: stretch; margin-bottom: 0;">
+                    <label for="toutiao-submit-text" style="margin-bottom: 4px; font-size: 0.9em;">文章主题/内容:</label>
                     <textarea id="toutiao-submit-text" placeholder="输入文章主题或详细内容"></textarea>
                 </div>
-
             </div>
 
             <div class="section-box">
                 <h2>任务队列</h2>
-                <p>当前队列长度: <span id="toutiao-queue-length">0</span></p>
-                <div class="form-group" style="gap: 10px;">
-                    <button onclick="fetchToutiaoQueueStatus()">刷新队列</button>
-                    <button onclick="clearToutiaoQueue()" class="delete-button">清空队列</button>
-                    <button onclick="processToutiaoQueue()">处理队列</button>
+                <p style="margin-bottom: 8px;">当前队列长度: <span id="toutiao-queue-length">0</span></p>
+                <div class="form-group" style="gap: 8px; margin-bottom: 8px;">
+                    <button onclick="fetchToutiaoQueueStatus()" style="padding: 6px 10px; font-size: 0.85em;">刷新队列</button>
+                    <button onclick="clearToutiaoQueue()" class="delete-button" style="padding: 6px 10px; font-size: 0.85em;">清空队列</button>
+                    <button onclick="processToutiaoQueue()" style="padding: 6px 10px; font-size: 0.85em;">处理队列</button>
                 </div>
                 <h3>待处理任务</h3>
                 <ul id="toutiao-pending-tasks-list">
@@ -827,15 +890,15 @@
 
             <div class="section-box">
                 <h2>服务统计</h2>
-                <button onclick="fetchToutiaoStats()">刷新统计</button>
+                <button onclick="fetchToutiaoStats()" style="padding: 6px 10px; font-size: 0.85em; margin-bottom: 8px;">刷新统计</button>
                 <pre id="toutiao-stats-display">加载中...</pre>
             </div>
 
             <div class="section-box">
                 <h2>任务状态查询</h2>
-                <div class="form-group">
+                <div class="form-group" style="margin-bottom: 8px;">
                     <input type="text" id="toutiao-check-task-id" placeholder="输入任务ID">
-                    <button onclick="checkToutiaoTaskStatus()">查询状态</button>
+                    <button onclick="checkToutiaoTaskStatus()" style="padding: 6px 10px; font-size: 0.85em;">查询状态</button>
                 </div>
                 <h3>任务详情:</h3>
                 <pre id="toutiao-task-status-display">无任务信息</pre>
@@ -1147,16 +1210,16 @@
                                    <strong>内容:</strong> ${taskText}<br>
                                    <strong>状态:</strong> ${status}<br>
                                    <strong>时间:</strong> ${timestamp}`;
-                    li.style.cssText = 'padding: 10px; border-bottom: 1px solid var(--border); margin-bottom: 5px;';
+                    li.style.cssText = 'padding: 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px;';
                     toutiaoPendingTasksList.appendChild(li);
                 });
             } else {
-                toutiaoPendingTasksList.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--text-sub);">当前队列中没有待处理任务</li>';
+                toutiaoPendingTasksList.innerHTML = '<li style="padding: 16px; text-align: center; color: var(--text-sub);">当前队列中没有待处理任务</li>';
             }
             showStatus('头条任务队列加载成功。', 'success');
         } catch (e) {
             showStatus(`加载队列失败: ${e.message}`, 'error');
-            toutiaoPendingTasksList.innerHTML = `<li style="color: #e74c3c; padding: 20px;">加载失败: ${e.message}</li>`;
+            toutiaoPendingTasksList.innerHTML = `<li style="color: #e74c3c; padding: 16px;">加载失败: ${e.message}</li>`;
         }
     }
 
@@ -1205,14 +1268,10 @@
     // 提交新任务
     async function submitToutiaoTask() {
         const text = toutiaoSubmitText.value.trim();
-        const username = toutiaoSubmitUsername.value.trim();
+        const username = toutiaoSubmitUsername ? toutiaoSubmitUsername.value.trim() : 'admin';
 
         if (!text) {
             showStatus('请输入文章主题或内容。', 'error');
-            return;
-        }
-        if (!username) {
-            showStatus('请输入提交者用户名。', 'error');
             return;
         }
 
@@ -1303,9 +1362,9 @@
                     const idShort = taskId.substring(0, 8);
 
                     li.innerHTML = `
-                        <div style="padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; background: var(--bg);">
-                            <div style="font-weight: bold; color: var(--text); margin-bottom: 5px;">${title}</div>
-                            <div style="font-size: 0.9em; color: var(--text-sub); line-height: 1.4;">
+                        <div style="padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--bg);">
+                            <div style="font-weight: bold; color: var(--text); margin-bottom: 4px; font-size: 0.95em;">${title}</div>
+                            <div style="font-size: 0.85em; color: var(--text-sub); line-height: 1.4;">
                                 <div><strong>ID:</strong> ${idShort}...</div>
                                 <div><strong>状态:</strong> ${status}${errorMsg}</div>
                                 <div><strong>完成时间:</strong> ${completedAt}</div>
@@ -1316,12 +1375,12 @@
                     toutiaoResultsList.appendChild(li);
                 });
             } else {
-                toutiaoResultsList.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--text-sub); font-style: italic;">暂无历史发布结果</li>';
+                toutiaoResultsList.innerHTML = '<li style="padding: 16px; text-align: center; color: var(--text-sub); font-style: italic;">暂无历史发布结果</li>';
             }
             showStatus('历史发布结果加载成功。', 'success');
         } catch (e) {
             showStatus(`加载历史发布结果失败: ${e.message}`, 'error');
-            toutiaoResultsList.innerHTML = `<li style="color: #e74c3c; padding: 20px;">加载失败: ${e.message}</li>`;
+            toutiaoResultsList.innerHTML = `<li style="color: #e74c3c; padding: 16px;">加载失败: ${e.message}</li>`;
         }
     }
 
