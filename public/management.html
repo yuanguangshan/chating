@@ -1661,17 +1661,7 @@
                     const completedAt = result.completedAt ? new Date(result.completedAt).toLocaleString() : 'N/A';
                     const errorMsg = result.publishResult && result.publishResult.error ? 
                         `<div style="color: var(--error); margin-top: 4px; font-size: 0.85em;">错误: ${result.publishResult.error}</div>` : '';
-                    let articleUrl = '';
-                    if (result.publishResult && result.publishResult.data && result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
-                        articleUrl = `https://www.toutiao.com/article/${result.publishResult.data.data.pgc_id}/`;
-                    } else if (result.publishResult && result.publishResult.url) {
-                        articleUrl = result.publishResult.url;
-                    }
-                    
-                    const url = articleUrl ? 
-                        `<a href="${articleUrl}" target="_blank" style="color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; margin-top: 4px;">
-                            <span style="margin-right: 4px;">🔗</span> 查看文章
-                         </a>` : '';
+
                     
                     const taskId = result.taskId || result.id || 'unknown';
                     const idShort = taskId.substring(0, 8);
@@ -1686,7 +1676,7 @@
                         <div style="padding: 12px; ${cardStyle} border-radius: 8px; margin-bottom: 8px; transition: all 0.3s ease;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                 <div style="font-weight: bold; color: var(--text); font-size: 0.95em; flex: 1; margin-right: 8px;">
-                                    ${articleUrl ? `<a href="${articleUrl}" target="_blank" style="color: var(--text); text-decoration: none;">${title}</a>` : title}
+                                    ${title}
                                 </div>
                                 ${status}
                             </div>
@@ -1696,14 +1686,10 @@
                                     <div><strong>完成时间:</strong> ${completedAt}</div>
                                 </div>
                                 ${errorMsg}
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; gap: 8px;">
-                        ${url}
+                                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px;">
                         <button onclick="checkTaskDetails('${taskId}')" style="padding: 4px 8px; font-size: 0.8em; background: var(--bg); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px;">
                             查看详情
                         </button>
-                        ${articleUrl ? `<a href="${articleUrl}" target="_blank" style="padding: 4px 8px; font-size: 0.8em; background: var(--accent); color: white; border: 1px solid var(--accent); border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center;">
-                            查看头条
-                        </a>` : ''}
                     </div>
                             </div>
                         </div>
@@ -1759,17 +1745,7 @@
         const errorMsg = result.publishResult && result.publishResult.error ? 
             `<div style="color: var(--error); margin-top: 4px; font-size: 0.9em;">错误: ${result.publishResult.error}</div>` : '';
             
-        let articleUrl = '';
-        if (result.publishResult && result.publishResult.data && result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
-            articleUrl = `https://www.toutiao.com/article/${result.publishResult.data.data.pgc_id}/`;
-        } else if (result.publishResult && result.publishResult.url) {
-            articleUrl = result.publishResult.url;
-        }
-        
-        const url = articleUrl ? 
-            `<a href="${articleUrl}" target="_blank" style="color: white; background: var(--accent); text-decoration: none; padding: 6px 12px; border-radius: 4px; display: inline-flex; align-items: center; margin-top: 8px; box-shadow: 0 4px 10px color-mix(in srgb, var(--accent) 40%, var(--shadow)); transition: all 0.3s ease;">
-                <span style="margin-right: 4px;">🔗</span> 查看已发布文章
-             </a>` : '';
+
              
         const taskId = result.taskId || result.id || 'unknown';
         const idShort = taskId.substring(0, 8);
@@ -1783,14 +1759,10 @@
                 <div><strong>任务ID:</strong> ${idShort}...</div>
             </div>
             ${errorMsg}
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px;">
-                ${url}
+            <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 8px;">
                 <button onclick="checkTaskDetails('${taskId}')" style="padding: 6px 12px; background: var(--bg); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; font-weight: 600;">
                     查看详情
                 </button>
-                ${articleUrl ? `<a href="${articleUrl}" target="_blank" style="padding: 6px 12px; background: var(--accent); color: white; border: 1px solid var(--accent); border-radius: 4px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center;">
-                    查看头条
-                </a>` : ''}
             </div>`;
     }
 
