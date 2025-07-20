@@ -2057,6 +2057,47 @@
             const actions = document.createElement('div');
             actions.className = 'zhihu-card-actions';
             
+            const quickGenerateBtn = document.createElement('button');
+            quickGenerateBtn.textContent = '一键成文';
+            quickGenerateBtn.style.fontSize = '0.75em';
+            quickGenerateBtn.style.padding = '4px 8px';
+            quickGenerateBtn.style.background = 'var(--success)';
+            quickGenerateBtn.style.color = 'white';
+            quickGenerateBtn.onclick = async (e) => {
+                e.stopPropagation();
+                const selectedRoom = zhihuRoomSelect.value;
+                if (!selectedRoom) {
+                    updateZhihuStatus('请先选择目标房间', 'error');
+                    return;
+                }
+                
+                quickGenerateBtn.disabled = true;
+                quickGenerateBtn.textContent = '生成中...';
+                
+                try {
+                    const res = await fetch('/api/zhihu/article', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            topicInfo: (index + 1).toString(),
+                            roomName: selectedRoom
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        updateZhihuStatus(`文章生成任务已启动，请在房间"${selectedRoom}"中查看结果`, 'success');
+                    } else {
+                        updateZhihuStatus(`文章生成请求失败: ${data.message || '未知错误'}`, 'error');
+                    }
+                } catch (e) {
+                    updateZhihuStatus(`生成文章失败: ${e.message}`, 'error');
+                } finally {
+                    quickGenerateBtn.disabled = false;
+                    quickGenerateBtn.textContent = '一键成文';
+                }
+            };
+            
             const generateBtn = document.createElement('button');
             generateBtn.textContent = '选择';
             generateBtn.style.fontSize = '0.75em';
@@ -2088,6 +2129,7 @@
                 }
             };
             
+            actions.appendChild(quickGenerateBtn);
             actions.appendChild(generateBtn);
             if (topic.url) {
                 actions.appendChild(viewBtn);
