@@ -276,7 +276,7 @@ export class ZhihuHotService {
      * @param {number} inspirationLimit 返回灵感问题数量
      * @returns {Promise<Object>} 包含热点和灵感的对象
      */
-    async getCombinedTopics(hotLimit = 10, inspirationLimit = 10) {
+    async getCombinedTopics(hotLimit = 15, inspirationLimit = 15) {
         try {
             console.log('开始获取知乎综合内容数据...');
 
