@@ -199,7 +199,7 @@ export class ZhihuHotService {
      * @param {number} limit 返回话题数量
      * @returns {Promise<Array>} 精选热门话题
      */
-    async getHotTopicsForContent(limit = 10) {
+    async getHotTopicsForContent(limit = 20) {
         try {
             const topics = await this.fetchZhihuHotTopics();
             
@@ -237,7 +237,7 @@ export class ZhihuHotService {
      * @param {number} limit 返回问题数量
      * @returns {Promise<Array>} 灵感问题
      */
-    async getInspirationQuestionsForContent(limit = 10) {
+    async getInspirationQuestionsForContent(limit = 20) {
         try {
             const questions = await this.fetchZhihuInspirationQuestions();
             
