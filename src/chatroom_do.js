@@ -720,7 +720,7 @@ async handleSessionInitialization(ws, url) {
                         // ignore
                     }
                     resolve();
-                }, 1000); // 10秒延迟
+                }, 1000); // 1秒延迟
             }));
 
         } catch(e) {
