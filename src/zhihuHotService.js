@@ -130,7 +130,7 @@ export class ZhihuHotService {
         return rawData.map(item => ({
             id: item.id || Math.random().toString(36).substr(2, 9),
             title: item.title || '无标题',
-            url: `https://www.zhihu.com/question/${item.id}` || '#',
+            url: `https://www.zhihu.com/question/${item.token || item.id}` || '#',
             hot: item.follower_count || 0,
             excerpt: item.excerpt || '',
             answer_count: item.answer_count || 0,
