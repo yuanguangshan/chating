@@ -405,12 +405,12 @@ async handleZhihuHotTask(session, payload) {
                     responseText += `### ${topicNumber}. 📈 ${topic.title}\n`;
                     responseText += `**🔥 热度值**: ${hotValue} | **🏷️ 标签**: ${tags.slice(0, 3).join(', ')}\n`;
                     responseText += `**💡 创作方向**: ${excerpt.length > 80 ? excerpt.substring(0, 80) + '...' : excerpt}\n`;
-                    responseText += `[🔗 查看原文](${url}) | <button class="zhihu-generate-btn" data-topic="${encodeURIComponent(JSON.stringify(topic))}" data-title="${topic.title}" style="background: linear-gradient(45deg, #ff6b6b, #ff8e8e); color: white; border: none; padding: 4px 8px; border-radius: 12px; cursor: pointer; font-size: 12px; margin: 0 2px;">🚀 一键生成文章</button>\n\n`;
+                    responseText += `[🔗 查看原文](${url}) | <button class="zhihu-generate-btn" data-topic="${topicNumber}" data-title="${topic.title}" style="background: linear-gradient(45deg, #ff6b6b, #ff8e8e); color: white; border: none; padding: 4px 8px; border-radius: 12px; cursor: pointer; font-size: 12px; margin: 0 2px;">🚀 一键生成文章</button>\n\n`;
                 } else if (topic.type === 'inspiration') {
                     responseText += `### ${topicNumber}. 💡 ${topic.title}\n`;
                     responseText += `**🏷️ 描述标签**: ${tags.slice(0, 3).join(', ')}\n`;
                     responseText += `**🎯 内容角度**: ${excerpt.length > 80 ? excerpt.substring(0, 80) + '...' : excerpt}\n`;
-                    responseText += `[🔗 查看问题](${url}) | <button class="zhihu-generate-btn" data-topic="${encodeURIComponent(JSON.stringify(topic))}" data-title="${topic.title}" style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; border: none; padding: 4px 8px; border-radius: 12px; cursor: pointer; font-size: 12px; margin: 0 2px;">🚀 一键创作</button>\n\n`;
+                    responseText += `[🔗 查看问题](${url}) | <button class="zhihu-generate-btn" data-topic="${topicNumber}" data-title="${topic.title}" style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; border: none; padding: 4px 8px; border-radius: 12px; cursor: pointer; font-size: 12px; margin: 0 2px;">🚀 一键创作</button>\n\n`;
                 }
             });
 
