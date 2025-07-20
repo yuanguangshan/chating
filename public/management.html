@@ -2015,7 +2015,7 @@
         topics.forEach((topic, index) => {
             const card = document.createElement('div');
             card.className = 'zhihu-card';
-            card.dataset.id = `$｛index｝+1`.toString(); // 使用索引作为ID
+            card.dataset.id = (index + 1).toString(); // 使用索引作为ID
             
             // 设置类型标签
             const typeTag = document.createElement('div');
