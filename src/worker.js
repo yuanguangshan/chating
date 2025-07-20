@@ -31,6 +31,7 @@ import {
     getKimiChatAnswer
 } from './ai.js';
 import { getPrice } from './futuresDataService.js';
+import ZhihuHotService from './zhihuHotService.js';
 
 // 导出Durable Object类，以便Cloudflare平台能够识别和实例化它。
 export { HibernatingChating, ToutiaoServiceDO };
@@ -96,7 +97,7 @@ function serveManagementHtmlWithEnv(env) {
 // --- CORS (Cross-Origin Resource Sharing) Headers ---
 // 这是一个可重用的对象，用于为API响应添加正确的CORS头部，允许跨域访问。
 const corsHeaders = {
-    'Access-Control-Allow-Origin': '*.want.biz', // 生产环境建议替换为您的前端域名
+    'Access-Control-Allow-Origin': '*', // 生产环境建议替换为您的前端域名
     'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Filename',
     'Access-Control-Max-Age': '86400', // 预检请求的缓存时间
@@ -284,6 +285,85 @@ export default {
                 }
                 
                 return new Response(JSON.stringify({ description }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+            } else if (pathname === '/api/zhihu/hot') {
+                console.log(`[Worker] Handling /api/zhihu/hot request.`);
+                try {
+                    const zhihuHotService = new ZhihuHotService();
+                    const data = await zhihuHotService.getCombinedTopics();
+                    return new Response(JSON.stringify(data), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                } catch (error) {
+                    console.error('[Worker] Error fetching Zhihu hot topics:', error);
+                    return new Response(JSON.stringify({ error: error.message }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
+            } else if (pathname === '/api/zhihu/search') {
+                console.log(`[Worker] Handling /api/zhihu/search request.`);
+                if (request.method !== 'POST') {
+                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                }
+                
+                try {
+                    const { keyword } = await request.json();
+                    if (!keyword) {
+                        return new Response(JSON.stringify({ error: 'Missing keyword parameter' }), {
+                            status: 400,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                    
+                    const zhihuHotService = new ZhihuHotService();
+                    const topics = await zhihuHotService.generateRelatedTopics(keyword);
+                    
+                    return new Response(JSON.stringify({ topics }), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                } catch (error) {
+                    console.error('[Worker] Error searching Zhihu topics:', error);
+                    return new Response(JSON.stringify({ error: error.message }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
+            } else if (pathname === '/api/zhihu/article') {
+                console.log(`[Worker] Handling /api/zhihu/article request.`);
+                if (request.method !== 'POST') {
+                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                }
+                
+                try {
+                    const { topicInfo, roomName = 'test' } = await request.json();
+                    if (!topicInfo) {
+                        return new Response(JSON.stringify({ error: 'Missing topicInfo parameter' }), {
+                            status: 400,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                    
+                    // Forward the request to the DO for processing
+                    if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+                    const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+                    const stub = env.CHAT_ROOM_DO.get(doId);
+                    
+                    // Call the appropriate method on the DO
+                    ctx.waitUntil(stub.generateZhihuArticle({username: 'api_user'}, topicInfo));
+                    
+                    return new Response(JSON.stringify({ 
+                        success: true, 
+                        message: "Article generation started. Check the room for results."
+                    }), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                } catch (error) {
+                    console.error('[Worker] Error generating Zhihu article:', error);
+                    return new Response(JSON.stringify({ error: error.message }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
             }
 
             // --- 路由 2: /api/ 路由处理 ---
