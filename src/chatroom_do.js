@@ -391,27 +391,36 @@ async handleZhihuHotTask(session, payload) {
                 throw new Error('未能获取到知乎热点话题和灵感问题');
             }
 
-            // 构建回复消息
+            // 构建回复消息 - 优化格式，添加热度值、标签和一键发布按钮
             let responseText = "🔥 **知乎实时热点与灵感**\n\n";
             
             topics.forEach((topic, index) => {
-                // 根据type属性区分热点和灵感问题
+                const topicNumber = index + 1;
+                const hotValue = topic.hotValue || topic.hot || '0';
+                const excerpt = topic.excerpt || topic.description || '暂无描述';
+                const tags = topic.tags || [];
+                const url = topic.url || '#';
+                
                 if (topic.type === 'hot') {
-                    responseText += `${index + 1}. [热点] **${topic.title}**\n`;
-                    responseText += `   🔥 热度: ${topic.hotValue}\n`;
-                    responseText += `   💡 创作提示: ${topic.excerpt ? topic.excerpt.substring(0, 50) + '...' : '暂无描述'}\n`;
-                    responseText += `   📝 标签: ${topic.tags.join(', ')}\n\n`;
+                    responseText += `### ${topicNumber}. 📈 ${topic.title}\n`;
+                    responseText += `**🔥 热度值**: ${hotValue} | **🏷️ 标签**: ${tags.slice(0, 3).join(', ')}\n`;
+                    responseText += `**💡 创作方向**: ${excerpt.length > 80 ? excerpt.substring(0, 80) + '...' : excerpt}\n`;
+                    responseText += `[🔗 查看原文](${url}) | <button class="zhihu-generate-btn" data-topic="${encodeURIComponent(JSON.stringify(topic))}" data-title="${topic.title}" style="background: linear-gradient(45deg, #ff6b6b, #ff8e8e); color: white; border: none; padding: 4px 8px; border-radius: 12px; cursor: pointer; font-size: 12px; margin: 0 2px;">🚀 一键生成文章</button>\n\n`;
                 } else if (topic.type === 'inspiration') {
-                    responseText += `${index + 1}. [灵感] **${topic.title}**\n`;
-                    responseText += `   💡 描述: ${topic.excerpt ? topic.excerpt.substring(0, 50) + '...' : '暂无描述'}\n`;
-                    responseText += `   📝 标签: ${topic.tags.join(', ')}\n\n`;
+                    responseText += `### ${topicNumber}. 💡 ${topic.title}\n`;
+                    responseText += `**🏷️ 描述标签**: ${tags.slice(0, 3).join(', ')}\n`;
+                    responseText += `**🎯 内容角度**: ${excerpt.length > 80 ? excerpt.substring(0, 80) + '...' : excerpt}\n`;
+                    responseText += `[🔗 查看问题](${url}) | <button class="zhihu-generate-btn" data-topic="${encodeURIComponent(JSON.stringify(topic))}" data-title="${topic.title}" style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; border: none; padding: 4px 8px; border-radius: 12px; cursor: pointer; font-size: 12px; margin: 0 2px;">🚀 一键创作</button>\n\n`;
                 }
             });
 
-            responseText += "💡 **使用说明**:\n";
-            responseText += "- 发送 `/知乎文章 1` 可基于第1个话题生成完整文章\n";
-            responseText += "- 发送 `/知乎话题 [关键词]` 可搜索相关话题\n";
-            responseText += "- 点击话题标题可查看原知乎问题";
+            responseText += "---\n";
+            responseText += "### 🎮 快速操作指南\n";
+            responseText += "- **一键发布**: 点击话题后的 `🚀 一键生成文章` 即可立即生成内容\n";
+            responseText += "- **精确搜索**: 发送 `/知乎话题 [关键词]` 搜索特定领域话题\n";
+            responseText += "- **手动生成**: 发送 `/知乎文章 [序号]` 基于指定话题生成文章\n";
+            responseText += "- **热度解读**: 🔥 数值越高表示话题越热门，建议优先选择\n\n";
+            responseText += "💡 **小贴士**: 建议优先选择热度值 >1000 的话题，更容易获得流量！";
 
             // 更新聊天室消息为最终状态
             const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);

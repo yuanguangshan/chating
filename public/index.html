@@ -3693,6 +3693,65 @@ let currentTouchMsgEl = null;
         }
     }
 
+// 处理知乎热点消息中的一键发布按钮点击事件
+document.addEventListener('click', async function(event) {
+            if (event.target.classList.contains('zhihu-generate-btn')) {
+                event.preventDefault();
+                
+                const button = event.target;
+                const topicInfo = button.dataset.topic;
+                const topicTitle = button.dataset.title || '知乎话题';
+                
+                if (!topicInfo) {
+                    showAppNotification('无效的话题信息', 3000, true);
+                    return;
+                }
+
+                // 获取当前房间名
+                const currentRoom = window.location.pathname.split('/').find(p => p.trim()) || 'future';
+
+                // 禁用按钮并显示加载状态
+                button.disabled = true;
+                button.textContent = '⏳ 生成中...';
+                
+                try {
+                    const domain = window.location.origin;
+                    const res = await fetch(`${domain}/api/zhihu/article`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            topicInfo: topicInfo,
+                            roomName: currentRoom
+                        })
+                    });
+            
+            if (!res.ok) throw new Error(await res.text());
+            
+            const data = await res.json();
+            if (data.success) {
+                showAppNotification(`✅ 正在生成文章《${topicTitle}》，请稍后在聊天室查看`, 4000);
+                button.textContent = '✅ 已发送';
+                
+                // 2秒后恢复按钮状态
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.textContent = '🚀 一键生成文章';
+                }, 2000);
+            } else {
+                throw new Error(data.message || '生成失败');
+            }
+            
+        } catch (error) {
+            console.error('一键发布失败:', error);
+            showAppNotification(`❌ 生成失败: ${error.message}`, 4000, true);
+            
+            // 恢复按钮状态
+            button.disabled = false;
+            button.textContent = '🚀 一键生成文章';
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', initializeChat);
 
 
