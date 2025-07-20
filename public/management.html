@@ -1385,8 +1385,8 @@
             }
             
             if (articleUrl) {
-                // 直接在新标签页打开头条文章
-                window.open(articleUrl, '_blank');
+                // 直接在当前页面打开头条文章
+                window.open(articleUrl, '_self');
                 showStatus('正在打开头条文章...', 'success');
             } else {
                 // 如果没有文章链接，回退到显示任务详情
