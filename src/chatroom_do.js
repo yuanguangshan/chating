@@ -15,6 +15,8 @@ const MSG_TYPE_WELCOME = 'welcome';
 const MSG_TYPE_USER_JOIN = 'user_join';
 const MSG_TYPE_USER_LEAVE = 'user_leave';
 const MSG_TYPE_DEBUG_LOG = 'debug_log';
+const MESSAGE_ARCHIVE_THRESHOLD = 200; // 消息归档阈值
+const R2_ARCHIVE_PREFIX = 'archive/'; // R2 归档前缀
 const MSG_TYPE_HEARTBEAT = 'heartbeat';
 const MSG_TYPE_OFFER = 'offer';
 const MSG_TYPE_ANSWER = 'answer';
@@ -909,9 +911,14 @@ async handleSessionInitialization(ws, url) {
     };
         
     // 消息历史API处理器 (支持分页)
-    async handleMessageHistory(request, url) {
+        async handleMessageHistory(request, url) {
         if (this.allowedUsers === undefined) {
             return new Response('房间未找到或未激活', { status: 404 });
+        }
+
+        // 检查是否需要从R2恢复
+        if (url.searchParams.get('restore') === 'true') {
+            await this.restoreMessages();
         }
 
         await this.loadMessages();
@@ -1649,12 +1656,69 @@ async handleDeleteMessageRequest(session, payload) {
     }
 }
 
-    async addAndBroadcastMessage(message) {
+        async addAndBroadcastMessage(message) {
         this.messages.push(message);
-        if (this.messages.length > 500) this.messages.shift();
-        
-        await this.saveMessages();
+
+        // 检查是否需要归档
+        if (this.messages.length >= MESSAGE_ARCHIVE_THRESHOLD) {
+            this.ctx.waitUntil(this.archiveMessages());
+        } else {
+             if (this.messages.length > 500) this.messages.shift();
+            await this.saveMessages();
+        }
+
         this.broadcast({ type: MSG_TYPE_CHAT, payload: message });
+    }
+
+    async archiveMessages() {
+        this.debugLog(`🗄️ 消息达到 ${this.messages.length} 条，开始归档...`, 'INFO');
+        
+        // 复制当前消息用于归档，以防在异步操作期间被修改
+        const messagesToArchive = [...this.messages];
+
+        try {
+            const archiveKey = `${R2_ARCHIVE_PREFIX}messages_${new Date().toISOString()}_${crypto.randomUUID()}.json`;
+            
+            // 将消息写入 R2
+            await this.env.R2_BUCKET.put(archiveKey, JSON.stringify(messagesToArchive));
+            this.debugLog(`✅ 成功将 ${messagesToArchive.length} 条消息归档到 R2: ${archiveKey}`, 'INFO');
+            
+            // 清空内存中的消息列表
+            this.messages = [];
+            
+            // 将空的消息列表保存到持久存储
+            await this.saveMessages();
+            this.debugLog(`🗑️ 内存和持久存储中的消息已清空`, 'INFO');
+
+        } catch (error) {
+            this.debugLog(`❌ 归档消息失败: ${error.message}`, 'ERROR', error);
+            // 如果归档失败，我们不应清空消息，以防数据丢失
+        }
+    }
+
+    // 从R2恢复历史记录
+    async restoreMessages() {
+        this.debugLog('🔄 开始从 R2 恢复历史记录...', 'INFO');
+        try {
+            const listed = await this.env.R2_BUCKET.list({ prefix: R2_ARCHIVE_PREFIX, limit: 1, order: 'desc' });
+            if (listed.objects.length > 0) {
+                const latestArchive = listed.objects[0];
+                this.debugLog(`找到了最新的归档: ${latestArchive.key}`, 'INFO');
+                const object = await this.env.R2_BUCKET.get(latestArchive.key);
+                if (object === null) {
+                    this.debugLog(`❌ 无法获取对象: ${latestArchive.key}`, 'ERROR');
+                    return;
+                }
+                const restoredMessages = await object.json();
+                this.messages = restoredMessages;
+                await this.saveMessages();
+                this.debugLog(`✅ 已成功从 ${latestArchive.key} 恢复 ${restoredMessages.length} 条消息`, 'INFO');
+            } else {
+                this.debugLog('🤷 在R2中未找到归档文件', 'WARN');
+            }
+        } catch (error) {
+            this.debugLog(`❌ 从 R2 恢复失败: ${error.message}`, 'ERROR', error);
+        }
     }
 
     // 统一的会话清理函数
