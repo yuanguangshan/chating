@@ -5,10 +5,9 @@
 
 import { getGeminiChatAnswer } from './ai.js';
 
-// 头条服务配置
-const TOUTIAO_CONFIG = {
-    MAX_TITLE_LENGTH: 30,
-    DEFAULT_PROMPT_TEMPLATE: `你是一位专业的"头条"平台内容创作者。请根据以下用户的原始请求，生成一篇吸引人的、结构清晰的头条风格文章。
+// 头条文章模板配置
+const TOUTIAO_TEMPLATES = {
+    DEFAULT: `你是一位专业的"头条"平台内容创作者。请根据以下用户的原始请求，生成一篇吸引人的、结构清晰的头条风格文章。
 
 要求：
 1. 文章开头必须用 # 标记标题（例如：# 这是标题），标题不超过30个字
@@ -18,6 +17,51 @@ const TOUTIAO_CONFIG = {
 5. 文章长度适中，450-900字左右
 
 用户请求：{userInput}`,
+
+    STORY: `你是一位擅长讲述故事的"头条"平台创作者。请根据以下用户的原始请求，创作一篇引人入胜的叙事性文章，以故事形式展现主题。
+
+要求：
+1. 文章开头必须用 # 标记标题（例如：# 这是标题），标题不超过30个字，富有故事感
+2. 标题后空一行开始正文
+3. 采用叙事手法，可以虚构人物、情节和对话，但主题要紧扣用户请求
+4. 故事应有起承转合，包含冲突和解决方案
+5. 语言生动形象，富有画面感和情感共鸣
+6. 文章长度适中，450-900字左右
+
+用户请求：{userInput}`,
+
+    SCIENCE: `你是一位专业的科普"头条"平台创作者。请根据以下用户的原始请求，创作一篇科学严谨且通俗易懂的科普文章。
+
+要求：
+1. 文章开头必须用 # 标记标题（例如：# 这是标题），标题不超过30个字，要体现科普特点
+2. 标题后空一行开始正文
+3. 内容应基于科学事实和研究，避免伪科学
+4. 用通俗易懂的语言解释复杂概念，可适当使用比喻和类比
+5. 结构清晰，可分为背景介绍、核心知识点解析、实际应用等部分
+6. 在保持科学准确性的同时保持趣味性
+7. 文章长度适中，450-900字左右
+
+用户请求：{userInput}`,
+
+    ZHIHU: `你是一位深度思考型"头条"平台创作者，风格类似知乎高质量回答。请根据以下用户的原始请求，创作一篇有理有据、见解独到的深度分析文章。
+
+要求：
+1. 文章开头必须用 # 标记标题（例如：# 这是标题），标题不超过30个字，要有思考深度
+2. 标题后空一行开始正文
+3. 结合理性分析和个人洞见，提供多角度思考
+4. 论证充分，观点明确，可引用相关数据、案例或专业知识
+5. 语言风格理性客观，但不失个人特色
+6. 可适当提出问题引发读者思考
+7. 结尾应有总结或启发性观点
+8. 文章长度适中，450-900字左右
+
+用户请求：{userInput}`
+};
+
+// 头条服务配置
+const TOUTIAO_CONFIG = {
+    MAX_TITLE_LENGTH: 30,
+    DEFAULT_PROMPT_TEMPLATE: TOUTIAO_TEMPLATES.DEFAULT,
     PROCESSING_TIMEOUT: 300000, // 5分钟超时
     RETRY_ATTEMPTS: 3
 };
@@ -87,7 +131,7 @@ export class AIContentProcessor {
         }
 
         // 清理标题
-        title = title.replace(/^["'“”]/, '').replace(/["'“”]$/, '').trim();
+        title = title.replace(/^["'""]/, '').replace(/["'""]$/, '').trim();
         if (title.length === 0) {
             title = '思考感悟';
         }
@@ -208,6 +252,63 @@ export class ToutiaoTaskProcessor {
     }
 
     /**
+     * 根据用户输入内容自动判断适合的文章风格
+     * @param {string} userInput - 用户输入文本
+     * @returns {string} - 选择的提示词模板
+     */
+    determinePromptTemplate(userInput) {
+        // 故事型特征词
+        const storyKeywords = ['故事', '讲述', '经历', '回忆', '发生', '那一天', '曾经', '情节', 
+                              '童话', '小说', '传说', '神话', '人物', '剧情'];
+        
+        // 科普型特征词
+        const scienceKeywords = ['科学', '原理', '研究', '发现', '技术', '为什么', '怎么回事', 
+                                '分析', '解释', '介绍', '科普', '知识', '学习', '探索'];
+        
+        // 知乎型特征词
+        const zhihuKeywords = ['思考', '观点', '看法', '认为', '分析', '辩论', '争议', '角度', 
+                              '深度', '本质', '价值', '意义', '反思', '批判', '评价'];
+        
+        // 计数各类型关键词出现次数
+        let storyCount = 0;
+        let scienceCount = 0;
+        let zhihuCount = 0;
+        
+        // 检查用户输入中的关键词
+        storyKeywords.forEach(keyword => {
+            if (userInput.includes(keyword)) storyCount++;
+        });
+        
+        scienceKeywords.forEach(keyword => {
+            if (userInput.includes(keyword)) scienceCount++;
+        });
+        
+        zhihuKeywords.forEach(keyword => {
+            if (userInput.includes(keyword)) zhihuCount++;
+        });
+        
+        // 检查输入长度和复杂度
+        const inputLength = userInput.length;
+        const containsQuestion = userInput.includes('?') || userInput.includes('？');
+        
+        // 判断最适合的类型
+        if (storyCount > scienceCount && storyCount > zhihuCount) {
+            this.logger.log(`📖 检测到故事型内容，使用故事模板`);
+            return TOUTIAO_TEMPLATES.STORY;
+        } else if (scienceCount > storyCount && scienceCount > zhihuCount) {
+            this.logger.log(`🔬 检测到科普型内容，使用科普模板`);
+            return TOUTIAO_TEMPLATES.SCIENCE;
+        } else if (zhihuCount > storyCount && zhihuCount > scienceCount || 
+                  (inputLength > 50 && containsQuestion)) {
+            this.logger.log(`🤔 检测到知乎型内容，使用知乎风格模板`);
+            return TOUTIAO_TEMPLATES.ZHIHU;
+        } else {
+            this.logger.log(`📝 使用默认通用模板`);
+            return TOUTIAO_TEMPLATES.DEFAULT;
+        }
+    }
+
+    /**
      * 处理头条任务
      * @param {Object} task - 任务信息
      * @param {string} task.text - 用户输入文本
@@ -223,22 +324,25 @@ export class ToutiaoTaskProcessor {
         try {
             this.logger.log(`📰 开始处理头条任务 [${id}]`, { username, text });
 
-            // 1. 生成AI内容
-            const prompt = TOUTIAO_CONFIG.DEFAULT_PROMPT_TEMPLATE.replace('{userInput}', text);
+            // 1. 自动判断适合的风格
+            const promptTemplate = this.determinePromptTemplate(text);
+            
+            // 2. 生成AI内容
+            const prompt = promptTemplate.replace('{userInput}', text);
             const generatedText = await getGeminiChatAnswer(prompt, [], this.env);
             
             this.logger.log(`🤖 AI原始返回内容: ${generatedText ? generatedText.substring(0, 200) + '...' : '空内容'}`);
 
-            // 2. 处理内容
+            // 3. 处理内容
             const { title, content, summary } = this.contentProcessor.processAIText(generatedText);
 
-            // 3. 验证标题
+            // 4. 验证标题
             const titleValidation = this.contentProcessor.validateTitle(title);
             if (!titleValidation.valid) {
                 throw new Error(`标题验证失败: ${titleValidation.reason}`);
             }
 
-            // 4. 发布到头条
+            // 5. 发布到头条
             const publishResult = await this.publisher.publish(title, content, options);
 
             const processingTime = Date.now() - startTime;
@@ -251,7 +355,10 @@ export class ToutiaoTaskProcessor {
                 summary,
                 publishResult,
                 processingTime,
-                username
+                username,
+                templateUsed: promptTemplate === TOUTIAO_TEMPLATES.DEFAULT ? 'default' :
+                             promptTemplate === TOUTIAO_TEMPLATES.STORY ? 'story' :
+                             promptTemplate === TOUTIAO_TEMPLATES.SCIENCE ? 'science' : 'zhihu'
             };
 
         } catch (error) {
