@@ -1913,7 +1913,7 @@
         
         try {
             const domain = `https://${apiDomain}`;
-            const res = await fetch(`${domain}/api/zhihu/hot?limit=50`);
+            const res = await fetch(`${domain}/api/zhihu/combined?hot_limit=15&inspiration_limit=15`);
             if (!res.ok) throw new Error(await res.text());
             
             const data = await res.json();
@@ -2057,13 +2057,58 @@
             const actions = document.createElement('div');
             actions.className = 'zhihu-card-actions';
             
+            const quickGenerateBtn = document.createElement('button');
+            quickGenerateBtn.textContent = '一键成文';
+            quickGenerateBtn.style.fontSize = '0.75em';
+            quickGenerateBtn.style.padding = '4px 8px';
+            quickGenerateBtn.style.background = 'var(--success)';
+            quickGenerateBtn.style.color = 'white';
+            quickGenerateBtn.onclick = async (e) => {
+                e.stopPropagation();
+                const selectedRoom = zhihuRoomSelect.value;
+                if (!selectedRoom) {
+                    updateZhihuStatus('请先选择目标房间', 'error');
+                    return;
+                }
+                
+                quickGenerateBtn.disabled = true;
+                quickGenerateBtn.textContent = '生成中...';
+                
+                try {
+                    const res = await fetch('/api/zhihu/article', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            topicInfo: (index + 1).toString(),
+                            roomName: selectedRoom
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        updateZhihuStatus(`文章生成任务已启动，请在房间"${selectedRoom}"中查看结果`, 'success');
+                    } else {
+                        updateZhihuStatus(`文章生成请求失败: ${data.message || '未知错误'}`, 'error');
+                    }
+                } catch (e) {
+                    updateZhihuStatus(`生成文章失败: ${e.message}`, 'error');
+                } finally {
+                    quickGenerateBtn.disabled = false;
+                    quickGenerateBtn.textContent = '一键成文';
+                }
+            };
+            
             const generateBtn = document.createElement('button');
             generateBtn.textContent = '选择';
             generateBtn.style.fontSize = '0.75em';
             generateBtn.style.padding = '4px 8px';
             generateBtn.onclick = (e) => {
                 e.stopPropagation();
-                document.querySelectorAll('.zhihu-card').forEach(c => c.classList.remove('selected'));
+                document.querySelectorAll('.zhihu-card').forEach(c => {
+                    c.classList.remove('selected');
+                    c.style.borderColor = 'var(--border)';
+                    c.style.boxShadow = '0 2px 8px var(--shadow)';
+                });
                 card.classList.add('selected');
                 card.style.borderColor = 'var(--success)';
                 card.style.boxShadow = '0 4px 15px color-mix(in srgb, var(--success) 20%, var(--shadow))';
@@ -2084,6 +2129,7 @@
                 }
             };
             
+            actions.appendChild(quickGenerateBtn);
             actions.appendChild(generateBtn);
             if (topic.url) {
                 actions.appendChild(viewBtn);
@@ -2098,7 +2144,11 @@
             
             // 添加卡片点击效果
             card.addEventListener('click', () => {
-                document.querySelectorAll('.zhihu-card').forEach(c => c.classList.remove('selected'));
+                document.querySelectorAll('.zhihu-card').forEach(c => {
+                    c.classList.remove('selected');
+                    c.style.borderColor = 'var(--border)';
+                    c.style.boxShadow = '0 2px 8px var(--shadow)';
+                });
                 card.classList.add('selected');
                 card.style.borderColor = 'var(--success)';
                 card.style.boxShadow = '0 4px 15px color-mix(in srgb, var(--success) 20%, var(--shadow))';

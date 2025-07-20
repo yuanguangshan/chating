@@ -4,9 +4,9 @@
  */
 
 export class ZhihuHotService {
-    constructor() {
-        this.apiUrl = 'https://newsnow.want.biz/api/s';
-        this.inspirationApiUrl = 'https://www.zhihu.com/api/v4/creators/recommend/list';
+    constructor(env = null) {
+        // 使用后端API地址，支持环境变量注入
+        this.apiBaseUrl = env?.YOUR_FLASK_PROXY_API_URL_ZHIHU || 'https://api.yuangs.cc/api/zhihu';
         this.cacheKey = 'zhihu_hot_cache';
         this.inspirationCacheKey = 'zhihu_inspiration_cache';
         this.cacheDuration = 5 * 60 * 1000; // 5分钟缓存
@@ -31,11 +31,10 @@ export class ZhihuHotService {
                 return this.cache.hotTopics.data;
             }
             
-            const response = await fetch(`${this.apiUrl}?id=zhihu`, {
+            const response = await fetch(`${this.apiBaseUrl}/hot?limit=20`, {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    'Content-Type': 'application/json'
                 }
             });
 
@@ -46,18 +45,17 @@ export class ZhihuHotService {
             const data = await response.json();
             console.log('知乎热点API响应:', data);
 
-            if (!data || !data.items) {
+            if (!data || !data.data) {
                 throw new Error('知乎热点API返回数据格式异常');
             }
 
-            // 处理数据格式
-            const topics = this.processZhihuData(data.items);
-            console.log(`成功获取 ${topics.length} 个知乎热点话题`);
+            const processedData = this.processZhihuData(data.data);
+            console.log(`成功获取 ${processedData.length} 个知乎热点话题`);
             
             // 更新缓存
-            this.cache.hotTopics = { timestamp: now, data: topics };
+            this.cache.hotTopics = { timestamp: now, data: processedData };
 
-            return topics;
+            return processedData;
         } catch (error) {
             console.error('获取知乎热点失败:', error.message);
             throw new Error(`获取知乎热点失败: ${error.message}`);
@@ -70,7 +68,7 @@ export class ZhihuHotService {
      * @param {number} current 当前页码
      * @returns {Promise<Array>} 灵感问题数组
      */
-    async fetchZhihuInspirationQuestions(pageSize = 100, current = 1) {
+    async fetchZhihuInspirationQuestions() {
         try {
             console.log('开始获取知乎灵感问题数据...');
             
@@ -81,13 +79,10 @@ export class ZhihuHotService {
                 return this.cache.inspirationQuestions.data;
             }
             
-            const response = await fetch(`${this.inspirationApiUrl}?pageSize=${pageSize}&current=${current}`, {
+            const response = await fetch(`${this.apiBaseUrl}/inspiration?limit=50`, {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'ZhihuHybrid Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Accept-Language': 'zh-CN,zh-Hans;q=0.9'
+                    'Content-Type': 'application/json'
                 }
             });
 
@@ -98,13 +93,12 @@ export class ZhihuHotService {
             const data = await response.json();
             console.log('知乎灵感问题API响应:', data);
 
-            // 根据实际API响应结构调整
-            if (!data || !data.question_data) {
+            if (!data || !data.data) {
                 throw new Error('知乎灵感问题API返回数据格式异常');
             }
 
             // 处理灵感问题数据
-            const questions = this.processInspirationData(data.question_data);
+            const questions = data.data;
             console.log(`成功获取 ${questions.length} 个知乎灵感问题`);
             
             // 更新缓存
@@ -130,7 +124,7 @@ export class ZhihuHotService {
         return rawData.map(item => ({
             id: item.id || Math.random().toString(36).substr(2, 9),
             title: item.title || '无标题',
-            url: `https://www.zhihu.com/question/${item.id}` || '#',
+            url: `https://www.zhihu.com/question/${item.token || item.id}` || '#',
             hot: item.follower_count || 0,
             excerpt: item.excerpt || '',
             answer_count: item.answer_count || 0,
@@ -280,16 +274,42 @@ export class ZhihuHotService {
         try {
             console.log('开始获取知乎综合内容数据...');
 
-            // 并行获取热点话题和灵感问题
-            const [hotTopics, inspirationQuestions] = await Promise.all([
-                this.getHotTopicsForContent(hotLimit),
-                this.getInspirationQuestionsForContent(inspirationLimit)
-            ]);
+            // 直接调用后端的组合API
+            const response = await fetch(`${this.apiBaseUrl}/combined?hot_limit=${hotLimit}&inspiration_limit=${inspirationLimit}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`知乎综合内容API请求失败，状态码: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (!data || !data.hotTopics || !data.inspirationQuestions) {
+                throw new Error('知乎综合内容API返回数据格式异常');
+            }
+            
+            // 在前端处理提示词和标签
+            const processedHotTopics = data.hotTopics.map(topic => ({
+                ...topic,
+                hotValue: topic.hot,
+                contentPrompt: this.generateContentPrompt(topic),
+                tags: this.extractTags(topic)
+            }));
+            
+            const processedInspirationQuestions = data.inspirationQuestions.map(question => ({
+                ...question,
+                hotValue: question.hot,
+                contentPrompt: this.generateInspirationPrompt(question)
+            }));
             
             return {
-                hotTopics: hotTopics,
-                inspirationQuestions: inspirationQuestions,
-                timestamp: new Date().toISOString()
+                hotTopics: processedHotTopics,
+                inspirationQuestions: processedInspirationQuestions,
+                timestamp: data.timestamp
             };
         } catch (error) {
             console.error('获取知乎综合内容失败:', error);
