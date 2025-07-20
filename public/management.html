@@ -684,58 +684,60 @@
         border: 1px solid var(--warning);
     }
 
-    /* ====== 知乎热点管理特定样式 ====== */
+    /* ====== 知乎热点管理特定样式 (优化后) ====== */
     .zhihu-section {
       background: var(--bg-panel);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
       box-shadow: 0 4px 20px var(--shadow);
     }
-    
+
     .zhihu-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
-      margin-top: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 8px;
     }
-    
+
     .zhihu-card {
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 10px;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 0;
       transition: all 0.3s ease;
       position: relative;
-      box-shadow: 0 2px 10px var(--shadow);
+      box-shadow: 0 2px 8px var(--shadow);
+      font-size: 0.9em;
     }
-    
+
     .zhihu-card:hover {
       transform: translateY(-3px);
-      box-shadow: 0 8px 15px var(--shadow);
+      box-shadow: 0 6px 12px var(--shadow);
       border-color: var(--accent);
     }
-    
+
     .zhihu-card h3 {
-      margin: 0 0 8px;
+      margin: 0 0 6px;
       color: var(--text);
-      font-size: 1.1em;
+      font-size: 0.95em;
       font-weight: 600;
       padding-right: 30px; /* 为类型标签留出空间 */
+      line-height: 1.3;
     }
-    
+
     .zhihu-card-tag {
       display: inline-block;
       background: color-mix(in srgb, var(--accent) 15%, transparent);
       color: var(--accent);
-      font-size: 0.75em;
-      padding: 2px 6px;
-      border-radius: 4px;
+      font-size: 0.7em;
+      padding: 1px 4px;
+      border-radius: 3px;
       font-weight: 600;
-      margin-right: 6px;
-      margin-bottom: 8px;
+      margin-right: 4px;
+      margin-bottom: 6px;
     }
 
     .zhihu-card-tag.hot {
@@ -749,35 +751,37 @@
     }
 
     .zhihu-card-description {
-      font-size: 0.85em;
+      font-size: 0.8em;
       color: var(--text-sub);
-      margin-bottom: 10px;
-      max-height: 60px;
+      margin-bottom: 8px;
+      max-height: 50px;
       overflow: hidden;
       text-overflow: ellipsis;
       display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
+      line-height: 1.3;
     }
 
     .zhihu-card-actions {
       display: flex;
       justify-content: space-between;
-      margin-top: 12px;
+      margin-top: 8px;
     }
 
     .zhihu-card-actions button {
-      padding: 5px 10px;
-      font-size: 0.8em;
+      padding: 4px 8px;
+      font-size: 0.75em;
+      border-radius: 6px;
     }
 
     .zhihu-card-type {
       position: absolute;
-      top: 12px;
-      right: 12px;
-      font-size: 0.75em;
-      padding: 2px 6px;
-      border-radius: 4px;
+      top: 8px;
+      right: 8px;
+      font-size: 0.7em;
+      padding: 1px 4px;
+      border-radius: 3px;
       font-weight: 600;
     }
 
@@ -1147,36 +1151,37 @@
         </div>
     </div>
 
-    <!-- 知乎热点管理 Tab 内容 (新增) -->
+    <!-- 知乎热点管理 Tab 内容 (优化后) -->
     <div id="zhihu-hot-management" class="tab-content">
-        <div class="zhihu-section">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>知乎热点管理</h2>
+        <div class="zhihu-section" style="padding: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h2 style="margin: 0; font-size: 1.1em;">知乎热点管理</h2>
                 <button onclick="fetchZhihuHotTopics()" class="refresh-button" style="padding: 6px 10px; font-size: 0.8em;">
                     <span style="display: inline-block; margin-right: 4px;">🔄</span> 刷新热点
                 </button>
             </div>
             
-            <div class="form-group">
-                <input type="text" id="zhihu-topic-input" placeholder="输入关键词搜索相关话题">
-                <button id="zhihu-search-btn" onclick="searchZhihuTopics()">搜索话题</button>
+            <div class="form-group" style="margin-bottom: 8px;">
+                <input type="text" id="zhihu-topic-input" placeholder="输入关键词搜索相关话题" style="font-size: 0.9em; padding: 8px 12px;">
+                <button id="zhihu-search-btn" onclick="searchZhihuTopics()" style="padding: 8px 12px; font-size: 0.85em;">搜索话题</button>
             </div>
             
-            <div class="form-group">
-                <select id="zhihu-room-select" style="padding: 12px 16px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text);">
+            <div class="form-group" style="margin-bottom: 10px;">
+                <select id="zhihu-room-select" style="padding: 8px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); font-size: 0.9em;">
                     <option value="test">test</option>
                     <option value="general">general</option>
                     <option value="future">future</option>
                 </select>
-                <button id="zhihu-generate-btn" onclick="generateArticleFromTopic()" class="submit-button">生成文章到选定房间</button>
+                <button id="zhihu-generate-btn" onclick="generateArticleFromTopic()" class="submit-button" style="padding: 8px 12px; font-size: 0.85em;">生成文章到选定房间</button>
             </div>
             
-            <div id="zhihu-status" class="status-info" style="margin: 10px 0;"></div>
-            
-            <div id="zhihu-topics-container" class="zhihu-grid">
-                <div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 150px;">
-                    <span style="color: var(--text-sub); font-style: italic;">加载中，请稍候...</span>
-                </div>
+            <div id="zhihu-status" class="status-info" style="margin: 8px 0; font-size: 0.85em; padding: 8px 10px;"></div>
+        </div>
+        
+        <!-- 优化后的话题网格布局 -->
+        <div id="zhihu-topics-container" class="zhihu-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 8px;">
+            <div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 120px;">
+                <span style="color: var(--text-sub); font-style: italic; font-size: 0.85em;">加载中，请稍候...</span>
             </div>
         </div>
     </div>
@@ -1900,7 +1905,7 @@
     // 知乎热点管理功能
     async function fetchZhihuHotTopics() {
         updateZhihuStatus('正在获取知乎热点话题...', 'info');
-        zhihuTopicsContainer.innerHTML = '<div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 150px;"><span style="color: var(--text-sub); font-style: italic;">加载中，请稍候...</span></div>';
+        zhihuTopicsContainer.innerHTML = '<div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 120px;"><span style="color: var(--text-sub); font-style: italic; font-size: 0.85em;">加载中，请稍候...</span></div>';
         
         try {
             const domain = `https://${apiDomain}`;
@@ -1931,7 +1936,7 @@
         }
         
         updateZhihuStatus(`正在搜索关键词"${keyword}"相关话题...`, 'info');
-        zhihuTopicsContainer.innerHTML = '<div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 150px;"><span style="color: var(--text-sub); font-style: italic;">搜索中，请稍候...</span></div>';
+        zhihuTopicsContainer.innerHTML = '<div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 120px;"><span style="color: var(--text-sub); font-style: italic; font-size: 0.85em;">搜索中，请稍候...</span></div>';
         
         try {
             const domain = `https://${apiDomain}`;
@@ -2003,19 +2008,19 @@
         }
     }
     
-    // 渲染知乎话题列表
+    // 渲染知乎话题列表 (优化后)
     function renderZhihuTopics(topics) {
         zhihuTopicsContainer.innerHTML = '';
         
         if (!topics || topics.length === 0) {
-            zhihuTopicsContainer.innerHTML = '<div class="zhihu-card" style="text-align: center;"><p>暂无话题数据</p></div>';
+            zhihuTopicsContainer.innerHTML = '<div class="zhihu-card" style="text-align: center;"><p style="font-size: 0.85em;">暂无话题数据</p></div>';
             return;
         }
         
         topics.forEach((topic, index) => {
             const card = document.createElement('div');
             card.className = 'zhihu-card';
-            card.dataset.id = (index + 1).toString(); // 使用索引作为ID
+            card.dataset.id = index.toString(); // 使用索引作为ID
             
             // 设置类型标签
             const typeTag = document.createElement('div');
@@ -2028,7 +2033,7 @@
             
             // 设置标签
             const tagsContainer = document.createElement('div');
-            tagsContainer.style.marginBottom = '8px';
+            tagsContainer.style.marginBottom = '6px';
             
             if (topic.tags && topic.tags.length > 0) {
                 topic.tags.slice(0, 3).forEach(tag => {
@@ -2049,21 +2054,25 @@
             actions.className = 'zhihu-card-actions';
             
             const generateBtn = document.createElement('button');
-            generateBtn.textContent = '选择话题';
+            generateBtn.textContent = '选择';
+            generateBtn.style.fontSize = '0.75em';
+            generateBtn.style.padding = '4px 8px';
             generateBtn.onclick = (e) => {
                 e.stopPropagation();
                 document.querySelectorAll('.zhihu-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
                 card.style.borderColor = 'var(--success)';
-                card.style.boxShadow = '0 8px 20px color-mix(in srgb, var(--success) 20%, var(--shadow))';
-                updateZhihuStatus(`已选择话题: ${topic.title}`, 'success');
+                card.style.boxShadow = '0 4px 15px color-mix(in srgb, var(--success) 20%, var(--shadow))';
+                updateZhihuStatus(`已选择: ${topic.title}`, 'success');
             };
             
             const viewBtn = document.createElement('button');
-            viewBtn.textContent = '查看原文';
+            viewBtn.textContent = '原文';
             viewBtn.style.background = 'var(--bg)';
             viewBtn.style.color = 'var(--text)';
             viewBtn.style.border = '1px solid var(--border)';
+            viewBtn.style.fontSize = '0.75em';
+            viewBtn.style.padding = '4px 8px';
             viewBtn.onclick = (e) => {
                 e.stopPropagation();
                 if (topic.url) {
@@ -2088,8 +2097,8 @@
                 document.querySelectorAll('.zhihu-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
                 card.style.borderColor = 'var(--success)';
-                card.style.boxShadow = '0 8px 20px color-mix(in srgb, var(--success) 20%, var(--shadow))';
-                updateZhihuStatus(`已选择话题: ${topic.title}`, 'success');
+                card.style.boxShadow = '0 4px 15px color-mix(in srgb, var(--success) 20%, var(--shadow))';
+                updateZhihuStatus(`已选择: ${topic.title}`, 'success');
             });
             
             zhihuTopicsContainer.appendChild(card);
