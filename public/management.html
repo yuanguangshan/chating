@@ -2063,7 +2063,11 @@
             generateBtn.style.padding = '4px 8px';
             generateBtn.onclick = (e) => {
                 e.stopPropagation();
-                document.querySelectorAll('.zhihu-card').forEach(c => c.classList.remove('selected'));
+                document.querySelectorAll('.zhihu-card').forEach(c => {
+                    c.classList.remove('selected');
+                    c.style.borderColor = 'var(--border)';
+                    c.style.boxShadow = '0 2px 8px var(--shadow)';
+                });
                 card.classList.add('selected');
                 card.style.borderColor = 'var(--success)';
                 card.style.boxShadow = '0 4px 15px color-mix(in srgb, var(--success) 20%, var(--shadow))';
@@ -2098,7 +2102,11 @@
             
             // 添加卡片点击效果
             card.addEventListener('click', () => {
-                document.querySelectorAll('.zhihu-card').forEach(c => c.classList.remove('selected'));
+                document.querySelectorAll('.zhihu-card').forEach(c => {
+                    c.classList.remove('selected');
+                    c.style.borderColor = 'var(--border)';
+                    c.style.boxShadow = '0 2px 8px var(--shadow)';
+                });
                 card.classList.add('selected');
                 card.style.borderColor = 'var(--success)';
                 card.style.boxShadow = '0 4px 15px color-mix(in srgb, var(--success) 20%, var(--shadow))';
