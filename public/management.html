@@ -1913,7 +1913,7 @@
         
         try {
             const domain = `https://${apiDomain}`;
-            const res = await fetch(`${domain}/api/zhihu/hot?limit=50`);
+            const res = await fetch(`${domain}/api/zhihu/combined?hot_limit=15&inspiration_limit=15`);
             if (!res.ok) throw new Error(await res.text());
             
             const data = await res.json();

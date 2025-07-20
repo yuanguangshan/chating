@@ -4,7 +4,14 @@ import { DurableObject } from "cloudflare:workers";
 import { getGeminiChatAnswer, getKimiChatAnswer } from './ai.js';
 import { ToutiaoServiceClient } from './toutiaoDO.js';
 import ZhihuHotService from './zhihuHotService.js';
-const zhihuHotService = new ZhihuHotService();
+let zhihuHotService;
+
+function getZhihuHotService(env) {
+    if (!zhihuHotService) {
+        zhihuHotService = new ZhihuHotService(env);
+    }
+    return zhihuHotService;
+}
 
 // 消息类型常量
 const MSG_TYPE_CHAT = 'chat';
@@ -375,7 +382,7 @@ async handleZhihuHotTask(session, payload) {
     this.ctx.waitUntil((async () => {
         try {
             // 获取知乎热点话题和灵感问题
-            const combinedData = await zhihuHotService.getCombinedTopics();
+            const combinedData = await getZhihuHotService(this.env).getCombinedTopics();
             
             // 合并热点和灵感问题为一个数组
             const topics = [...combinedData.hotTopics, ...combinedData.inspirationQuestions];
@@ -450,7 +457,7 @@ async generateZhihuArticle(session, topicInfo) {
     this.ctx.waitUntil((async () => {
         try {
             // 获取最新热点话题和灵感问题
-            const combinedData = await zhihuHotService.getCombinedTopics();
+            const combinedData = await getZhihuHotService(this.env).getCombinedTopics();
             const topics = [...combinedData.hotTopics, ...combinedData.inspirationQuestions];
             let selectedTopic;
 
@@ -558,7 +565,7 @@ async handleZhihuTopicGeneration(session, keyword) {
     this.ctx.waitUntil((async () => {
         try {
             // 调用知乎服务获取综合话题
-            const combinedData = await zhihuHotService.getCombinedTopics();
+            const combinedData = await getZhihuHotService(this.env).getCombinedTopics();
             const combinedTopics = [...combinedData.hotTopics, ...combinedData.inspirationQuestions];
             // 过滤出与关键词相关的灵感问题或热点话题
             const relatedTopics = combinedTopics.filter(topic => 
@@ -1395,7 +1402,7 @@ async handleSessionInitialization(ws, url) {
                     message.text += `\n\n> (🎯 正在基于"${keyword}"生成相关话题...)`;
                 } else {
                     // 如果没有提供关键词，使用当前热门话题作为基础
-                    const topics = await zhihuHotService.getHotTopicsForContent(15);
+                    const topics = await getZhihuHotService(this.env).getHotTopicsForContent(15);
                     if (topics.length > 0) {
                         const defaultKeyword = topics[0].title.split(' ')[0] || '热点';
                         this.ctx.waitUntil(this.handleZhihuTopicGeneration(session, defaultKeyword));

@@ -289,13 +289,56 @@ export default {
                 console.log(`[Worker] Handling /api/zhihu/hot request.`);
                 try {
                     const limit = parseInt(url.searchParams.get('limit')) || 10;
-                    const zhihuHotService = new ZhihuHotService();
+                    const zhihuHotService = new ZhihuHotService(env);
                     const data = await zhihuHotService.getCombinedTopics(limit, limit);
                     return new Response(JSON.stringify(data), {
                         headers: { 'Content-Type': 'application/json', ...corsHeaders },
                     });
                 } catch (error) {
                     console.error('[Worker] Error fetching Zhihu hot topics:', error);
+                    return new Response(JSON.stringify({ error: error.message }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
+            } else if (pathname === '/api/zhihu/combined') {
+                console.log(`[Worker] Handling /api/zhihu/combined request.`);
+                try {
+                    const hotLimit = parseInt(url.searchParams.get('hot_limit')) || 15;
+                    const inspirationLimit = parseInt(url.searchParams.get('inspiration_limit')) || 15;
+                    const zhihuHotService = new ZhihuHotService(env);
+                    const data = await zhihuHotService.getCombinedTopics(hotLimit, inspirationLimit);
+                    return new Response(JSON.stringify(data), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                } catch (error) {
+                    console.error('[Worker] Error fetching Zhihu combined topics:', error);
+                    return new Response(JSON.stringify({ error: error.message }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
+            } else if (pathname === '/api/zhihu/inspiration') {
+                console.log(`[Worker] Handling /api/zhihu/inspiration request.`);
+                try {
+                    const limit = parseInt(url.searchParams.get('limit')) || 15;
+                    const zhihuHotService = new ZhihuHotService(env);
+                    const questions = await zhihuHotService.fetchZhihuInspirationQuestions();
+                    
+                    // 按热度排序并限制数量
+                    const sortedQuestions = questions
+                        .sort((a, b) => {
+                            const hotA = parseInt(a.hot) || 0;
+                            const hotB = parseInt(b.hot) || 0;
+                            return hotB - hotA;
+                        })
+                        .slice(0, limit);
+                    
+                    return new Response(JSON.stringify({ data: sortedQuestions }), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                } catch (error) {
+                    console.error('[Worker] Error fetching Zhihu inspiration questions:', error);
                     return new Response(JSON.stringify({ error: error.message }), {
                         status: 500,
                         headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -316,7 +359,7 @@ export default {
                         });
                     }
                     
-                    const zhihuHotService = new ZhihuHotService();
+                    const zhihuHotService = new ZhihuHotService(env);
                     const topics = await zhihuHotService.generateRelatedTopics(keyword);
                     
                     return new Response(JSON.stringify({ topics }), {
