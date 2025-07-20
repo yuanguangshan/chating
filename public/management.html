@@ -959,13 +959,13 @@
 
     <!-- Tabs 区域 -->
     <div class="tabs">
-        <button class="tab-button active" onclick="switchTab('chat-whitelist-management')">用户管理</button>
+        <button class="tab-button active" onclick="switchTab('zhihu-hot-management')">知乎灵感</button>
         <button class="tab-button" onclick="switchTab('toutiao-content-management')">头条发布</button>
-        <button class="tab-button" onclick="switchTab('zhihu-hot-management')">知乎灵感</button>
+        <button class="tab-button" onclick="switchTab('chat-whitelist-management')">用户管理</button>
     </div>
 
     <!-- 聊天室白名单 Tab 内容 -->
-    <div id="chat-whitelist-management" class="tab-content active">
+    <div id="chat-whitelist-management" class="tab-content">
         <div class="activated-rooms-section">
             <h2>已激活的房间</h2>
             <ul id="activated-room-list">
@@ -1152,7 +1152,7 @@
     </div>
 
     <!-- 知乎热点管理 Tab 内容 (优化后) -->
-    <div id="zhihu-hot-management" class="tab-content">
+    <div id="zhihu-hot-management" class="tab-content active">
         <div class="zhihu-section" style="padding: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h2 style="margin: 0; font-size: 1.1em;">知乎热点管理</h2>
@@ -1195,7 +1195,11 @@
       const theme = saved ? saved : (prefersDark ? 'dark' : 'light');
       document.documentElement.setAttribute('data-theme', theme);
     }
-    window.addEventListener('DOMContentLoaded', initTheme);
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      // 默认激活知乎灵感 Tab
+      switchTab('zhihu-hot-management');
+    });
 
     // 切换按钮示例
     function toggleTheme() {
@@ -1295,7 +1299,7 @@
             });
             
             // 加载知乎热点
-            fetchZhihuHotTopics();
+            fetchZhihuHotTopics(20);
         }
     }
 
