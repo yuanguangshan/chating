@@ -288,8 +288,9 @@ export default {
             } else if (pathname === '/api/zhihu/hot') {
                 console.log(`[Worker] Handling /api/zhihu/hot request.`);
                 try {
+                    const limit = parseInt(url.searchParams.get('limit')) || 10;
                     const zhihuHotService = new ZhihuHotService();
-                    const data = await zhihuHotService.getCombinedTopics();
+                    const data = await zhihuHotService.getCombinedTopics(limit, limit);
                     return new Response(JSON.stringify(data), {
                         headers: { 'Content-Type': 'application/json', ...corsHeaders },
                     });
