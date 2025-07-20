@@ -348,136 +348,250 @@ ${displayContent}`;
         })());
     }
 
-    /**
-     * 处理知乎热点任务
-     * @param {Object} session 用户会话
-     * @param {Object} payload 消息载荷
-     */
-    async handleZhihuHotTask(session, payload) {
-        const originalMessage = {
-            id: payload.id || crypto.randomUUID(),
-            username: session.username,
-            timestamp: payload.timestamp || Date.now(),
-            text: payload.text.trim(),
-            type: 'text'
-        };
+// 文件中需要修改的部分 - 以下为handleZhihuHotTask函数的调整
 
-        // 1. 立即发送一个"正在处理"的消息给前端
-        const thinkingMessage = {
-            ...originalMessage,
-            text: `${originalMessage.text}\n\n> (🔍 正在获取知乎热点...)`
-        };
-        await this.addAndBroadcastMessage(thinkingMessage);
+/**
+ * 处理知乎热点任务
+ * @param {Object} session 用户会话
+ * @param {Object} payload 消息载荷
+ */
+async handleZhihuHotTask(session, payload) {
+    const originalMessage = {
+        id: payload.id || crypto.randomUUID(),
+        username: session.username,
+        timestamp: payload.timestamp || Date.now(),
+        text: payload.text.trim(),
+        type: 'text'
+    };
 
-        // 2. 使用 waitUntil 在后台执行获取和生成流程
-        this.ctx.waitUntil((async () => {
-            try {
-                // 获取知乎热点话题
-                const topics = await zhihuHotService.getHotTopicsForContent(5);
-                
-                if (!topics || topics.length === 0) {
-                    throw new Error('未能获取到知乎热点话题');
-                }
+    // 1. 立即发送一个"正在处理"的消息给前端
+    const thinkingMessage = {
+        ...originalMessage,
+        text: `${originalMessage.text}\n\n> (🔍 正在获取知乎热点...)`
+    };
+    await this.addAndBroadcastMessage(thinkingMessage);
 
-                // 构建回复消息
-                let responseText = "🔥 **知乎实时热点话题**\n\n";
-                
-                topics.forEach((topic, index) => {
-                    responseText += `${index + 1}. **${topic.title}**\n`;
+    // 2. 使用 waitUntil 在后台执行获取和生成流程
+    this.ctx.waitUntil((async () => {
+        try {
+            // 获取知乎热点话题和灵感问题
+            const combinedData = await zhihuHotService.getCombinedTopics();
+            
+            // 合并热点和灵感问题为一个数组
+            const topics = [...combinedData.hotTopics, ...combinedData.inspirationQuestions];
+            
+            if (!topics || topics.length === 0) {
+                throw new Error('未能获取到知乎热点话题和灵感问题');
+            }
+
+            // 构建回复消息
+            let responseText = "🔥 **知乎实时热点与灵感**\n\n";
+            
+            topics.forEach((topic, index) => {
+                // 根据type属性区分热点和灵感问题
+                if (topic.type === 'hot') {
+                    responseText += `${index + 1}. [热点] **${topic.title}**\n`;
                     responseText += `   🔥 热度: ${topic.hotValue}\n`;
-                    responseText += `   💡 创作提示: ${topic.excerpt.substring(0, 50)}...\n`;
+                    responseText += `   💡 创作提示: ${topic.excerpt ? topic.excerpt.substring(0, 50) + '...' : '暂无描述'}\n`;
                     responseText += `   📝 标签: ${topic.tags.join(', ')}\n\n`;
-                });
-
-                responseText += "💡 **使用说明**:\n";
-                responseText += "- 发送 `/知乎文章 1` 可基于第1个话题生成完整文章\n";
-                responseText += "- 发送 `/知乎话题 [关键词]` 可搜索相关话题\n";
-                responseText += "- 点击话题标题可查看原知乎问题";
-
-                // 更新聊天室消息为最终状态
-                const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
-                if (messageIndex !== -1) {
-                    this.messages[messageIndex].text = responseText;
-                    this.messages[messageIndex].timestamp = Date.now();
-                    this.messages[messageIndex].topics = topics; // 存储话题数据供后续使用
-                    await this.saveMessages();
-                    this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+                } else if (topic.type === 'inspiration') {
+                    responseText += `${index + 1}. [灵感] **${topic.title}**\n`;
+                    responseText += `   💡 描述: ${topic.excerpt ? topic.excerpt.substring(0, 50) + '...' : '暂无描述'}\n`;
+                    responseText += `   📝 标签: ${topic.tags.join(', ')}\n\n`;
                 }
+            });
 
-            } catch (error) {
-                // 处理失败状态
-                const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
-                if (messageIndex !== -1) {
-                    this.messages[messageIndex].text = `${originalMessage.text}\n\n> (❌ **获取失败**: ${error.message})`;
-                    await this.saveMessages();
-                    this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            responseText += "💡 **使用说明**:\n";
+            responseText += "- 发送 `/知乎文章 1` 可基于第1个话题生成完整文章\n";
+            responseText += "- 发送 `/知乎话题 [关键词]` 可搜索相关话题\n";
+            responseText += "- 点击话题标题可查看原知乎问题";
+
+            // 更新聊天室消息为最终状态
+            const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+            if (messageIndex !== -1) {
+                this.messages[messageIndex].text = responseText;
+                this.messages[messageIndex].timestamp = Date.now();
+                this.messages[messageIndex].topics = topics; // 存储话题数据供后续使用
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            }
+
+        } catch (error) {
+            // 处理失败状态
+            const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+            if (messageIndex !== -1) {
+                this.messages[messageIndex].text = `${originalMessage.text}\n\n> (❌ **获取失败**: ${error.message})`;
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            }
+        }
+    })());
+}
+
+/**
+ * 基于知乎热点生成文章
+ * @param {Object} session 用户会话
+ * @param {string} topicInfo 话题信息（索引或关键词）
+ */
+async generateZhihuArticle(session, topicInfo) {
+    const taskId = crypto.randomUUID();
+    
+    // 1. 立即发送处理状态
+    const processingMessage = {
+        id: taskId,
+        username: session.username,
+        timestamp: Date.now(),
+        text: `📝 正在基于知乎热点生成文章...\n\n> (⏳ 正在处理 ${topicInfo} 话题...)`,
+        type: 'text'
+    };
+    await this.addAndBroadcastMessage(processingMessage);
+
+    // 2. 后台生成文章
+    this.ctx.waitUntil((async () => {
+        try {
+            // 获取最新热点话题和灵感问题
+            const combinedData = await zhihuHotService.getCombinedTopics();
+            const topics = [...combinedData.hotTopics, ...combinedData.inspirationQuestions];
+            let selectedTopic;
+
+            if (/^\d+$/.test(topicInfo)) {
+                // 按索引选择话题
+                const index = parseInt(topicInfo) - 1;
+                if (index >= 0 && index < topics.length) {
+                    selectedTopic = topics[index];
+                } else {
+                    throw new Error(`话题索引 ${topicInfo} 无效，请使用 1-${topics.length} 之间的数字`);
+                }
+            } else {
+                // 按关键词搜索话题
+                const keyword = topicInfo.toLowerCase();
+                selectedTopic = topics.find(topic => 
+                    topic.title.toLowerCase().includes(keyword) || 
+                    (topic.excerpt && topic.excerpt.toLowerCase().includes(keyword)) ||
+                    (topic.tags && topic.tags.some(tag => tag.toLowerCase().includes(keyword)))
+                );
+                
+                if (!selectedTopic) {
+                    throw new Error(`未找到包含关键词 "${topicInfo}" 的话题`);
                 }
             }
-        })());
-    }
 
-    /**
-     * 基于知乎热点生成文章
-     * @param {Object} session 用户会话
-     * @param {string} topicInfo 话题信息（索引或关键词）
-     */
-    async generateZhihuArticle(session, topicInfo) {
-        const taskId = crypto.randomUUID();
-        
-        // 1. 立即发送处理状态
-        const processingMessage = {
-            id: taskId,
-            username: session.username,
-            timestamp: Date.now(),
-            text: `📝 正在基于知乎热点生成文章...\n\n> (⏳ 正在处理 ${topicInfo} 话题...)`,
-            type: 'text'
-        };
-        await this.addAndBroadcastMessage(processingMessage);
+            // 使用头条服务生成文章
+            const toutiaoClient = new ToutiaoServiceClient(this.env);
+            const task = {
+                text: selectedTopic.contentPrompt,
+                username: session?.username || 'system',
+                timestamp: Date.now(),
+                id: `zhihu_article_${Date.now()}`
+            };
 
-        // 2. 后台生成文章
-        this.ctx.waitUntil((async () => {
-            try {
-                // 获取最新热点话题
-                const topics = await zhihuHotService.getHotTopicsForContent(10);
-                let selectedTopic;
+            const result = await toutiaoClient.processTask(task);
+            
+            // 构建包含知乎话题信息的文章
+            let articleText;
+            if (selectedTopic.type === 'hot') {
+                articleText = `🎯 **基于知乎热点生成的文章**\n\n**话题**: ${selectedTopic.title}\n**热度**: ${selectedTopic.hotValue}\n**标签**: ${selectedTopic.tags.join(', ')}\n\n---\n\n**标题**: ${result.title}\n\n**正文**: ${result.content}\n\n🔗 **原文链接**: ${selectedTopic.url}\n\n💡 如有不同观点，欢迎留言交流！`;
+            } else if (selectedTopic.type === 'inspiration') {
+                articleText = `🎯 **基于知乎灵感生成的文章**\n\n**灵感主题**: ${selectedTopic.title}\n**描述**: ${selectedTopic.excerpt || '暂无描述'}\n**标签**: ${selectedTopic.tags.join(', ')}\n\n---\n\n**标题**: ${result.title}\n\n**正文**: ${result.content}\n\n💡 如有不同观点，欢迎留言交流！`;
+            }
 
-                if (/^\d+$/.test(topicInfo)) {
-                    // 按索引选择话题
-                    const index = parseInt(topicInfo) - 1;
-                    if (index >= 0 && index < topics.length) {
-                        selectedTopic = topics[index];
-                    } else {
-                        throw new Error(`话题索引 ${topicInfo} 无效，请使用 1-${topics.length} 之间的数字`);
-                    }
-                } else {
-                    // 按关键词搜索话题
-                    const keyword = topicInfo.toLowerCase();
-                    selectedTopic = topics.find(topic => 
-                        topic.title.toLowerCase().includes(keyword) || 
-                        topic.tags.some(tag => tag.toLowerCase().includes(keyword))
-                    );
-                    
-                    if (!selectedTopic) {
-                        throw new Error(`未找到包含关键词 "${topicInfo}" 的话题`);
-                    }
-                }
+            const articleMessage = {
+                id: `zhihu_article_${Date.now()}`,
+                username: '知乎文章助手',
+                text: articleText,
+                timestamp: Date.now(),
+                type: 'system'
+            };
 
-                // 使用头条服务生成文章
-                const toutiaoClient = new ToutiaoServiceClient(this.env);
-                const task = {
-                    text: selectedTopic.contentPrompt,
-                    username: session?.username || 'system',
-                    timestamp: Date.now(),
-                    id: `zhihu_article_${Date.now()}`
-                };
+            // 替换处理消息为最终结果
+            const messageIndex = this.messages.findIndex(m => m.id === processingMessage.id);
+            if (messageIndex !== -1) {
+                this.messages[messageIndex] = articleMessage;
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            } else {
+                await this.addAndBroadcastMessage(articleMessage);
+            }
 
-                const result = await toutiaoClient.processTask(task);
+        } catch (error) {
+            const errorMessage = {
+                id: `zhihu_article_error_${Date.now()}`,
+                username: '系统消息',
+                text: `❌ 知乎文章生成失败\n\n**错误**: ${error.message}\n\n请检查话题索引或关键词后重试。`,
+                timestamp: Date.now(),
+                type: 'system'
+            };
+            
+            const messageIndex = this.messages.findIndex(m => m.id === processingMessage.id);
+            if (messageIndex !== -1) {
+                this.messages[messageIndex] = errorMessage;
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            } else {
+                await this.addAndBroadcastMessage(errorMessage);
+            }
+        }
+    })());
+}
+
+/**
+ * 基于知乎热点生成相关话题
+ * @param {Object} session 用户会话
+ * @param {string} keyword 话题关键词
+ */
+async handleZhihuTopicGeneration(session, keyword) {
+    const taskId = crypto.randomUUID();
+    
+    // 1. 立即发送处理状态
+    const processingMessage = {
+        id: taskId,
+        username: session.username,
+        timestamp: Date.now(),
+        text: `🎯 正在基于"${keyword}"生成相关话题...
+
+> (⏳ 正在调用Gemini AI生成创意话题...)`,
+        type: 'text'
+    };
+    await this.addAndBroadcastMessage(processingMessage);
+
+    // 2. 后台生成相关话题
+    this.ctx.waitUntil((async () => {
+        try {
+            // 调用知乎服务获取综合话题
+            const combinedData = await zhihuHotService.getCombinedTopics();
+            const combinedTopics = [...combinedData.hotTopics, ...combinedData.inspirationQuestions];
+            // 过滤出与关键词相关的灵感问题或热点话题
+            const relatedTopics = combinedTopics.filter(topic => 
+                topic.title.toLowerCase().includes(keyword.toLowerCase()) ||
+                (topic.excerpt && topic.excerpt.toLowerCase().includes(keyword.toLowerCase())) ||
+                (topic.tags && topic.tags.some(tag => tag.toLowerCase().includes(keyword.toLowerCase())))
+            ).slice(0, 15); // 限制返回数量
+            
+            if (relatedTopics && relatedTopics.length > 0) {
+                let response = `🎯 **基于"${keyword}"生成的相关话题**\n\n`;
                 
-                // 构建包含知乎话题信息的文章
-                const articleMessage = {
-                    id: `zhihu_article_${Date.now()}`,
-                    username: '知乎文章助手',
-                    text: `🎯 **基于知乎热点生成的文章**\n\n**话题**: ${selectedTopic.title}\n**热度**: ${selectedTopic.hotValue}\n**标签**: ${selectedTopic.tags.join(', ')}\n\n---\n\n**标题**: ${result.title}\n\n**正文**: ${result.content}\n\n🔗 **原文链接**: ${selectedTopic.url}\n\n💡 如有不同观点，欢迎留言交流！`,
+                relatedTopics.forEach((topic, index) => {
+                    if (topic.type === 'hot') {
+                        response += `${index + 1}. [热点] **${topic.title}**\n`;
+                        response += `   🔥 热度: ${topic.hotValue}\n`;
+                        response += `   💡 创作提示: ${topic.excerpt ? topic.excerpt.substring(0, 50) + '...' : '暂无描述'}\n`;
+                        response += `   📝 标签: ${topic.tags.join(', ')}\n\n`;
+                    } else if (topic.type === 'inspiration') {
+                        response += `${index + 1}. [灵感] **${topic.title}**\n`;
+                        response += `   💡 描述: ${topic.excerpt ? topic.excerpt.substring(0, 50) + '...' : '暂无描述'}\n`;
+                        response += `   📝 标签: ${topic.tags.join(', ')}\n\n`;
+                    }
+                });
+                
+                response += `💡 **使用建议**：\n`;
+                response += `- 输入 /知乎文章 ${keyword} 生成相关文章\n`;
+                response += `- 输入 /知乎话题 [新关键词] 探索更多话题\n`;
+                response += `- 输入 /知乎 查看当前热点榜单`;
+                
+                const resultMessage = {
+                    id: `zhihu_topics_${Date.now()}`,
+                    username: '知乎话题助手',
+                    text: response,
                     timestamp: Date.now(),
                     type: 'system'
                 };
@@ -485,120 +599,40 @@ ${displayContent}`;
                 // 替换处理消息为最终结果
                 const messageIndex = this.messages.findIndex(m => m.id === processingMessage.id);
                 if (messageIndex !== -1) {
-                    this.messages[messageIndex] = articleMessage;
+                    this.messages[messageIndex] = resultMessage;
                     await this.saveMessages();
                     this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
                 } else {
-                    await this.addAndBroadcastMessage(articleMessage);
+                    await this.addAndBroadcastMessage(resultMessage);
                 }
-
-            } catch (error) {
-                const errorMessage = {
-                    id: `zhihu_article_error_${Date.now()}`,
-                    username: '系统消息',
-                    text: `❌ 知乎文章生成失败\n\n**错误**: ${error.message}\n\n请检查话题索引或关键词后重试。`,
-                    timestamp: Date.now(),
-                    type: 'system'
-                };
-                
-                const messageIndex = this.messages.findIndex(m => m.id === processingMessage.id);
-                if (messageIndex !== -1) {
-                    this.messages[messageIndex] = errorMessage;
-                    await this.saveMessages();
-                    this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
-                } else {
-                    await this.addAndBroadcastMessage(errorMessage);
-                }
+            } else {
+                throw new Error('未能生成相关话题，请尝试其他关键词');
             }
-        })());
-    }
 
-    /**
-     * 基于知乎热点生成相关话题
-     * @param {Object} session 用户会话
-     * @param {string} keyword 话题关键词
-     */
-    async handleZhihuTopicGeneration(session, keyword) {
-        const taskId = crypto.randomUUID();
-        
-        // 1. 立即发送处理状态
-        const processingMessage = {
-            id: taskId,
-            username: session.username,
-            timestamp: Date.now(),
-            text: `🎯 正在基于"${keyword}"生成相关话题...
-
-> (⏳ 正在调用Gemini AI生成创意话题...)`,
-            type: 'text'
-        };
-        await this.addAndBroadcastMessage(processingMessage);
-
-        // 2. 后台生成相关话题
-        this.ctx.waitUntil((async () => {
-            try {
-                // 调用知乎服务生成相关话题
-                const relatedTopics = await zhihuHotService.generateRelatedTopics(keyword, 15);
-                
-                if (relatedTopics && relatedTopics.length > 0) {
-                    let response = `🎯 **基于"${keyword}"生成的相关话题**\n\n`;
-                    
-                    relatedTopics.forEach((topic, index) => {
-                        response += `${index + 1}. **${topic.title}**\n`;
-                        response += `   ${topic.excerpt}\n`;
-                        response += `   🏷️ 标签: ${topic.tags.join(' ')}\n\n`;
-                    });
-                    
-                    response += `💡 **使用建议**：\n`;
-                    response += `- 输入 /知乎文章 ${keyword} 生成相关文章\n`;
-                    response += `- 输入 /知乎话题 [新关键词] 探索更多话题\n`;
-                    response += `- 输入 /知乎 查看当前热点榜单`;
-                    
-                    const resultMessage = {
-                        id: `zhihu_topics_${Date.now()}`,
-                        username: '知乎话题助手',
-                        text: response,
-                        timestamp: Date.now(),
-                        type: 'system'
-                    };
-
-                    // 替换处理消息为最终结果
-                    const messageIndex = this.messages.findIndex(m => m.id === processingMessage.id);
-                    if (messageIndex !== -1) {
-                        this.messages[messageIndex] = resultMessage;
-                        await this.saveMessages();
-                        this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
-                    } else {
-                        await this.addAndBroadcastMessage(resultMessage);
-                    }
-                } else {
-                    throw new Error('未能生成相关话题，请尝试其他关键词');
-                }
-
-            } catch (error) {
-                const errorMessage = {
-                    id: `zhihu_topics_error_${Date.now()}`,
-                    username: '系统消息',
-                    text: `❌ 话题生成失败
+        } catch (error) {
+            const errorMessage = {
+                id: `zhihu_topics_error_${Date.now()}`,
+                username: '系统消息',
+                text: `❌ 话题生成失败
 
 **错误**: ${error.message}
 
 请稍后重试或尝试其他关键词。`,
-                    timestamp: Date.now(),
-                    type: 'system'
-                };
-                
-                const messageIndex = this.messages.findIndex(m => m.id === processingMessage.id);
-                if (messageIndex !== -1) {
-                    this.messages[messageIndex] = errorMessage;
-                    await this.saveMessages();
-                    this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
-                } else {
-                    await this.addAndBroadcastMessage(errorMessage);
-                }
+                timestamp: Date.now(),
+                type: 'system'
+            };
+            
+            const messageIndex = this.messages.findIndex(m => m.id === processingMessage.id);
+            if (messageIndex !== -1) {
+                this.messages[messageIndex] = errorMessage;
+                await this.saveMessages();
+                this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            } else {
+                await this.addAndBroadcastMessage(errorMessage);
             }
-        })());
-    }
-
+        }
+    })());
+}
 // 在 HibernatingChating 类内部，例如放在 handleToutiaoTask 函数后面
 
     /**
