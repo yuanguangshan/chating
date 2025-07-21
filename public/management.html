@@ -2137,7 +2137,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            topicInfo: (index + 1).toString(),
+                            topicInfo: (index + 1).toString(), // Still pass index+1 for Zhihu for now if that's what the DO expects
                             roomName: selectedRoom
                         })
                     });
@@ -2234,7 +2234,8 @@
             if (!res.ok) throw new Error(await res.text());
             
             const data = await res.json();
-            newsTopicsData = data.topics || [];
+            // CORRECTED: Access data.news instead of data.topics
+            newsTopicsData = data.news || [];
             renderNewsTopics(newsTopicsData);
             updateNewsStatus(`成功获取 ${newsTopicsData.length} 个新闻灵感话题`, 'success');
             
@@ -2257,24 +2258,25 @@
         
         try {
             const domain = `https://${apiDomain}`;
-            const res = await fetch(`${domain}/api/news/search`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ keyword })
+            // CORRECTED: Change to GET request with keyword in URL
+            const res = await fetch(`${domain}/api/news/search?keyword=${encodeURIComponent(keyword)}`, {
+                method: 'GET', // Changed from POST to GET
+                headers: { 'Content-Type': 'application/json' } // Headers might not be strictly needed for GET, but harmless
             });
             
             if (!res.ok) throw new Error(await res.text());
             
             const data = await res.json();
-            if (!data.topics || data.topics.length === 0) {
+            // CORRECTED: Access data.news instead of data.topics
+            if (!data.news || data.news.length === 0) {
                 updateNewsStatus(`未找到与"${keyword}"相关的新闻`, 'info');
                 newsTopicsContainer.innerHTML = `<div class="zhihu-card" style="text-align: center;"><p>未找到相关新闻，请尝试其他关键词</p></div>`;
                 return;
             }
             
-            newsTopicsData = data.topics;
-            renderNewsTopics(data.topics);
-            updateNewsStatus(`找到 ${data.topics.length} 个与"${keyword}"相关的新闻`, 'success');
+            newsTopicsData = data.news; // Corrected: Save data.news
+            renderNewsTopics(data.news);
+            updateNewsStatus(`找到 ${data.news.length} 个与"${keyword}"相关的新闻`, 'success');
             
         } catch (e) {
             updateNewsStatus(`搜索新闻失败: ${e.message}`, 'error');
@@ -2290,6 +2292,13 @@
             return;
         }
         
+        // CORRECTED: Retrieve the actual newsItem object using the index
+        const selectedNewsItem = newsTopicsData[parseInt(selectedTopicId)];
+        if (!selectedNewsItem) {
+            updateNewsStatus('未能找到选定新闻话题的详细信息', 'error');
+            return;
+        }
+
         const selectedRoom = newsRoomSelect.value;
         if (!selectedRoom) {
             updateNewsStatus('请选择一个目标房间', 'error');
@@ -2304,7 +2313,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    topicInfo: selectedTopicId,
+                    newsItem: selectedNewsItem, // CORRECTED: Pass the full newsItem object
                     roomName: selectedRoom
                 })
             });
@@ -2337,11 +2346,12 @@
             card.className = 'zhihu-card';
             card.dataset.id = index.toString();
             
-            // 设置类型标签
+            // Set type tag (source for news)
             const typeTag = document.createElement('div');
             typeTag.className = `zhihu-card-type news`;
-            typeTag.textContent = topic.source || '新闻';
-            typeTag.style.background = 'var(--info)';
+            typeTag.textContent = topic.source || '新闻'; // Display source name
+            typeTag.style.background = 'var(--info)'; // Use info color for news type
+            typeTag.style.color = 'white'; // Make text white for better contrast
             
             // 设置标题
             const title = document.createElement('h3');
@@ -2359,14 +2369,14 @@
             meta.style.color = 'var(--text-sub)';
             
             const sourceSpan = document.createElement('span');
-            sourceSpan.textContent = topic.source || '未知来源';
+            sourceSpan.textContent = `来源: ${topic.source || '未知'}`; // Prepend '来源: '
             sourceSpan.style.background = 'var(--bg)';
             sourceSpan.style.padding = '2px 6px';
             sourceSpan.style.borderRadius = '4px';
             sourceSpan.style.border = '1px solid var(--border)';
             
             const hotSpan = document.createElement('span');
-            hotSpan.textContent = topic.hot || '热门';
+            hotSpan.textContent = `热度: ${topic.hotValue || 'N/A'}`; // Use hotValue property
             hotSpan.style.color = 'var(--warning)';
             hotSpan.style.fontWeight = 'bold';
             
@@ -2377,19 +2387,20 @@
             const tagsContainer = document.createElement('div');
             tagsContainer.style.marginBottom = '6px';
             
-            if (topic.tags && topic.tags.length > 0) {
-                topic.tags.slice(0, 3).forEach(tag => {
-                    const tagSpan = document.createElement('span');
-                    tagSpan.className = 'zhihu-card-tag';
-                    tagSpan.textContent = tag;
-                    tagsContainer.appendChild(tagSpan);
-                });
-            }
+            // News items do not consistently have 'tags'. Skip this if not available.
+            // if (topic.tags && topic.tags.length > 0) {
+            //     topic.tags.slice(0, 3).forEach(tag => {
+            //         const tagSpan = document.createElement('span');
+            //         tagSpan.className = 'zhihu-card-tag';
+            //         tagSpan.textContent = tag;
+            //         tagsContainer.appendChild(tagSpan);
+            //     });
+            // }
             
             // 设置描述
             const description = document.createElement('div');
             description.className = 'zhihu-card-description';
-            description.textContent = topic.excerpt || topic.description || '暂无描述';
+            description.textContent = topic.description || '暂无描述'; // Use topic.description
             description.style.fontSize = '0.8em';
             description.style.maxHeight = '60px';
             description.style.overflow = 'hidden';
@@ -2416,15 +2427,23 @@
                     return;
                 }
                 
+                // CORRECTED: Pass the current topic object directly
+                const newsItemToSend = topics[index];
+                if (!newsItemToSend) {
+                    updateNewsStatus('未能找到新闻话题的详细信息', 'error');
+                    return;
+                }
+
                 quickGenerateBtn.disabled = true;
                 quickGenerateBtn.textContent = '生成中...';
                 
                 try {
-                    const res = await fetch('/api/news/article', {
+                    const domain = `https://${apiDomain}`;
+                    const res = await fetch(`${domain}/api/news/article`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            topicInfo: (index + 1).toString(),
+                            newsItem: newsItemToSend, // CORRECTED: Pass the full newsItem object
                             roomName: selectedRoom
                         })
                     });
@@ -2484,11 +2503,11 @@
             card.appendChild(typeTag);
             card.appendChild(title);
             card.appendChild(meta);
-            card.appendChild(tagsContainer);
+            // card.appendChild(tagsContainer); // Removed as news items don't always have tags
             card.appendChild(description);
             card.appendChild(actions);
             
-            // 添加卡片点击效果
+            // Add card click effect
             card.addEventListener('click', () => {
                 document.querySelectorAll('#news-topics-container .zhihu-card').forEach(c => {
                     c.classList.remove('selected');

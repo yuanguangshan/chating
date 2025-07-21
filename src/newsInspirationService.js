@@ -40,14 +40,18 @@ class NewsInspirationService {
                 items: [
                     { id: 'hn1', title: 'OpenAI发布GPT-4o最新版本', url: 'https://news.ycombinator.com/1', hotValue: 45000 },
                     { id: 'hn2', title: 'Linux内核6.9发布，性能大幅提升', url: 'https://news.ycombinator.com/2', hotValue: 32000 },
-                    { id: 'hn3', title: 'React 19新特性详解', url: 'https://news.ycombinator.com/3', hotValue: 28000 }
+                    { id: 'hn3', title: 'React 19新特性详解', url: 'https://news.ycombinator.com/3', hotValue: 28000 },
+                    { id: 'hn4', title: 'Python编程技巧：如何高效处理大数据', url: 'https://news.ycombinator.com/4', hotValue: 25000 },
+                    { id: 'hn5', title: 'Go语言并发编程最佳实践', url: 'https://news.ycombinator.com/5', hotValue: 22000 }
                 ]
             },
             nowcoder: {
                 items: [
                     { id: 'nc1', title: '字节跳动2025校招启动，算法岗竞争激烈', url: 'https://nowcoder.com/1', hotValue: 40000 },
                     { id: 'nc2', title: 'LeetCode周赛：双周赛第108题解', url: 'https://nowcoder.com/2', hotValue: 22000 },
-                    { id: 'nc3', title: '面试经验：腾讯后端开发面经', url: 'https://nowcoder.com/3', hotValue: 18000 }
+                    { id: 'nc3', title: '面试经验：腾讯后端开发面经', url: 'https://nowcoder.com/3', hotValue: 18000 },
+                    { id: 'nc4', title: '编程入门：如何选择第一门编程语言', url: 'https://nowcoder.com/4', hotValue: 15000 },
+                    { id: 'nc5', title: '数据结构与算法精讲', url: 'https://nowcoder.com/5', hotValue: 12000 }
                 ]
             }
         };
