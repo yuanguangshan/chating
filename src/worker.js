@@ -18,6 +18,7 @@ globalThis.global = globalThis;
 
 import { HibernatingChating } from './chatroom_do.js';
 import { ToutiaoServiceDO } from './toutiaoDO.js';
+import { NewsInspirationService } from './newsInspirationService.js';
 import html from '../public/index.html';
 import managementHtml from '../public/management.html';
 import { generateAndPostCharts } from './chart_generator.js';
@@ -403,6 +404,109 @@ export default {
                     });
                 } catch (error) {
                     console.error('[Worker] Error generating Zhihu article:', error);
+                    return new Response(JSON.stringify({ error: error.message }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
+            } else if (pathname === '/api/news/combined') {
+                console.log(`[Worker] Handling /api/news/combined request.`);
+                const limit = parseInt(url.searchParams.get('limit')) || 20;
+                
+                try {
+                    const newsService = new NewsInspirationService(env);
+                    const news = await newsService.getCombinedNewsInspiration(limit);
+                    
+                    return new Response(JSON.stringify({ news }), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                } catch (error) {
+                    console.error('[Worker] Error fetching combined news:', error);
+                    return new Response(JSON.stringify({ error: error.message }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
+            } else if (pathname === '/api/news/search') {
+                console.log(`[Worker] Handling /api/news/search request.`);
+                if (request.method !== 'GET') {
+                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                }
+                
+                try {
+                    const url = new URL(request.url);
+                    const keyword = url.searchParams.get('keyword');
+                    const limit = parseInt(url.searchParams.get('limit')) || 10;
+                    
+                    if (!keyword) {
+                        return new Response(JSON.stringify({ error: 'Missing keyword parameter' }), {
+                            status: 400,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                    
+                    const newsService = new NewsInspirationService(env);
+                    const allInspirations = await newsService.getCombinedNewsInspiration();
+                    
+                    // 根据关键词过滤新闻灵感
+                    const lowerKeyword = keyword.toLowerCase();
+                    const filteredNews = allInspirations
+                        .filter(item => 
+                            item && 
+                            ((item.title && item.title.toLowerCase().includes(lowerKeyword)) || 
+                             (item.summary && item.summary.toLowerCase().includes(lowerKeyword)))
+                        )
+                        .slice(0, limit);
+                    
+                    return new Response(JSON.stringify({ news: filteredNews }), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                } catch (error) {
+                    console.error('[Worker] Error searching news:', error);
+                    return new Response(JSON.stringify({ error: error.message }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                }
+            } else if (pathname === '/api/news/article') {
+                console.log(`[Worker] Handling /api/news/article request.`);
+                if (request.method !== 'POST') {
+                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+                }
+                
+                try {
+                    const { newsItem, roomName = 'test' } = await request.json();
+                    if (!newsItem) {
+                        return new Response(JSON.stringify({ error: 'Missing newsItem parameter' }), {
+                            status: 400,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                    if (!roomName) {
+                        return new Response(JSON.stringify({ error: 'API request requires a roomName parameter' }), {
+                            status: 400,
+                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                        });
+                    }
+                    
+                    const newsService = new NewsInspirationService(env);
+                    const prompt = newsService.generateContentPrompt(newsItem);
+                    
+                    // 转发到聊天室DO进行AI文章生成
+                    if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+                    const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+                    const stub = env.CHAT_ROOM_DO.get(doId);
+                    
+                    ctx.waitUntil(stub.generateNewsArticle({username: 'api_user'}, newsItem, prompt));
+                    
+                    return new Response(JSON.stringify({ 
+                        success: true, 
+                        message: "News article generation started. Check the room for results."
+                    }), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+                    });
+                } catch (error) {
+                    console.error('[Worker] Error generating news article:', error);
                     return new Response(JSON.stringify({ error: error.message }), {
                         status: 500,
                         headers: { 'Content-Type': 'application/json', ...corsHeaders },
