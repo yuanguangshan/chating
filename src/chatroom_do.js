@@ -307,6 +307,11 @@ export class HibernatingChating extends DurableObject {
         // 2. 使用 waitUntil 在后台执行整个生成和发布流程
         this.ctx.waitUntil((async () => {
             try {
+                // 确保消息数组已初始化（异步环境中可能再次检查）
+                if (this.messages === null) {
+                    await this.loadMessages();
+                }
+                
                 // 创建头条服务客户端
                 const toutiaoClient = new ToutiaoServiceClient(this.env);
                 
@@ -390,6 +395,11 @@ async handleZhihuHotTask(session, payload) {
     // 2. 使用 waitUntil 在后台执行获取和生成流程
     this.ctx.waitUntil((async () => {
         try {
+            // 确保消息数组已初始化（异步环境中可能再次检查）
+            if (this.messages === null) {
+                await this.loadMessages();
+            }
+            
             // 获取知乎热点话题和灵感问题
             const combinedData = await getZhihuHotService(this.env).getCombinedTopics();
             
@@ -459,21 +469,31 @@ async handleZhihuHotTask(session, payload) {
  * @param {string} topicInfo 话题信息（索引或关键词）
  */
 async generateZhihuArticle(session, topicInfo) {
-    const taskId = crypto.randomUUID();
-    
-    // 1. 立即发送处理状态
-    const processingMessage = {
-        id: taskId,
-        username: session.username,
-        timestamp: Date.now(),
-        text: `📝 正在基于知乎热点生成文章...\n\n> (⏳ 正在处理 ${topicInfo} 话题...)`,
-        type: 'text'
-    };
-    await this.addAndBroadcastMessage(processingMessage);
+        const taskId = crypto.randomUUID();
+        
+        // 确保消息数组已初始化
+        if (this.messages === null) {
+            await this.loadMessages();
+        }
+        
+        // 1. 立即发送处理状态
+        const processingMessage = {
+            id: taskId,
+            username: session.username,
+            timestamp: Date.now(),
+            text: `📝 正在基于知乎热点生成文章...\n\n> (⏳ 正在处理 ${topicInfo} 话题...)`,
+            type: 'text'
+        };
+        await this.addAndBroadcastMessage(processingMessage);
 
     // 2. 后台生成文章
     this.ctx.waitUntil((async () => {
         try {
+            // 确保消息数组已初始化（异步环境中可能再次检查）
+            if (this.messages === null) {
+                await this.loadMessages();
+            }
+            
             // 获取最新热点话题和灵感问题
             const combinedData = await getZhihuHotService(this.env).getCombinedTopics();
             const topics = [...combinedData.hotTopics, ...combinedData.inspirationQuestions];
@@ -582,6 +602,11 @@ async handleZhihuTopicGeneration(session, keyword) {
     // 2. 后台生成相关话题
     this.ctx.waitUntil((async () => {
         try {
+            // 确保消息数组已初始化（异步环境中可能再次检查）
+            if (this.messages === null) {
+                await this.loadMessages();
+            }
+            
             // 调用知乎服务获取综合话题
             const combinedData = await getZhihuHotService(this.env).getCombinedTopics();
             const combinedTopics = [...combinedData.hotTopics, ...combinedData.inspirationQuestions];
@@ -2011,6 +2036,11 @@ async handleDeleteMessageRequest(session, payload) {
         // 2. Execute the fetch process in the background
         this.ctx.waitUntil((async () => {
             try {
+                // 确保消息数组已初始化（异步环境中可能再次检查）
+                if (this.messages === null) {
+                    await this.loadMessages();
+                }
+                
                 const newsService = getNewsInspirationService(this.env);
                 const inspirations = await newsService.getCombinedNewsInspiration(); // Use combined method
 
@@ -2080,6 +2110,11 @@ async handleDeleteMessageRequest(session, payload) {
         // 2. Execute the generation process in the background
         this.ctx.waitUntil((async () => {
             try {
+                // 确保消息数组已初始化（异步环境中可能再次检查）
+                if (this.messages === null) {
+                    await this.loadMessages();
+                }
+                
                 // Find the message that contains the news data (most recent one with `newsData`)
                 // Reverse search for efficiency to find the latest news message
                 const newsMessage = [...this.messages].reverse().find(m => m.newsData && m.newsData.length > 0);
