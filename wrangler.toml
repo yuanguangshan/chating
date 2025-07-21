@@ -41,6 +41,7 @@ API_DOMAIN = "chat.want.biz"
 YOUR_FLASK_PROXY_API_URL="https://api.yuangs.cc/api/toutiaopost"
 YOUR_FLASK_PROXY_API_URL_ZHIHU="https://api.yuangs.cc/api/zhihu"
 MAX_CONTENT_LENGTH=10000
+YOUR_EXTERNAL_NEWS_API_BASE_URL = "https://newsnow.want.biz/api/s?id="
 
 [observability.logs]
 enabled = true
