@@ -498,6 +498,8 @@ AI 图片描述 (Gemini / Kimi)
 
 Endpoint: https://{API_DOMAIN}/ai-describe-image
 
+
+
 Method: POST
 
 Body (JSON): {"imageUrl": "图片的URL", "model": "gemini"|"kimi", "roomName": "optional_room_for_logging"}
