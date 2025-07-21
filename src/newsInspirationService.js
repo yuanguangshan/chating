@@ -190,6 +190,19 @@ class NewsInspirationService {
         }));
     }
 
+    #getNormalizedItems(sourceId, rawData) {
+        if (!rawData?.items) return [];
+        
+        switch (sourceId) {
+            case 'hupu': return this.#normalizeHupu(rawData);
+            case 'douyin': return this.#normalizeDouyin(rawData);
+            case 'weibo': return this.#normalizeWeibo(rawData);
+            case 'hackernews': return this.#normalizeHackerNews(rawData);
+            case 'nowcoder': return this.#normalizeNowcoder(rawData);
+            default: return [];
+        }
+    }
+
     /**
      * 获取新闻灵感列表（兼容旧接口）
      * @returns {Promise<Array>} 包含标准化新闻对象的数组。
@@ -261,26 +274,10 @@ class NewsInspirationService {
             return (b.hotValue + randomFactor()) - (a.hotValue + randomFactor());
         });
 
-        // Ensure we have at least some items from each source before deduplication
-        const sourceSpecificItems = {};
-        allNews.forEach(item => {
-            if (!sourceSpecificItems[item.source]) {
-                sourceSpecificItems[item.source] = [];
-            }
-            sourceSpecificItems[item.source].push(item);
-        });
-
-        // Pick top items from each source, then deduplicate
-        const selectedItems = [];
-        Object.keys(sourceSpecificItems).forEach(source => {
-            const items = sourceSpecificItems[source].slice(0, 5); // Take top 5 from each source
-            selectedItems.push(...items);
-        });
-
         // Simple de-duplication based on normalized title
         const uniqueTitles = new Set();
         const deduplicatedNews = [];
-        for (const newsItem of selectedItems) {
+        for (const newsItem of allNews) {
             const normalizedTitle = newsItem.title.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, ''); // Include Chinese chars
             if (!uniqueTitles.has(normalizedTitle)) {
                 uniqueTitles.add(normalizedTitle);
@@ -289,26 +286,11 @@ class NewsInspirationService {
         }
 
         console.log(`[NewsInspirationService] Combined and deduplicated ${deduplicatedNews.length} news items.`);
+        console.log(`[NewsInspirationService] Returning ${deduplicatedNews.length} items.`);
         return deduplicatedNews;
     }
 
-    /**
-     * 生成用于AI内容创作的提示词。
-     * @param {object} newsItem - 标准化后的新闻对象。
-     * @returns {string} AI提示词。
-     */
-    #getNormalizedItems(sourceId, rawData) {
-        if (!rawData?.items) return [];
-        
-        switch (sourceId) {
-            case 'hupu': return this.#normalizeHupu(rawData);
-            case 'douyin': return this.#normalizeDouyin(rawData);
-            case 'weibo': return this.#normalizeWeibo(rawData);
-            case 'hackernews': return this.#normalizeHackerNews(rawData);
-            case 'nowcoder': return this.#normalizeNowcoder(rawData);
-            default: return [];
-        }
-    }
+
 
     generateContentPrompt(newsItem) {
         return `你是一位专业的"头条"平台内容创作者。请根据以下新闻热点，生成一篇吸引人的、结构清晰的头条风格文章。

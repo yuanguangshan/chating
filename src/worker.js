@@ -447,6 +447,7 @@ export default {
                     
                     const newsService = new NewsInspirationService(env);
                     const allInspirations = await newsService.getCombinedNewsInspiration();
+                    console.log(`[Worker] Total inspirations before filter: ${allInspirations.length}`);
                     
                     // 根据关键词过滤新闻灵感
                     const lowerKeyword = keyword.toLowerCase();
@@ -454,11 +455,13 @@ export default {
                         .filter(item => 
                             item && 
                             ((item.title && item.title.toLowerCase().includes(lowerKeyword)) || 
-                             (item.summary && item.summary.toLowerCase().includes(lowerKeyword)))
-                        )
-                        .slice(0, limit);
+                             (item.description && item.description.toLowerCase().includes(lowerKeyword))) ||
+                            (item.content && item.content.toLowerCase().includes(lowerKeyword))
+                        );
+                    console.log(`[Worker] Total inspirations after filter: ${filteredNews.length}`);
+                    const slicedNews = filteredNews.slice(0, limit);
                     
-                    return new Response(JSON.stringify({ news: filteredNews }), {
+                    return new Response(JSON.stringify({ news: slicedNews }), {
                         headers: { 'Content-Type': 'application/json', ...corsHeaders },
                     });
                 } catch (error) {
