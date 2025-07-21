@@ -397,33 +397,6 @@ ${topic.excerpt}
                 contentPrompt: "请分析2025年AI技术对各行业工作方式的深度影响，包括机遇与挑战...",
                 tags: ["AI", "工作", "科技", "未来", "趋势"],
                 type: 'hot'
-            },
-            {
-                title: "新能源汽车价格战：是福利还是陷阱？",
-                hotValue: "1500万",
-                url: "https://www.zhihu.com/question/ev_price",
-                excerpt: "2024年以来，新能源汽车价格持续走低，消费者该如何选择...",
-                contentPrompt: "分析新能源汽车价格战背后的原因、影响及消费者应对策略...",
-                tags: ["新能源汽车", "价格战", "消费", "市场"],
-                type: 'hot'
-            },
-            {
-                title: "直播带货还能火多久？行业洗牌进行时",
-                hotValue: "1200万",
-                url: "https://www.zhihu.com/question/live_streaming",
-                excerpt: "从薇娅李佳琦到东方甄选，直播带货行业经历了怎样的变迁...",
-                contentPrompt: "分析直播带货行业的发展历程、现状及未来趋势，探讨行业洗牌的原因...",
-                tags: ["直播带货", "电商", "行业", "趋势"],
-                type: 'hot'
-            },
-            {
-                title: "房价下跌时代，刚需现在该买房吗？",
-                hotValue: "1800万",
-                url: "https://www.zhihu.com/question/house_price",
-                excerpt: "多地房价出现松动，刚需购房者面临艰难选择...",
-                contentPrompt: "探讨房价下行周期中，刚需购房者的决策策略和注意事项...",
-                tags: ["房价", "买房", "刚需", "投资"],
-                type: 'hot'
             }
         ];
     }
@@ -434,15 +407,7 @@ ${topic.excerpt}
      */
     getFallbackInspirationQuestions() {
         return [
-            {
-                title: "作为一个普通人，如何在日常生活中培养创造力？",
-                hotValue: "1200万",
-                url: "https://www.zhihu.com/question/creativity_daily",
-                excerpt: "创造力不仅仅属于艺术家和科学家，每个人都可以在日常生活中培养这种能力...",
-                contentPrompt: "请分享在日常生活中培养创造力的实用方法和习惯，以及如何将这些创意转化为实际成果...",
-                tags: ["创造力", "自我提升", "思维", "习惯养成"],
-                type: 'inspiration'
-            },
+
             {
                 title: "你认为什么样的教育方式最能激发孩子的学习兴趣？",
                 hotValue: "980万",
@@ -450,33 +415,6 @@ ${topic.excerpt}
                 excerpt: "面对应试教育的压力，如何保持孩子对学习的热情和好奇心成为许多家长关注的问题...",
                 contentPrompt: "探讨能够有效激发孩子学习兴趣的教育理念和具体方法，结合实际案例分析...",
                 tags: ["教育", "学习兴趣", "孩子成长", "家庭教育"],
-                type: 'inspiration'
-            },
-            {
-                title: "职场中，如何优雅地拒绝不合理的工作要求？",
-                hotValue: "1560万",
-                url: "https://www.zhihu.com/question/reject_work",
-                excerpt: "在职场中，适当拒绝是一种必要的能力，但如何拒绝又不伤害工作关系...",
-                contentPrompt: "分析职场中常见的不合理要求类型，并提供具体的拒绝策略和沟通技巧...",
-                tags: ["职场", "沟通技巧", "边界感", "工作关系"],
-                type: 'inspiration'
-            },
-            {
-                title: "人到中年，如何重新定义自己的人生价值？",
-                hotValue: "2100万",
-                url: "https://www.zhihu.com/question/midlife_value",
-                excerpt: "中年危机不仅仅是职业和家庭压力，更多的是对自我价值的重新思考...",
-                contentPrompt: "探讨中年人如何面对人生转折期，重新审视自己的价值观和人生目标...",
-                tags: ["中年", "人生价值", "自我实现", "心理健康"],
-                type: 'inspiration'
-            },
-            {
-                title: "极简主义生活方式真的能带来幸福感吗？",
-                hotValue: "870万",
-                url: "https://www.zhihu.com/question/minimalism",
-                excerpt: "随着物质生活的丰富，越来越多的人开始追求极简主义生活...",
-                contentPrompt: "分析极简主义的本质理念，以及它如何影响人们的生活质量和心理健康...",
-                tags: ["极简主义", "生活方式", "幸福感", "消费观"],
                 type: 'inspiration'
             }
         ];
