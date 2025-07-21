@@ -4,13 +4,22 @@ import { DurableObject } from "cloudflare:workers";
 import { getGeminiChatAnswer, getKimiChatAnswer } from './ai.js';
 import { ToutiaoServiceClient } from './toutiaoDO.js';
 import ZhihuHotService from './zhihuHotService.js';
+import NewsInspirationService from './newsInspirationService.js';
 let zhihuHotService;
+let newsInspirationService;
 
 function getZhihuHotService(env) {
     if (!zhihuHotService) {
         zhihuHotService = new ZhihuHotService(env);
     }
     return zhihuHotService;
+}
+
+function getNewsInspirationService(env) {
+    if (!newsInspirationService) {
+        newsInspirationService = new NewsInspirationService(env);
+    }
+    return newsInspirationService;
 }
 
 // 消息类型常量
@@ -1423,6 +1432,24 @@ async handleSessionInitialization(ws, url) {
                 }
             }
         }
+
+        // 新增：检查是否是新闻灵感任务
+        if (message.text.startsWith('/新闻')) {
+            const commandText = message.text.trim();
+            
+            // 处理不同的新闻命令
+            if (commandText === '/新闻') {
+                // 获取新闻灵感列表
+                this.ctx.waitUntil(this.handleNewsInspirationTask(session, commandText));
+                message.text += `\n\n> (📰 正在获取新闻灵感...)`;
+            } else if (commandText.startsWith('/新闻文章')) {
+                // 基于新闻生成文章
+                const topicInfo = commandText.replace('/新闻文章', '').trim();
+                const newsItemIndex = parseInt(topicInfo || '1');
+                this.ctx.waitUntil(this.handleGenerateArticleFromNews(session, newsItemIndex));
+                message.text += `\n\n> (📝 正在基于新闻灵感生成文章...)`;
+            }
+        }
         
         await this.addAndBroadcastMessage(message);
     }
@@ -1957,5 +1984,192 @@ async handleDeleteMessageRequest(session, payload) {
                 error: error.message
             }), { headers: JSON_HEADERS });
         }
+    }
+
+    // 新增：处理新闻灵感任务
+    async handleNewsInspirationTask(session, messageText) {
+        // Generate a temporary "thinking" message ID
+        const thinkingMessageId = crypto.randomUUID();
+        const originalMessage = {
+            id: thinkingMessageId,
+            username: session.username,
+            timestamp: Date.now(),
+            text: messageText,
+            type: 'text'
+        };
+
+        // 1. Immediately send a "thinking" message to the frontend
+        const thinkingMessage = {
+            id: thinkingMessageId,
+            username: session.username,
+            timestamp: Date.now(),
+            text: `🔄 正在获取今日新闻灵感...\n\n> (⏳ 正在获取最新热点...)`,
+            type: 'text'
+        };
+        await this.addAndBroadcastMessage(thinkingMessage);
+
+        // 2. Execute the fetch process in the background
+        this.ctx.waitUntil((async () => {
+            try {
+                const newsService = getNewsInspirationService(this.env);
+                const inspirations = await newsService.getCombinedNewsInspiration(); // Use combined method
+
+                if (!inspirations || inspirations.length === 0) {
+                    throw new Error('未能获取到新闻灵感数据，请稍后再试。');
+                }
+
+                // Build the formatted response
+                let responseText = "📰 **今日新闻灵感**\n\n";
+                
+                inspirations.slice(0, 15).forEach((newsItem, index) => {
+                    const itemNumber = index + 1;
+                    // Ensure hotValue is a number and display only if > 0
+                    const hotValue = typeof newsItem.hotValue === 'number' && newsItem.hotValue > 0 ? ` | **热度**: ${newsItem.hotValue}` : '';
+                    const excerpt = newsItem.description || newsItem.title; // Use 'description' first, fallback to 'title'
+                    
+                    responseText += `### ${itemNumber}. ${newsItem.title}\n`;
+                    responseText += `**来源**: ${newsItem.source}${hotValue}\n`;
+                    responseText += `**摘要**: ${excerpt.length > 100 ? excerpt.substring(0, 100) + '...' : excerpt}\n`;
+                    responseText += `[🔗 查看原文](${newsItem.url}) | <button class="news-generate-btn" data-index="${itemNumber}" data-title="${newsItem.title}" style="background: linear-gradient(45deg, #2ecc71, #27ae60); color: white; border: none; padding: 4px 8px; border-radius: 12px; cursor: pointer; font-size: 12px; margin: 0 2px;">🚀 生成文章</button>\n\n`;
+                });
+
+                responseText += "---\n";
+                responseText += "💡 **小贴士**: 点击 `🚀 生成文章` 即可基于该新闻生成头条风格文章。";
+
+                // Update the thinking message with the final formatted response
+                const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+                if (messageIndex !== -1) {
+                    this.messages[messageIndex].text = responseText;
+                    // Store the news data directly on the message to retrieve it later for article generation
+                    this.messages[messageIndex].newsData = inspirations; // Store the full list
+                    this.messages[messageIndex].timestamp = Date.now();
+                    await this.saveMessages();
+                    this.broadcast({ type: 'chat', payload: this.messages[messageIndex] });
+                }
+
+            } catch (error) {
+                // Handle failure
+                this.debugLog(`❌ 获取新闻灵感失败: ${error.message}`, 'ERROR', error); // Log full error object
+                const messageIndex = this.messages.findIndex(m => m.id === thinkingMessage.id);
+                if (messageIndex !== -1) {
+                    this.messages[messageIndex].text = `${originalMessage.text}\n\n> (❌ **获取新闻灵感失败**: ${error.message})`;
+                    this.messages[messageIndex].timestamp = Date.now(); // Update timestamp
+                    await this.saveMessages();
+                    this.broadcast({ type: 'chat', payload: this.messages[messageIndex] });
+                }
+            }
+        })());
+    }
+
+    // 新增：基于新闻灵感生成文章
+    async handleGenerateArticleFromNews(session, newsItemIndex) {
+        // Generate a temporary ID for the "processing" message
+        const processingMessageId = crypto.randomUUID();
+        let selectedNewsItemTitle = '选定新闻'; // Default for error messages
+
+        // 1. Immediately send a "processing" message to the frontend
+        const processingMessage = {
+            id: processingMessageId,
+            username: session.username,
+            timestamp: Date.now(),
+            text: `📝 正在基于新闻生成文章...\n\n> (⏳ 正在处理新闻主题...)`,
+            type: 'text'
+        };
+        await this.addAndBroadcastMessage(processingMessage);
+
+        // 2. Execute the generation process in the background
+        this.ctx.waitUntil((async () => {
+            try {
+                // Find the message that contains the news data (most recent one with `newsData`)
+                // Reverse search for efficiency to find the latest news message
+                const newsMessage = [...this.messages].reverse().find(m => m.newsData && m.newsData.length > 0);
+                
+                if (!newsMessage || !newsMessage.newsData || !Array.isArray(newsMessage.newsData)) {
+                    throw new Error('未找到最新的新闻灵感数据。请先执行 /新闻 命令获取列表。');
+                }
+                
+                // Retrieve the specific news item using the index
+                const selectedNewsItem = newsMessage.newsData[newsItemIndex - 1]; // Adjust for 0-based index
+
+                if (!selectedNewsItem) {
+                    throw new Error(`新闻索引 ${newsItemIndex} 无效。请检查序号是否正确。`);
+                }
+                selectedNewsItemTitle = selectedNewsItem.title; // Update title for logging
+
+                // Use ToutiaoServiceClient to generate the article
+                const toutiaoClient = new ToutiaoServiceClient(this.env);
+                const newsService = getNewsInspirationService(this.env); // Get news service for prompt generation
+                const prompt = newsService.generateContentPrompt(selectedNewsItem);
+                
+                const task = {
+                    text: prompt,
+                    username: session?.username || 'system',
+                    timestamp: Date.now(),
+                    id: `news_article_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` // Unique ID for toutiao task
+                };
+
+                const result = await toutiaoClient.processTask(task); // This calls the ToutiaoServiceDO.processTask
+                
+                let articleText;
+                if (result.success) {
+                    let displayContent = result.content;
+                    const maxLength = parseInt(this.env.MAX_CONTENT_LENGTH) || 10000;
+                    if (displayContent.length > maxLength) {
+                        displayContent = displayContent.substring(0, maxLength) + '...\n\n*(内容过长，已截断显示)*';
+                    }
+                    
+                    articleText = `🎯 **基于新闻灵感生成的文章**\n\n**新闻标题**: ${selectedNewsItem.title}\n**来源**: ${selectedNewsItem.source}\n${selectedNewsItem.hotValue > 0 ? `**热度**: ${selectedNewsItem.hotValue}\n` : ''}**发布时间**: ${new Date().toLocaleString('zh-CN')}\n\n---\n\n**文章标题**: ${result.title}\n\n**正文**: ${displayContent}\n\n🔗 **原文链接**: ${selectedNewsItem.url}\n\n💡 如有不同观点，欢迎留言交流！`;
+                } else {
+                    throw new Error(result.error || '内容生成失败');
+                }
+
+                // Prepare the final message to be posted in the chat
+                const finalMessage = {
+                    id: `news_article_final_${Date.now()}`,
+                    username: '新闻文章助手',
+                    timestamp: Date.now(),
+                    text: articleText,
+                    type: 'system' // Mark as system message for distinct styling/handling
+                };
+
+                // Replace the original "processing" message with the final result
+                const messageIndex = this.messages.findIndex(m => m.id === processingMessageId);
+                if (messageIndex !== -1) {
+                    this.messages[messageIndex] = finalMessage;
+                    await this.saveMessages();
+                    this.broadcast({ type: 'chat', payload: finalMessage });
+                } else {
+                    // Fallback: add as new message if the processing one was somehow lost
+                    await this.addAndBroadcastMessage(finalMessage);
+                }
+                
+                this.debugLog(`📝 成功生成新闻文章: "${selectedNewsItemTitle}" for 👦 ${session.username}`, 'INFO');
+
+            } catch (error) {
+                this.debugLog(`❌ 生成新闻文章失败: ${error.message}`, 'ERROR', error);
+                
+                // Update the processing message with the error
+                const messageIndex = this.messages.findIndex(m => m.id === processingMessageId);
+                const errorText = `❌ 生成文章失败：${error.message}`;
+                
+                if (messageIndex !== -1) {
+                    this.messages[messageIndex].text = errorText;
+                    this.messages[messageIndex].timestamp = Date.now();
+                    this.messages[messageIndex].type = 'error';
+                    await this.saveMessages();
+                    this.broadcast({ type: 'chat', payload: this.messages[messageIndex] });
+                } else {
+                    // Fallback: add as new message
+                    const errorMessage = {
+                        id: crypto.randomUUID(),
+                        username: '系统',
+                        timestamp: Date.now(),
+                        text: errorText,
+                        type: 'error'
+                    };
+                    await this.addAndBroadcastMessage(errorMessage);
+                }
+            }
+        })());
     }
 }
