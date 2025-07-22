@@ -2091,6 +2091,30 @@ async handleDeleteMessageRequest(session, payload) {
         })());
     }
 
+    // RPC方法：基于新闻灵感生成文章
+    async generateNewsArticle({username}, newsItem, prompt) {
+        const session = { username };
+        const task = {
+            text: prompt,
+            username: username || 'system',
+            timestamp: Date.now(),
+            id: `news_article_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` // Unique ID for toutiao task
+        };
+        
+        const toutiaoClient = new ToutiaoServiceClient(this.env);
+        const result = await toutiaoClient.processTask(task);
+        
+        if (!result.success) {
+            throw new Error(result.error || '内容生成失败');
+        }
+        
+        return {
+            success: true,
+            content: result.content,
+            title: result.title
+        };
+    }
+
     // 新增：基于新闻灵感生成文章
     async handleGenerateArticleFromNews(session, newsItemIndex) {
         // Generate a temporary ID for the "processing" message
