@@ -177,9 +177,9 @@ export class ToutiaoPublisher {
      * @returns {Promise<Object>} 发布结果
      */
     async publish(title, content, options = {}) {
-        const flaskProxyUrl = this.env.FLASK_PROXY_API_URL_TOUTIAO;
-        if (!flaskProxyUrl) {
-            throw new Error('未配置 FLASK_PROXY_API_URL 环境变量');
+        const flaskProxyUrl = `${this.env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost`;
+        if (!this.env.FLASK_API) {
+            console.warn('⚠️ 未配置FLASK_API环境变量，使用默认值');
         }
 
         this.logger.log(`🚀 准备通过代理 ${flaskProxyUrl} 发布到头条...`, { title });

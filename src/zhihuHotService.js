@@ -6,7 +6,7 @@
 export class ZhihuHotService {
     constructor(env = null) {
         // 使用后端API地址，支持环境变量注入
-        this.apiBaseUrl = env?.FLASK_PROXY_API_URL_ZHIHU || 'https://api.yuangs.cc/api/zhihu';
+        this.apiBaseUrl = `${env?.FLASK_API || 'https://api.yuangs.cc'}/api/zhihu`;
         this.cacheKey = 'zhihu_hot_cache';
         this.inspirationCacheKey = 'zhihu_inspiration_cache';
         this.cacheDuration = 5 * 60 * 1000; // 5分钟缓存
