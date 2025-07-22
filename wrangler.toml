@@ -45,7 +45,7 @@ new_sqlite_classes = ["AuthServiceDO2"]
 # 【新增】定义管理页面要检查的房间列表 
 [vars]
 MANAGEMENT_ROOMS_LIST = "test,future,kerry,program" # 逗号分隔的房间名
-API_DOMAIN = "chattest.want.biz"
+API_DOMAIN = "chats.want.biz"
 FLASK_API="https://api.yuangs.cc"
 MAX_CONTENT_LENGTH=10000
 YOUR_EXTERNAL_NEWS_API_BASE_URL = "https://newsnow.want.biz/api/s?id="
