@@ -48,17 +48,28 @@ function injectEnvVariables(htmlContent, env, pageType = 'main') {
     let injectedScript = '';
     
     if (pageType === 'main') {
-        injectedScript += `window.FLASK_API_URL = "${env.YOUR_FLASK_PROXY_API_URL || 'http://localhost:5000'}";\n`;
+        injectedScript += `window.API_DOMAIN = "${env.API_DOMAIN || 'chat.want.biz'}";\n`;
+        injectedScript += `window.FLASK_API = "${env.FLASK_API || 'api.yuangs.cc'}";\n`;
+        injectedScript += `window.FLASK_API_URL = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost";\n`;
+        injectedScript += `window.FLASK_PROXY_API_URL_TOUTIAO = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost";\n`;
+        injectedScript += `window.FLASK_PROXY_API_URL_ZHIHU = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/zhihu";\n`;
     } else if (pageType === 'management') {
         const roomsListString = env.MANAGEMENT_ROOMS_LIST || 'general,test,future,admin,kerry';
         const roomsArray = roomsListString.split(',').map(room => room.trim());
         
         injectedScript += `window.MANAGEMENT_ROOMS_LIST = ${JSON.stringify(roomsArray)};\n`;
         injectedScript += `window.API_DOMAIN = "${env.API_DOMAIN || 'chat.want.biz'}";\n`;
+        injectedScript += `window.FLASK_API = "${env.FLASK_API || 'api.yuangs.cc'}";\n`;
+        injectedScript += `window.FLASK_API_URL = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost";\n`;
+        injectedScript += `window.FLASK_PROXY_API_URL_TOUTIAO = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost";\n`;
+        injectedScript += `window.FLASK_PROXY_API_URL_ZHIHU = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/zhihu";\n`;
         injectedScript += `window.ENV_CONFIG = ${JSON.stringify({
             managementRoomsList: roomsArray,
             apiDomain: env.API_DOMAIN || 'chat.want.biz',
-            flaskApiUrl: env.YOUR_FLASK_PROXY_API_URL || 'http://localhost:5000'
+            flaskApi: env.FLASK_API || 'api.yuangs.cc',
+            flaskApiUrl: `${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost`,
+            toutiaoApiUrl: `${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost`,
+            zhihuApiUrl: `${env.FLASK_API || 'https://api.yuangs.cc'}/api/zhihu`
 })};\n`;
     }
     

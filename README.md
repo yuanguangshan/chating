@@ -192,7 +192,7 @@ KIMI_API_KEY (MOONSHOT_API_KEY): Kimi (月之暗面) API Key
 
 DEEPSEEK_API_KEY: DeepSeek API Key
 
-YOUR_FLASK_PROXY_API_URL: 您部署的Flask代理的URL，用于头条发布等
+FLASK_PROXY_API_URL_TOUTIAO: 您部署的Flask代理的URL，用于头条发布等
 
 注意: 您的Flask代理需要一个后端服务来处理与头条API的交互，这部分代码不在此开源项目内，您需要自行实现或使用现有解决方案。
 
@@ -208,7 +208,7 @@ Generated toml
 # wrangler.toml
 # ...
 [vars]
-YOUR_FLASK_PROXY_API_URL = "https://your-flask-proxy.example.com/api/toutiao"
+FLASK_PROXY_API_URL_TOUTIAO = "https://your-flask-proxy.example.com/api/toutiao"
 API_DOMAIN = "your-workers-domain.workers.dev" # 或者您的自定义域名
 IGNORE_WHEN_COPYING_START
 content_copy

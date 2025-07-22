@@ -177,7 +177,7 @@ export class ToutiaoPublisher {
      * @returns {Promise<Object>} 发布结果
      */
     async publish(title, content, options = {}) {
-        const flaskProxyUrl = this.env.YOUR_FLASK_PROXY_API_URL;
+        const flaskProxyUrl = this.env.FLASK_PROXY_API_URL_TOUTIAO;
         if (!flaskProxyUrl) {
             throw new Error('未配置 FLASK_PROXY_API_URL 环境变量');
         }

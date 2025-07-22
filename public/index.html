@@ -1781,9 +1781,9 @@ async function publishToToutiao(message) {
 
         showAppNotification('正在发布到头条...', 2000);
 
-        const YOUR_FLASK_PROXY_API_URL = window.FLASK_API_URL || 'https://your.domain.path/to/toutiaopost';
+        const FLASK_PROXY_API_URL_TOUTIAO = window.FLASK_API_URL || 'https://your.domain.path/to/toutiaopost';
 
-        const response = await fetch(YOUR_FLASK_PROXY_API_URL, {
+        const response = await fetch(FLASK_PROXY_API_URL_TOUTIAO, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
