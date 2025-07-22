@@ -125,11 +125,11 @@ Generated toml
 
 [[durable_objects.bindings]]
 name = "CHAT_ROOM_DO"
-class_name = "HibernatingChating"
+class_name = "HibernatingChating2"
 
 [[durable_objects.bindings]]
 name = "TOUTIAO_SERVICE_DO"
-class_name = "ToutiaoServiceDO"
+class_name = "ToutiaoServiceDO2"
 
 # ...
 IGNORE_WHEN_COPYING_START
@@ -292,7 +292,7 @@ AI回复语音播报: AI的文本回复会自动进行语音合成播报。
 
 📄 API 文档 (供开发者/管理员参考)
 
-本项目提供了以下后端 API 接口，大部分由 HibernatingChating Durable Object 处理，部分由 Worker 本身处理。{roomName} 需要替换为实际的房间名，{secret} 需要替换为您的 ADMIN_SECRET。
+本项目提供了以下后端 API 接口，大部分由 HibernatingChating2 Durable Object 处理，部分由 Worker 本身处理。{roomName} 需要替换为实际的房间名，{secret} 需要替换为您的 ADMIN_SECRET。
 
 API_DOMAIN: 请替换为您 Workers 部署后的域名，例如 chat.yourdomain.com 或 your-project.workers.dev。
 
@@ -560,13 +560,13 @@ Description: 获取指定期货品种的最新价格信息。
 
 Response: {"symbol": "...", "name": "...", "price": "...", ...}
 
-6. 内部 Durable Object API (仅限 ToutiaoServiceDO)
+6. 内部 Durable Object API (仅限 ToutiaoServiceDO2)
 
-以下 API 由 ToutiaoServiceDO 实例提供，通常不直接从前端调用，而是由 ToutiaoServiceClient 在 Worker 或其他 Durable Object 中调用。它们是理解后台工作流程的关键。
+以下 API 由 ToutiaoServiceDO2 实例提供，通常不直接从前端调用，而是由 ToutiaoServiceClient 在 Worker 或其他 Durable Object 中调用。它们是理解后台工作流程的关键。
 
 提交任务到队列
 
-Endpoint: http://localhost/queue (在 ToutiaoServiceDO 内部调用时)
+Endpoint: http://localhost/queue (在 ToutiaoServiceDO2 内部调用时)
 
 Method: POST
 

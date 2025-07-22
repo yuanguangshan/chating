@@ -15,7 +15,7 @@ const SERVICE_STATS_KEY = 'toutiao_service_stats';
  * 头条服务Durable Object
  * 完全独立于聊天室功能的头条服务
  */
-export class ToutiaoServiceDO extends DurableObject {
+export class ToutiaoServiceDO2 extends DurableObject {
     constructor(ctx, env) {
         super(ctx, env);
         this.ctx = ctx;

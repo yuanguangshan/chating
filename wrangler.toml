@@ -1,4 +1,4 @@
-name = "global_chats"
+name = "global"
 main = "src/worker.js"
 compatibility_date = "2024-07-08"
 
@@ -12,7 +12,7 @@ bucket = "./public"
 # Durable Object 绑定
 [[durable_objects.bindings]]
 name       = "CHAT_ROOM_DO"
-class_name = "HibernatingChating"
+class_name = "HibernatingChating2"
 
 
 # R2 存储桶绑定 (聊天媒体和图表共用)
@@ -22,24 +22,24 @@ bucket_name = "yuangs" # ✨ 请确保这是您正确的R2桶名称
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = [ "HibernatingChating" ]
+new_sqlite_classes = [ "HibernatingChating2" ]
 
 # 头条相关服务---
 [[durable_objects.bindings]]
 name = "TOUTIAO_SERVICE_DO"
-class_name = "ToutiaoServiceDO"
+class_name = "ToutiaoServiceDO2"
 
 [[durable_objects.bindings]]
 name = "AUTH_SERVICE_DO"
-class_name = "AuthServiceDO"
+class_name = "AuthServiceDO2"
 
 [[migrations]]
 tag = "v2"
-new_sqlite_classes = ["ToutiaoServiceDO"]
+new_sqlite_classes = ["ToutiaoServiceDO2"]
 
 [[migrations]]
 tag = "v3"
-new_sqlite_classes = ["AuthServiceDO"]
+new_sqlite_classes = ["AuthServiceDO2"]
 # 头条相关服务---
 
 # 【新增】定义管理页面要检查的房间列表 
@@ -60,7 +60,7 @@ enabled = true
 [triggers]
 crons = [
  # 规则一: 每日问候 (北京时间 08:00 -> UTC 00:00)
- "0 0 * * *",
+ #"0 0 * * *",
 
  # 规则二: 图表生成 (北京时间 周一至周五, 09:00-15:00 和 21:00-03:00)
  # 对应 UTC: 周一至周五, 01:00-07:00 和 13:00-19:00
@@ -71,6 +71,6 @@ crons = [
 
  # 规则四: 期货数据 (同上时间段, 每小时的第15分钟, 用于测试)
 # "*/30 1-7,13-19 * * 1-5",
-# 规则五：新增: 头条内容生成 (每30分钟)
-"*/30 * * * "
+## 规则五：新增: 头条内容生成 (每30分钟)
+#W"*/30 * * * "
 ]

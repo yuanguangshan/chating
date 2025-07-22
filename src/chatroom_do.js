@@ -54,7 +54,7 @@ const JSON_HEADERS = {
 
 
 
-export class HibernatingChating extends DurableObject {
+export class HibernatingChating2 extends DurableObject {
     constructor(ctx, env) {
         super(ctx, env);
         this.ctx = ctx;
@@ -683,7 +683,7 @@ async handleZhihuTopicGeneration(session, keyword) {
         }
     })());
 }
-// 在 HibernatingChating 类内部，例如放在 handleToutiaoTask 函数后面
+// 在 HibernatingChating2 类内部，例如放在 handleToutiaoTask 函数后面
 
     /**
      * [安全网机制] 由 Cron 定时任务触发，处理可能积压的头条任务队列。
@@ -2167,7 +2167,7 @@ async handleDeleteMessageRequest(session, payload) {
                     id: `news_article_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` // Unique ID for toutiao task
                 };
 
-                const result = await toutiaoClient.processTask(task); // This calls the ToutiaoServiceDO.processTask
+                const result = await toutiaoClient.processTask(task); // This calls the ToutiaoServiceDO2.processTask
                 
                 let articleText;
                 if (result.success) {

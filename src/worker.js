@@ -16,8 +16,8 @@
 globalThis.global = globalThis;
 
 
-import { HibernatingChating } from './chatroom_do.js';
-import { ToutiaoServiceDO } from './toutiaoDO.js';
+import { HibernatingChating2 } from './chatroom_do.js';
+import { ToutiaoServiceDO2 } from './toutiaoDO.js';
 import { NewsInspirationService } from './newsInspirationService.js';
 import html from '../public/index.html';
 import managementHtml from '../public/management.html';
@@ -35,7 +35,7 @@ import { getPrice } from './futuresDataService.js';
 import ZhihuHotService from './zhihuHotService.js';
 
 // 导出Durable Object类，以便Cloudflare平台能够识别和实例化它。
-export { HibernatingChating, ToutiaoServiceDO, AuthServiceDO};
+export { HibernatingChating2, ToutiaoServiceDO2, AuthServiceDO2};
 
 /**
  * 统一的环境变量注入函数
