@@ -5,6 +5,8 @@
   <title>智能管理面板</title> <!-- 标题改为更通用的"管理面板" -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>  //--CONFIG-PLACEHOLDER--//</script>
+  <script src="../src/zhihuHotService.js"></script>
+  <script src="../src/newsInspirationService.js"></script>
   <style>
     /* ====== THEME VARIABLES ====== */
     :root {
@@ -959,9 +961,10 @@
 
     <!-- Tabs 区域 -->
     <div class="tabs">
-        <button class="tab-button active" onclick="switchTab('zhihu-hot-management')">知乎灵感</button>
-        <button class="tab-button" onclick="switchTab('toutiao-content-management')">头条发布</button>
-        <button class="tab-button" onclick="switchTab('chat-whitelist-management')">用户管理</button>
+        <button class="tab-button active" onclick="switchTab('zhihu-hot-management')">灵感</button>
+            <button class="tab-button" onclick="switchTab('news-inspiration-management')">新闻</button>
+        <button class="tab-button" onclick="switchTab('toutiao-content-management')">头条</button>
+        <button class="tab-button" onclick="switchTab('chat-whitelist-management')">用户</button>
     </div>
 
     <!-- 聊天室白名单 Tab 内容 -->
@@ -1180,11 +1183,46 @@
         
         <!-- 优化后的话题网格布局 -->
         <div id="zhihu-topics-container" class="zhihu-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 8px;">
-            <div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 120px;">
-                <span style="color: var(--text-sub); font-style: italic; font-size: 0.85em;">加载中，请稍候...</span>
+                <div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 120px;">
+                    <span style="color: var(--text-sub); font-style: italic; font-size: 0.85em;">加载中，请稍候...</span>
+                </div>
             </div>
         </div>
-    </div>
+        
+        <!-- 新闻灵感管理 Tab 内容 -->
+        <div id="news-inspiration-management" class="tab-content">
+            <div class="zhihu-section" style="padding: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h2 style="margin: 0; font-size: 1.1em;">新闻灵感管理</h2>
+                    <button onclick="fetchNewsInspiration()" class="refresh-button" style="padding: 6px 10px; font-size: 0.8em;">
+                        <span style="display: inline-block; margin-right: 4px;">🔄</span> 刷新
+                    </button>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <input type="text" id="news-topic-input" placeholder="输入关键词搜索新闻灵感" style="font-size: 0.9em; padding: 8px 12px;">
+                    <button id="news-search-btn" onclick="searchNewsTopics()" style="padding: 8px 12px; font-size: 0.85em;">搜索</button>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <select id="news-room-select" style="padding: 8px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); font-size: 0.9em;">
+                        <option value="test">test</option>
+                        <option value="general">general</option>
+                        <option value="future">future</option>
+                    </select>
+                    <button id="news-generate-btn" onclick="generateArticleFromNews()" class="submit-button" style="padding: 8px 12px; font-size: 0.85em;">生成文章到选定房间</button>
+                </div>
+                
+                <div id="news-status" class="status-info" style="margin: 8px 0; font-size: 0.85em; padding: 8px 10px;"></div>
+            </div>
+            
+            <!-- 新闻灵感网格布局 -->
+            <div id="news-topics-container" class="zhihu-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 8px;">
+                <div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 120px;">
+                    <span style="color: var(--text-sub); font-style: italic; font-size: 0.85em;">加载中，请稍候...</span>
+                </div>
+            </div>
+        </div>
   </div>
 
   <script>
@@ -1254,8 +1292,16 @@
     const zhihuTopicsContainer = document.getElementById('zhihu-topics-container');
     const zhihuStatus = document.getElementById('zhihu-status');
     
+    // News inspiration DOM elements
+    const newsTopicInput = document.getElementById('news-topic-input');
+    const newsRoomSelect = document.getElementById('news-room-select');
+    const newsTopicsContainer = document.getElementById('news-topics-container');
+    const newsStatus = document.getElementById('news-status');
+    
     // 存储知乎话题数据
     let zhihuTopicsData = [];
+    // 存储新闻灵感数据
+    let newsTopicsData = [];
 
 
     function showStatus(msg, type='info') {
@@ -1300,6 +1346,18 @@
             
             // 加载知乎热点
             fetchZhihuHotTopics(20);
+        } else if (tabId === 'news-inspiration-management') {
+            // 设置新闻灵感房间选择器
+            newsRoomSelect.innerHTML = '';
+            potentialRoomsToCheck.forEach(room => {
+                const option = document.createElement('option');
+                option.value = room;
+                option.textContent = room;
+                newsRoomSelect.appendChild(option);
+            });
+            
+            // 加载新闻灵感
+            fetchNewsInspiration(20);
         }
     }
 
@@ -2079,7 +2137,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            topicInfo: (index + 1).toString(),
+                            topicInfo: (index + 1).toString(), // Still pass index+1 for Zhihu for now if that's what the DO expects
                             roomName: selectedRoom
                         })
                     });
@@ -2164,6 +2222,313 @@
         zhihuStatus.textContent = message;
         zhihuStatus.className = `status-${type}`;
     }
+    
+    // ===== 新闻灵感管理功能 =====
+    async function fetchNewsInspiration() {
+        updateNewsStatus('正在获取新闻灵感话题...', 'info');
+        newsTopicsContainer.innerHTML = '<div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 120px;"><span style="color: var(--text-sub); font-style: italic; font-size: 0.85em;">加载中，请稍候...</span></div>';
+        
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/news/combined?limit=20`);
+            if (!res.ok) throw new Error(await res.text());
+            
+            const data = await res.json();
+            // CORRECTED: Access data.news instead of data.topics
+            newsTopicsData = data.news || [];
+            renderNewsTopics(newsTopicsData);
+            updateNewsStatus(`成功获取 ${newsTopicsData.length} 个新闻灵感话题`, 'success');
+            
+        } catch (e) {
+            updateNewsStatus(`获取新闻灵感失败: ${e.message}`, 'error');
+            newsTopicsContainer.innerHTML = `<div class="zhihu-card" style="color: var(--error); text-align: center;"><strong>加载失败:</strong> ${e.message}</div>`;
+        }
+    }
+    
+    // 搜索新闻相关话题
+    async function searchNewsTopics() {
+        const keyword = newsTopicInput.value.trim();
+        if (!keyword) {
+            updateNewsStatus('请输入关键词', 'error');
+            return;
+        }
+        
+        updateNewsStatus(`正在搜索关键词"${keyword}"相关新闻...`, 'info');
+        newsTopicsContainer.innerHTML = '<div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 120px;"><span style="color: var(--text-sub); font-style: italic; font-size: 0.85em;">搜索中，请稍候...</span></div>';
+        
+        try {
+            const domain = `https://${apiDomain}`;
+            // CORRECTED: Change to GET request with keyword in URL
+            const res = await fetch(`${domain}/api/news/search?keyword=${encodeURIComponent(keyword)}`, {
+                method: 'GET', // Changed from POST to GET
+                headers: { 'Content-Type': 'application/json' } // Headers might not be strictly needed for GET, but harmless
+            });
+            
+            if (!res.ok) throw new Error(await res.text());
+            
+            const data = await res.json();
+            // CORRECTED: Access data.news instead of data.topics
+            if (!data.news || data.news.length === 0) {
+                updateNewsStatus(`未找到与"${keyword}"相关的新闻`, 'info');
+                newsTopicsContainer.innerHTML = `<div class="zhihu-card" style="text-align: center;"><p>未找到相关新闻，请尝试其他关键词</p></div>`;
+                return;
+            }
+            
+            newsTopicsData = data.news; // Corrected: Save data.news
+            renderNewsTopics(data.news);
+            updateNewsStatus(`找到 ${data.news.length} 个与"${keyword}"相关的新闻`, 'success');
+            
+        } catch (e) {
+            updateNewsStatus(`搜索新闻失败: ${e.message}`, 'error');
+            newsTopicsContainer.innerHTML = `<div class="zhihu-card" style="color: var(--error); text-align: center;"><strong>搜索失败:</strong> ${e.message}</div>`;
+        }
+    }
+    
+    // 根据选定的新闻话题生成文章
+    async function generateArticleFromNews() {
+        const selectedTopicId = document.querySelector('#news-topics-container .zhihu-card.selected')?.dataset.id;
+        if (!selectedTopicId) {
+            updateNewsStatus('请先选择一个新闻话题', 'error');
+            return;
+        }
+        
+        // CORRECTED: Retrieve the actual newsItem object using the index
+        const selectedNewsItem = newsTopicsData[parseInt(selectedTopicId)];
+        if (!selectedNewsItem) {
+            updateNewsStatus('未能找到选定新闻话题的详细信息', 'error');
+            return;
+        }
+
+        const selectedRoom = newsRoomSelect.value;
+        if (!selectedRoom) {
+            updateNewsStatus('请选择一个目标房间', 'error');
+            return;
+        }
+        
+        updateNewsStatus(`正在基于选定新闻话题生成文章，文章将发送到房间"${selectedRoom}"...`, 'info');
+        
+        try {
+            const domain = `https://${apiDomain}`;
+            const res = await fetch(`${domain}/api/news/article`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    newsItem: selectedNewsItem, // CORRECTED: Pass the full newsItem object
+                    roomName: selectedRoom
+                })
+            });
+            
+            if (!res.ok) throw new Error(await res.text());
+            
+            const data = await res.json();
+            if (data.success) {
+                updateNewsStatus(`文章生成任务已启动，请在房间"${selectedRoom}"中查看结果`, 'success');
+            } else {
+                updateNewsStatus(`文章生成请求失败: ${data.message || '未知错误'}`, 'error');
+            }
+            
+        } catch (e) {
+            updateNewsStatus(`生成文章失败: ${e.message}`, 'error');
+        }
+    }
+    
+    // 渲染新闻话题列表
+    function renderNewsTopics(topics) {
+        newsTopicsContainer.innerHTML = '';
+        
+        if (!topics || topics.length === 0) {
+            newsTopicsContainer.innerHTML = '<div class="zhihu-card" style="text-align: center;"><p style="font-size: 0.85em;">暂无新闻数据</p></div>';
+            return;
+        }
+        
+        topics.forEach((topic, index) => {
+            const card = document.createElement('div');
+            card.className = 'zhihu-card';
+            card.dataset.id = index.toString();
+            
+            // Set type tag (source for news)
+            const typeTag = document.createElement('div');
+            typeTag.className = `zhihu-card-type news`;
+            typeTag.textContent = topic.source || '新闻'; // Display source name
+            typeTag.style.background = 'var(--info)'; // Use info color for news type
+            typeTag.style.color = 'white'; // Make text white for better contrast
+            
+            // 设置标题
+            const title = document.createElement('h3');
+            title.textContent = topic.title;
+            title.style.fontSize = '0.9em';
+            title.style.marginBottom = '4px';
+            
+            // 设置来源和热度
+            const meta = document.createElement('div');
+            meta.style.display = 'flex';
+            meta.style.justifyContent = 'space-between';
+            meta.style.alignItems = 'center';
+            meta.style.marginBottom = '6px';
+            meta.style.fontSize = '0.75em';
+            meta.style.color = 'var(--text-sub)';
+            
+            const sourceSpan = document.createElement('span');
+            sourceSpan.textContent = `来源: ${topic.source || '未知'}`; // Prepend '来源: '
+            sourceSpan.style.background = 'var(--bg)';
+            sourceSpan.style.padding = '2px 6px';
+            sourceSpan.style.borderRadius = '4px';
+            sourceSpan.style.border = '1px solid var(--border)';
+            
+            const hotSpan = document.createElement('span');
+            hotSpan.textContent = `热度: ${topic.hotValue || 'N/A'}`; // Use hotValue property
+            hotSpan.style.color = 'var(--warning)';
+            hotSpan.style.fontWeight = 'bold';
+            
+            meta.appendChild(sourceSpan);
+            meta.appendChild(hotSpan);
+            
+            // 设置标签
+            const tagsContainer = document.createElement('div');
+            tagsContainer.style.marginBottom = '6px';
+            
+            // News items do not consistently have 'tags'. Skip this if not available.
+            // if (topic.tags && topic.tags.length > 0) {
+            //     topic.tags.slice(0, 3).forEach(tag => {
+            //         const tagSpan = document.createElement('span');
+            //         tagSpan.className = 'zhihu-card-tag';
+            //         tagSpan.textContent = tag;
+            //         tagsContainer.appendChild(tagSpan);
+            //     });
+            // }
+            
+            // 设置描述
+            const description = document.createElement('div');
+            description.className = 'zhihu-card-description';
+            description.textContent = topic.description || '暂无描述'; // Use topic.description
+            description.style.fontSize = '0.8em';
+            description.style.maxHeight = '60px';
+            description.style.overflow = 'hidden';
+            description.style.textOverflow = 'ellipsis';
+            description.style.display = '-webkit-box';
+            description.style.webkitLineClamp = '3';
+            description.style.webkitBoxOrient = 'vertical';
+            
+            // 设置动作按钮
+            const actions = document.createElement('div');
+            actions.className = 'zhihu-card-actions';
+            
+            const quickGenerateBtn = document.createElement('button');
+            quickGenerateBtn.textContent = '一键成文';
+            quickGenerateBtn.style.fontSize = '0.75em';
+            quickGenerateBtn.style.padding = '4px 8px';
+            quickGenerateBtn.style.background = 'var(--success)';
+            quickGenerateBtn.style.color = 'white';
+            quickGenerateBtn.onclick = async (e) => {
+                e.stopPropagation();
+                const selectedRoom = newsRoomSelect.value;
+                if (!selectedRoom) {
+                    updateNewsStatus('请先选择目标房间', 'error');
+                    return;
+                }
+                
+                // CORRECTED: Pass the current topic object directly
+                const newsItemToSend = topics[index];
+                if (!newsItemToSend) {
+                    updateNewsStatus('未能找到新闻话题的详细信息', 'error');
+                    return;
+                }
+
+                quickGenerateBtn.disabled = true;
+                quickGenerateBtn.textContent = '生成中...';
+                
+                try {
+                    const domain = `https://${apiDomain}`;
+                    const res = await fetch(`${domain}/api/news/article`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            newsItem: newsItemToSend, // CORRECTED: Pass the full newsItem object
+                            roomName: selectedRoom
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        updateNewsStatus(`文章生成任务已启动，请在房间"${selectedRoom}"中查看结果`, 'success');
+                    } else {
+                        updateNewsStatus(`文章生成请求失败: ${data.message || '未知错误'}`, 'error');
+                    }
+                } catch (e) {
+                    updateNewsStatus(`生成文章失败: ${e.message}`, 'error');
+                } finally {
+                    quickGenerateBtn.disabled = false;
+                    quickGenerateBtn.textContent = '一键成文';
+                }
+            };
+            
+            const generateBtn = document.createElement('button');
+            generateBtn.textContent = '选择';
+            generateBtn.style.fontSize = '0.75em';
+            generateBtn.style.padding = '4px 8px';
+            generateBtn.onclick = (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('#news-topics-container .zhihu-card').forEach(c => {
+                    c.classList.remove('selected');
+                    c.style.borderColor = 'var(--border)';
+                    c.style.boxShadow = '0 2px 8px var(--shadow)';
+                });
+                card.classList.add('selected');
+                card.style.borderColor = 'var(--info)';
+                card.style.boxShadow = '0 4px 15px color-mix(in srgb, var(--info) 20%, var(--shadow))';
+                updateNewsStatus(`已选择: ${topic.title}`, 'success');
+            };
+            
+            const viewBtn = document.createElement('button');
+            viewBtn.textContent = '原文';
+            viewBtn.style.background = 'var(--bg)';
+            viewBtn.style.color = 'var(--text)';
+            viewBtn.style.border = '1px solid var(--border)';
+            viewBtn.style.fontSize = '0.75em';
+            viewBtn.style.padding = '4px 8px';
+            viewBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (topic.url) {
+                    window.open(topic.url, '_blank');
+                }
+            };
+            
+            actions.appendChild(quickGenerateBtn);
+            actions.appendChild(generateBtn);
+            if (topic.url) {
+                actions.appendChild(viewBtn);
+            }
+            
+            // 组装卡片
+            card.appendChild(typeTag);
+            card.appendChild(title);
+            card.appendChild(meta);
+            // card.appendChild(tagsContainer); // Removed as news items don't always have tags
+            card.appendChild(description);
+            card.appendChild(actions);
+            
+            // Add card click effect
+            card.addEventListener('click', () => {
+                document.querySelectorAll('#news-topics-container .zhihu-card').forEach(c => {
+                    c.classList.remove('selected');
+                    c.style.borderColor = 'var(--border)';
+                    c.style.boxShadow = '0 2px 8px var(--shadow)';
+                });
+                card.classList.add('selected');
+                card.style.borderColor = 'var(--info)';
+                card.style.boxShadow = '0 4px 15px color-mix(in srgb, var(--info) 20%, var(--shadow))';
+                updateNewsStatus(`已选择: ${topic.title}`, 'success');
+            });
+            
+            newsTopicsContainer.appendChild(card);
+        });
+    }
+    
+    // 更新新闻操作状态
+    function updateNewsStatus(message, type = 'info') {
+        newsStatus.textContent = message;
+        newsStatus.className = `status-${type}`;
+    }
 
     // ===== 初始化 & 绑定 ====
     document.addEventListener('DOMContentLoaded', ()=>{
@@ -2183,11 +2548,21 @@
       
       // 设置初始房间下拉列表
       zhihuRoomSelect.innerHTML = '';
+      newsRoomSelect.innerHTML = '';
       potentialRoomsToCheck.forEach(room => {
           const option = document.createElement('option');
           option.value = room;
           option.textContent = room;
           zhihuRoomSelect.appendChild(option);
+          newsRoomSelect.appendChild(option.cloneNode(true));
+      });
+      
+      // 绑定新闻灵感相关事件监听器
+      document.getElementById('news-refresh-btn')?.addEventListener('click', fetchNewsInspiration);
+      document.getElementById('news-search-btn')?.addEventListener('click', searchNewsTopics);
+      document.getElementById('news-generate-btn')?.addEventListener('click', generateArticleFromNews);
+      document.getElementById('news-topic-input')?.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') searchNewsTopics();
       });
     });
   </script>

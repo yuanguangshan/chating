@@ -8,3 +8,6 @@ data_api.py
 src/error.log
 src/data_api.py
 info.log
+.claude
+.wrangler
+

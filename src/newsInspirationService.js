@@ -40,14 +40,18 @@ class NewsInspirationService {
                 items: [
                     { id: 'hn1', title: 'OpenAI发布GPT-4o最新版本', url: 'https://news.ycombinator.com/1', hotValue: 45000 },
                     { id: 'hn2', title: 'Linux内核6.9发布，性能大幅提升', url: 'https://news.ycombinator.com/2', hotValue: 32000 },
-                    { id: 'hn3', title: 'React 19新特性详解', url: 'https://news.ycombinator.com/3', hotValue: 28000 }
+                    { id: 'hn3', title: 'React 19新特性详解', url: 'https://news.ycombinator.com/3', hotValue: 28000 },
+                    { id: 'hn4', title: 'Python编程技巧：如何高效处理大数据', url: 'https://news.ycombinator.com/4', hotValue: 25000 },
+                    { id: 'hn5', title: 'Go语言并发编程最佳实践', url: 'https://news.ycombinator.com/5', hotValue: 22000 }
                 ]
             },
             nowcoder: {
                 items: [
                     { id: 'nc1', title: '字节跳动2025校招启动，算法岗竞争激烈', url: 'https://nowcoder.com/1', hotValue: 40000 },
                     { id: 'nc2', title: 'LeetCode周赛：双周赛第108题解', url: 'https://nowcoder.com/2', hotValue: 22000 },
-                    { id: 'nc3', title: '面试经验：腾讯后端开发面经', url: 'https://nowcoder.com/3', hotValue: 18000 }
+                    { id: 'nc3', title: '面试经验：腾讯后端开发面经', url: 'https://nowcoder.com/3', hotValue: 18000 },
+                    { id: 'nc4', title: '编程入门：如何选择第一门编程语言', url: 'https://nowcoder.com/4', hotValue: 15000 },
+                    { id: 'nc5', title: '数据结构与算法精讲', url: 'https://nowcoder.com/5', hotValue: 12000 }
                 ]
             }
         };
@@ -190,6 +194,19 @@ class NewsInspirationService {
         }));
     }
 
+    #getNormalizedItems(sourceId, rawData) {
+        if (!rawData?.items) return [];
+        
+        switch (sourceId) {
+            case 'hupu': return this.#normalizeHupu(rawData);
+            case 'douyin': return this.#normalizeDouyin(rawData);
+            case 'weibo': return this.#normalizeWeibo(rawData);
+            case 'hackernews': return this.#normalizeHackerNews(rawData);
+            case 'nowcoder': return this.#normalizeNowcoder(rawData);
+            default: return [];
+        }
+    }
+
     /**
      * 获取新闻灵感列表（兼容旧接口）
      * @returns {Promise<Array>} 包含标准化新闻对象的数组。
@@ -261,26 +278,10 @@ class NewsInspirationService {
             return (b.hotValue + randomFactor()) - (a.hotValue + randomFactor());
         });
 
-        // Ensure we have at least some items from each source before deduplication
-        const sourceSpecificItems = {};
-        allNews.forEach(item => {
-            if (!sourceSpecificItems[item.source]) {
-                sourceSpecificItems[item.source] = [];
-            }
-            sourceSpecificItems[item.source].push(item);
-        });
-
-        // Pick top items from each source, then deduplicate
-        const selectedItems = [];
-        Object.keys(sourceSpecificItems).forEach(source => {
-            const items = sourceSpecificItems[source].slice(0, 5); // Take top 5 from each source
-            selectedItems.push(...items);
-        });
-
         // Simple de-duplication based on normalized title
         const uniqueTitles = new Set();
         const deduplicatedNews = [];
-        for (const newsItem of selectedItems) {
+        for (const newsItem of allNews) {
             const normalizedTitle = newsItem.title.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, ''); // Include Chinese chars
             if (!uniqueTitles.has(normalizedTitle)) {
                 uniqueTitles.add(normalizedTitle);
@@ -289,26 +290,11 @@ class NewsInspirationService {
         }
 
         console.log(`[NewsInspirationService] Combined and deduplicated ${deduplicatedNews.length} news items.`);
+        console.log(`[NewsInspirationService] Returning ${deduplicatedNews.length} items.`);
         return deduplicatedNews;
     }
 
-    /**
-     * 生成用于AI内容创作的提示词。
-     * @param {object} newsItem - 标准化后的新闻对象。
-     * @returns {string} AI提示词。
-     */
-    #getNormalizedItems(sourceId, rawData) {
-        if (!rawData?.items) return [];
-        
-        switch (sourceId) {
-            case 'hupu': return this.#normalizeHupu(rawData);
-            case 'douyin': return this.#normalizeDouyin(rawData);
-            case 'weibo': return this.#normalizeWeibo(rawData);
-            case 'hackernews': return this.#normalizeHackerNews(rawData);
-            case 'nowcoder': return this.#normalizeNowcoder(rawData);
-            default: return [];
-        }
-    }
+
 
     generateContentPrompt(newsItem) {
         return `你是一位专业的"头条"平台内容创作者。请根据以下新闻热点，生成一篇吸引人的、结构清晰的头条风格文章。
