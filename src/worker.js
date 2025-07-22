@@ -18,6 +18,7 @@ globalThis.global = globalThis;
 
 import { HibernatingChating2 } from './chatroom_do.js';
 import { ToutiaoServiceDO2 } from './toutiaoDO.js';
+import { AuthServiceDO2 } from './authServiceDO.js';
 import { NewsInspirationService } from './newsInspirationService.js';
 import html from '../public/index.html';
 import managementHtml from '../public/management.html';
