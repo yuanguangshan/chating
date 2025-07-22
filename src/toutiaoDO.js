@@ -317,6 +317,43 @@ export class ToutiaoServiceDO2 extends DurableObject {
                     }
                     break;
 
+                case '/status':
+                    if (method === 'GET') {
+                        const parts = url.pathname.split('/');
+                        const taskId = parts.length > 2 ? parts[2] : null; // 从 /status/{taskId} 提取 taskId
+                        if (taskId) {
+                            const result = await this.getTaskResult(taskId);
+                            if (result) {
+                                return new Response(JSON.stringify({
+                                    taskId: taskId,
+                                    status: result.status || 'unknown',
+                                    message: result.message || '',
+                                    completedAt: result.completedAt || null,
+                                    error: result.error || null,
+                                    data: result
+                                }), {
+                                    headers: { 'Content-Type': 'application/json' }
+                                });
+                            } else {
+                                return new Response(JSON.stringify({
+                                    taskId: taskId,
+                                    status: 'not_found',
+                                    message: '任务不存在或未找到'
+                                }), {
+                                    headers: { 'Content-Type': 'application/json' }
+                                });
+                            }
+                        } else {
+                            return new Response(JSON.stringify({
+                                error: '缺少任务ID参数'
+                            }), {
+                                status: 400,
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                        }
+                    }
+                    break;
+
                 case '/cleanup':
                     if (method === 'POST') {
                         const days = parseInt(url.searchParams.get('days')) || 7;
