@@ -1,4 +1,4 @@
-name = "global_chat"
+name = "global_chats"
 main = "src/worker.js"
 compatibility_date = "2024-07-08"
 
@@ -29,15 +29,23 @@ new_sqlite_classes = [ "HibernatingChating" ]
 name = "TOUTIAO_SERVICE_DO"
 class_name = "ToutiaoServiceDO"
 
+[[durable_objects.bindings]]
+name = "AUTH_SERVICE_DO"
+class_name = "AuthServiceDO"
+
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["ToutiaoServiceDO"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["AuthServiceDO"]
 # 头条相关服务---
 
 # 【新增】定义管理页面要检查的房间列表 
 [vars]
 MANAGEMENT_ROOMS_LIST = "test,future,kerry,program" # 逗号分隔的房间名
-API_DOMAIN = "api.yuangs.cc"
+API_DOMAIN = "chat.want.biz"
 YOUR_FLASK_PROXY_API_URL="https://api.yuangs.cc/api/toutiaopost"
 YOUR_FLASK_PROXY_API_URL_ZHIHU="https://api.yuangs.cc/api/zhihu"
 MAX_CONTENT_LENGTH=10000
@@ -54,7 +62,7 @@ crons = [
  # 规则一: 每日问候 (北京时间 08:00 -> UTC 00:00)
  "0 0 * * *",
 
- # 规则二: 图表生成 (北京时间 周一至周五, #09:00-15:00 和 21:00-03:00)
+ # 规则二: 图表生成 (北京时间 周一至周五, 09:00-15:00 和 21:00-03:00)
  # 对应 UTC: 周一至周五, 01:00-07:00 和 13:00-19:00
  # "0 1-7,13-19 * * 1-5",
 
@@ -64,5 +72,5 @@ crons = [
  # 规则四: 期货数据 (同上时间段, 每小时的第15分钟, 用于测试)
 # "*/30 1-7,13-19 * * 1-5",
 # 规则五：新增: 头条内容生成 (每30分钟)
-#"*/30 * * * *"
+"*/30 * * *
 ]
