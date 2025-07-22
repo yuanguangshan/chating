@@ -35,7 +35,7 @@ import { getPrice } from './futuresDataService.js';
 import ZhihuHotService from './zhihuHotService.js';
 
 // 导出Durable Object类，以便Cloudflare平台能够识别和实例化它。
-export { HibernatingChating, ToutiaoServiceDO };
+export { HibernatingChating, ToutiaoServiceDO, AuthServiceDO};
 
 /**
  * 统一的环境变量注入函数
