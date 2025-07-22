@@ -771,13 +771,21 @@ export default {
                 return stub.fetch(request); // 直接转发并返回DO的响应
             }
 
-            // --- 路由 3: 房间页面加载 和 WebSocket 连接 ---
+            // --- 路由 3: favicon.ico 处理 ---
+            if (pathname === '/favicon.ico') {
+                return new Response(null, { 
+                    status: 302, 
+                    headers: { 'Location': 'https://pic.want.biz/favicon.svg' } 
+                });
+            }
+
+            // --- 路由 4: 房间页面加载 和 WebSocket 连接 ---
             // 匹配所有不以 /api/ 开头的路径，例如 /test, /general
             const pathParts = pathname.slice(1).split('/');
             const roomNameFromPath = pathParts[0];
 
-            // 过滤掉空的路径部分和 favicon.ico 请求
-            if (roomNameFromPath && roomNameFromPath !== 'favicon.ico') {
+            // 过滤掉空的路径部分
+            if (roomNameFromPath) {
                  if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
                  const doId = env.CHAT_ROOM_DO.idFromName(roomNameFromPath);
                  const stub = env.CHAT_ROOM_DO.get(doId);
