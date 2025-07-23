@@ -1,14 +1,17 @@
-// 文件: src/chatroom_do.js (重构优化版)
+// 文件: src/chatroom_do.js (最终完整版)
 // 职责: 纯粹的聊天室"前台接待" Durable Object
 
 import { DurableObject } from "cloudflare:workers";
-import { ToutiaoTaskProcessor, ToutiaoQueueManager } from './toutiaoService.js';
+import { getGeminiChatAnswer, getKimiChatAnswer, getDeepSeekChatAnswer } from './ai.js'; // 确保ai.js中有这些导出
 
 // 消息类型常量
 const MSG_TYPE_CHAT = 'chat';
 const MSG_TYPE_DELETE = 'delete';
 const MSG_TYPE_ERROR = 'error';
 const MSG_TYPE_WELCOME = 'welcome';
+const MSG_TYPE_GEMINI_CHAT = 'gemini';
+const MSG_TYPE_DEEPSEEK_CHAT = 'deepseek_chat';
+const MSG_TYPE_KIMI_CHAT = 'kimi_chat';
 const MSG_TYPE_USER_JOIN = 'user_join';
 const MSG_TYPE_USER_LEAVE = 'user_leave';
 const MSG_TYPE_DEBUG_LOG = 'debug_log';
@@ -40,7 +43,7 @@ export class HibernatingChating2 extends DurableObject {
         this.isInitialized = false;
         this.heartbeatInterval = null;
         this.allowedUsers = undefined;
-        this.roomName = this.ctx.id.name; // 从DO的ID中获取房间名
+        this.roomName = this.ctx.id.name;
 
         this.debugLog("🏗️ DO 实例已创建。");
         this.startHeartbeat();
@@ -123,22 +126,7 @@ export class HibernatingChating2 extends DurableObject {
     }
 
     // ============ RPC 方法 (供外部调用) ============
-
-    // 【回调方法】用于接收Worker派发的任务最终结果
-    async updateMessage(messageId, newContent, metadata = {}) {
-        await this.initialize();
-        await this.loadMessages();
-        const messageIndex = this.messages.findIndex(m => m.id === messageId);
-        if (messageIndex !== -1) {
-            this.messages[messageIndex].text = newContent;
-            this.messages[messageIndex].timestamp = Date.now();
-            Object.assign(this.messages[messageIndex], metadata);
-            await this.saveMessages();
-            this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
-            this.debugLog(`✅ 消息 ${messageId} 已通过回调更新`);
-        }
-    }
-
+    // ✅ [恢复] 恢复用于定时任务等功能的RPC方法
     async cronPost(text, secret) {
         if (this.env.CRON_SECRET && secret !== this.env.CRON_SECRET) {
             this.debugLog("定时任务：未授权的尝试！", 'ERROR');
@@ -151,11 +139,6 @@ export class HibernatingChating2 extends DurableObject {
         await this.addAndBroadcastMessage(message);
     }
 
-    async logAndBroadcast(message, level = 'INFO', data = null) {
-        await this.initialize();
-        this.debugLog(message, level, data);
-    }
-
     async broadcastSystemMessage(payload, secret) {
         if (this.env.CRON_SECRET && secret !== this.env.CRON_SECRET) return;
         await this.initialize();
@@ -163,11 +146,43 @@ export class HibernatingChating2 extends DurableObject {
         this.broadcast({ type: MSG_TYPE_DEBUG_LOG, payload: { ...payload, timestamp: new Date().toISOString(), id: crypto.randomUUID().substring(0, 8) } });
     }
 
+    // ============ 内部方法 (由 fetch 或其他内部逻辑调用) ============
+    async updateMessageAndBroadcast(messageId, newContent, metadata = {}) {
+        await this.initialize();
+        await this.loadMessages();
+        const messageIndex = this.messages.findIndex(m => m.id === messageId);
+        if (messageIndex !== -1) {
+            this.messages[messageIndex].text = newContent;
+            this.messages[messageIndex].timestamp = Date.now();
+            Object.assign(this.messages[messageIndex], metadata);
+            await this.saveMessages();
+            this.broadcast({ type: MSG_TYPE_CHAT, payload: this.messages[messageIndex] });
+            this.debugLog(`✅ 消息 ${messageId} 已通过回调更新`);
+        } else {
+            this.debugLog(`⚠️ 尝试更新一个不存在的消息: ${messageId}`, 'WARN');
+        }
+    }
+
     // ============ 主要入口点 ============
     async fetch(request) {
         const url = new URL(request.url);
         this.debugLog(`🚘 服务端入站请求: ${request.method} ${url.pathname}`);
         await this.initialize();
+
+        if (url.pathname === '/api/internal-callback' && request.method === 'POST') {
+            try {
+                const { messageId, newContent, status, metadata } = await request.json();
+                if (status === 'success') {
+                    await this.updateMessageAndBroadcast(messageId, newContent, metadata);
+                } else {
+                    await this.updateMessageAndBroadcast(messageId, `> (❌ 任务执行失败: ${newContent})`);
+                }
+                return new Response('Callback processed.', { status: 200 });
+            } catch (e) {
+                this.debugLog(`❌ 处理内部回调失败: ${e.message}`, 'ERROR', e);
+                return new Response('Bad callback request.', { status: 400 });
+            }
+        }
 
         if (request.headers.get("Upgrade") === "websocket") {
             return this.handleWebSocketUpgrade(request, url);
@@ -181,7 +196,7 @@ export class HibernatingChating2 extends DurableObject {
         return new Response("Endpoint not found", { status: 404 });
     }
 
-    // ============ WebSocket 会话处理 ============
+    // ============ WebSocket 会话处理 (保持不变) ============
     async handleWebSocketUpgrade(request, url) {
         const { 0: client, 1: server } = new WebSocketPair();
         this.ctx.acceptWebSocket(server);
@@ -239,7 +254,7 @@ export class HibernatingChating2 extends DurableObject {
         this.broadcastUserListUpdate();
     }
 
-    // ============ WebSocket 事件处理器 (核心重构部分) ============
+    // ============ WebSocket 事件处理器 ============
     async webSocketMessage(ws, message) {
         const session = this.sessions.get(ws.sessionId);
         if (!session) {
@@ -250,32 +265,30 @@ export class HibernatingChating2 extends DurableObject {
 
         try {
             const data = JSON.parse(message);
-            // 统一入口：所有文本类型的消息都先经过命令处理器
-            if (data.type === MSG_TYPE_CHAT && data.payload?.text) {
+            // 优先处理需要委托给 Worker 的 `/` 命令
+            if (data.type === MSG_TYPE_CHAT && data.payload?.text && data.payload.text.startsWith('/')) {
                 await this.handleUserCommand(session, data.payload);
             } else {
-                // 处理非文本命令，如心跳、WebRTC等
+                // 处理其他所有类型的消息
                 switch (data.type) {
-                // 如果不是@头条任务，则按原逻辑继续
-        
-                case MSG_TYPE_CHAT:
-                    await this.handleChatMessage(session, data.payload); 
-                    break;
-                case MSG_TYPE_GEMINI_CHAT:
-                    await this.handleGeminiChatMessage(session, data.payload);
-                    break;
-                case 'deepseek_chat':
-                    await this.handleDeepSeekChatMessage(session, data.payload);
-                    break;
-                case 'kimi_chat':
-                    await this.handleKimiChatMessage(session, data.payload);
-                    break;
-                case MSG_TYPE_DELETE:
-                    await this.handleDeleteMessageRequest(session, data.payload);
-                    break;
-                case MSG_TYPE_HEARTBEAT:
-                    // this.debugLog(`💓 收到心跳包💓 👦  ${session.username}`, 'HEARTBEAT');
-                    
+                    case MSG_TYPE_CHAT:
+                        await this.handleChatMessage(session, data.payload);
+                        break;
+                    // ✅ [恢复] 恢复对AI聊天的处理
+                    case MSG_TYPE_GEMINI_CHAT:
+                        await this.handleGeminiChatMessage(session, data.payload);
+                        break;
+                    case MSG_TYPE_DEEPSEEK_CHAT:
+                        await this.handleDeepSeekChatMessage(session, data.payload);
+                        break;
+                    case MSG_TYPE_KIMI_CHAT:
+                        await this.handleKimiChatMessage(session, data.payload);
+                        break;
+                    case MSG_TYPE_DELETE:
+                        await this.handleDeleteMessageRequest(session, data.payload);
+                        break;
+                    case MSG_TYPE_HEARTBEAT:
+                        break;
                     case MSG_TYPE_OFFER:
                     case MSG_TYPE_ANSWER:
                     case MSG_TYPE_CANDIDATE:
@@ -287,7 +300,7 @@ export class HibernatingChating2 extends DurableObject {
                 }
             }
         } catch (e) {
-            this.debugLog(`❌ 解析WebSocket消息失败: ${e.message}`, 'ERROR');
+            this.debugLog(`❌ 解析WebSocket消息失败: ${e.message}`, 'ERROR', { error: e.stack });
         }
     }
 
@@ -310,17 +323,11 @@ export class HibernatingChating2 extends DurableObject {
         }
     }
 
-    // ============ 核心业务逻辑 (新架构) ============
-
-    /**
-     * 【新】统一的用户命令处理器
-     * 判断消息是普通聊天还是一个需要委托给Worker的命令
-     */
+    // ============ 核心业务逻辑 ============
     async handleUserCommand(session, data) {
         const text = data.text.trim();
         let command, taskPayload;
 
-        // --- 命令路由 ---
         if (text.startsWith('/头条')) {
             command = 'toutiao_article';
             taskPayload = { content: text.substring(3).trim() };
@@ -333,19 +340,16 @@ export class HibernatingChating2 extends DurableObject {
         } else if (text.startsWith('/新闻')) {
             command = 'news_article';
             taskPayload = { topic: text.substring(3).trim() };
-        } 
-        // ... 在这里可以轻松扩展其他命令
+        }
 
         if (!command) {
-            // 如果不是命令，就走普通聊天逻辑
+            // 如果不是一个已知的 `/` 命令，则当作普通聊天处理
             await this.handleChatMessage(session, data);
             return;
         }
 
-        // --- 命令处理流程 ---
         this.debugLog(`⚡ 收到用户命令: ${command}`, 'INFO', { user: session.username, payload: taskPayload });
 
-        // 1. 立即创建并广播一个“处理中”的消息
         const thinkingMessage = {
             id: crypto.randomUUID(),
             username: session.username,
@@ -355,7 +359,6 @@ export class HibernatingChating2 extends DurableObject {
         };
         await this.addAndBroadcastMessage(thinkingMessage);
 
-        // 2. 将任务委托给 Worker
         this.ctx.waitUntil(this.delegateTaskToWorker({
             command: command,
             payload: taskPayload,
@@ -367,12 +370,8 @@ export class HibernatingChating2 extends DurableObject {
         }));
     }
 
-    /**
-     * 【新】委托任务到Worker的辅助函数
-     */
     async delegateTaskToWorker(task) {
         try {
-            // this.env.SELF 指向当前 Worker 的 fetch
             const response = await this.env.SELF.fetch('https://internal-worker/api/internal-task-handler', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -384,15 +383,11 @@ export class HibernatingChating2 extends DurableObject {
             this.debugLog(`✅ 任务已成功委托给Worker: ${task.command}`);
         } catch (error) {
             this.debugLog(`❌ 委托任务给Worker失败: ${task.command}`, 'ERROR', error);
-            // 委托失败时，也通过回调更新UI
-            const errorText = `${task.payload.text || ''}\n\n> (❌ 任务委托失败: ${error.message})`;
-            await this.updateMessage(task.callbackInfo.messageId, errorText);
+            const errorText = `> (❌ 任务委托失败: ${error.message})`;
+            await this.updateMessageAndBroadcast(task.callbackInfo.messageId, errorText);
         }
     }
 
-    /**
-     * 处理普通聊天消息 (当不是命令时被调用)
-     */
     async handleChatMessage(session, payload) {
         const message = {
             id: crypto.randomUUID(),
@@ -403,7 +398,60 @@ export class HibernatingChating2 extends DurableObject {
         await this.addAndBroadcastMessage(message);
     }
 
-    // ============ 辅助方法 ============
+    // ✅ [修复] 实现缺失的 handleDeleteMessageRequest 函数
+    async handleDeleteMessageRequest(session, payload) {
+        await this.loadMessages();
+        const messageId = payload.id;
+        const messageIndex = this.messages.findIndex(m => m.id === messageId);
+
+        if (messageIndex === -1) return;
+
+        const messageToDelete = this.messages[messageIndex];
+        // 只有消息所有者或管理员(如果实现了)才能删除
+        if (messageToDelete.username === session.username) {
+            this.messages.splice(messageIndex, 1);
+            await this.saveMessages();
+            this.broadcast({ type: MSG_TYPE_DELETE, payload: { id: messageId } });
+            this.debugLog(`🗑️ 用户 ${session.username} 删除了消息 ${messageId}`);
+        }
+    }
+
+    // ✅ [恢复] 恢复AI聊天处理函数
+    async handleGenericAiChat(session, payload, aiName, aiFunction) {
+        const thinkingMessage = {
+            id: crypto.randomUUID(),
+            username: aiName,
+            timestamp: Date.now(),
+            text: "思考中...",
+            type: 'text'
+        };
+        await this.addAndBroadcastMessage(thinkingMessage);
+
+        try {
+            const history = this.messages.slice(-10);
+            const answer = await aiFunction(payload.text, history, this.env);
+            await this.updateMessageAndBroadcast(thinkingMessage.id, answer);
+        } catch (e) {
+            const errorText = `抱歉，我在调用 ${aiName} 时遇到了问题: ${e.message}`;
+            await this.updateMessageAndBroadcast(thinkingMessage.id, errorText);
+            this.debugLog(`❌ 调用 ${aiName} 失败`, 'ERROR', e);
+        }
+    }
+
+    async handleGeminiChatMessage(session, payload) {
+        await this.handleGenericAiChat(session, payload, "Gemini", getGeminiChatAnswer);
+    }
+
+    async handleDeepSeekChatMessage(session, payload) {
+        await this.handleGenericAiChat(session, payload, "DeepSeek", getDeepSeekChatAnswer);
+    }
+
+    async handleKimiChatMessage(session, payload) {
+        await this.handleGenericAiChat(session, payload, "Kimi", getKimiChatAnswer);
+    }
+
+
+    // ============ 辅助方法 (保持不变) ============
     async addAndBroadcastMessage(message) {
         await this.loadMessages();
         this.messages.push(message);
@@ -444,7 +492,6 @@ export class HibernatingChating2 extends DurableObject {
         const secret = url.searchParams.get('secret');
         const isAdmin = this.env.ADMIN_SECRET && secret === this.env.ADMIN_SECRET;
 
-        // 用户管理
         if (path.endsWith('/users/list')) {
             return new Response(JSON.stringify({ users: Array.from(this.allowedUsers || []), active: this.allowedUsers !== undefined }), { headers: JSON_HEADERS });
         }
@@ -461,8 +508,6 @@ export class HibernatingChating2 extends DurableObject {
             await this.saveAllowedUsers();
             return new Response(JSON.stringify({ success: true }), { headers: JSON_HEADERS });
         }
-
-        // 消息历史
         if (path.endsWith('/messages/history')) {
             await this.loadMessages();
             const beforeId = url.searchParams.get('beforeId');
@@ -474,8 +519,6 @@ export class HibernatingChating2 extends DurableObject {
             const historySlice = this.messages.slice(Math.max(0, endIndex - 20), endIndex);
             return new Response(JSON.stringify({ messages: historySlice, hasMore: Math.max(0, endIndex - 20) > 0 }), { headers: JSON_HEADERS });
         }
-
-        // 房间重置
         if (path.endsWith('/reset-room') && isAdmin) {
             await this.ctx.storage.deleteAll();
             this.messages = [];
@@ -484,8 +527,6 @@ export class HibernatingChating2 extends DurableObject {
             this.debugLog("🔄 房间已成功重置");
             return new Response("房间已重置", { status: 200 });
         }
-
-        // 房间状态
         if (path.endsWith('/room/status')) {
             await this.loadMessages();
             const status = {

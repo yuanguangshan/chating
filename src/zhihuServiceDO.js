@@ -1,4 +1,4 @@
-// 文件: src/zhihuServiceDO.js (新创建)
+// 文件: src/zhihuServiceDO.js (已修复)
 // 职责: "知乎专家" - 专门处理知乎热点获取、文章生成等任务
 
 import { DurableObject } from "cloudflare:workers";
@@ -11,6 +11,7 @@ export class ZhihuServiceDO extends DurableObject {
         super(ctx, env);
         this.ctx = ctx;
         this.env = env;
+        // ZhihuHotService 是一个纯逻辑和API请求的辅助类
         this.zhihuService = new ZhihuHotService(env);
     }
 
@@ -48,12 +49,18 @@ export class ZhihuServiceDO extends DurableObject {
     }
 
     /**
-     * 获取并格式化知乎热点列表
+     * ✅【已修复】获取并格式化知乎热点列表
+     * 直接调用底层服务获取数据，而不是通过外部API
      * @returns {Promise<string>} 格式化后的Markdown文本
      */
     async getZhihuHotListFormatted() {
-        const combinedData = await this.zhihuService.getCombinedTopics();
-        const topics = [...combinedData.hotTopics, ...combinedData.inspirationQuestions];
+        // 并发获取热点和灵感
+        const [hotTopics, inspirationQuestions] = await Promise.all([
+            this.zhihuService.getHotTopicsForContent(10),
+            this.zhihuService.getInspirationQuestionsForContent(5)
+        ]);
+
+        const topics = [...hotTopics, ...inspirationQuestions];
 
         if (!topics || topics.length === 0) {
             throw new Error('未能获取到知乎热点话题和灵感问题');
@@ -123,8 +130,9 @@ export class ZhihuServiceDO extends DurableObject {
                `---\n\n${articleContent}`;
     }
 
-    /**
-     * 执行回调的辅助函数
+ /**
+     * ✅【已修复】执行回调的辅助函数
+     * 将原来的 RPC 调用改为标准的 fetch 请求，以避免通信歧义。
      */
     async performCallback(callbackInfo, finalContent) {
         try {
@@ -133,15 +141,74 @@ export class ZhihuServiceDO extends DurableObject {
             }
             const chatroomId = this.env.CHAT_ROOM_DO.idFromName(callbackInfo.roomName);
             const chatroomStub = this.env.CHAT_ROOM_DO.get(chatroomId);
-            await chatroomStub.updateMessage(callbackInfo.messageId, finalContent);
+
+            // ✅ 使用 fetch 发送一个明确的 POST 请求到 ChatRoomDO 的一个特定API端点
+            const response = await chatroomStub.fetch("https://do-internal/api/callback", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messageId: callbackInfo.messageId,
+                    newContent: finalContent,
+                    status: 'success' // 附带状态，让 ChatRoomDO 知道任务成功了
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Callback failed with status ${response.status}: ${errorText}`);
+            }
+
             this._log(`✅ 成功回调到房间 ${callbackInfo.roomName} 的消息 ${callbackInfo.messageId}`);
+
         } catch (callbackError) {
+            // 如果回调本身失败，我们无能为力，只能记录日志
             this._log(`FATAL: 回调到房间 ${callbackInfo.roomName} 失败`, 'FATAL', callbackError);
         }
     }
 
-    // 可选：为这个DO也添加一个fetch处理器，用于直接API调用或健康检查
+    /**
+     * fetch处理器，用于处理来自 worker 的直接API请求 (例如来自管理面板)
+     */
     async fetch(request) {
-        return new Response("ZhihuServiceDO is running.", { status: 200 });
+        const url = new URL(request.url);
+        const path = url.pathname;
+
+        try {
+            // 来自管理面板的请求，获取组合数据
+            if (path.includes('/api/zhihu/combined')) {
+                const hotTopics = await this.zhihuService.getHotTopicsForContent(15);
+                const inspirationQuestions = await this.zhihuService.getInspirationQuestionsForContent(15);
+                const response = {
+                    hotTopics,
+                    inspirationQuestions,
+                    timestamp: new Date().toISOString()
+                };
+                return new Response(JSON.stringify(response), { headers: { 'Content-Type': 'application/json' } });
+            }
+            // 来自管理面板的请求，生成文章
+            if (path.includes('/api/zhihu/article')) {
+                const { topicInfo, roomName } = await request.json();
+                // 注意：这里我们直接调用AI生成，但没有回调到聊天室，因为这是管理面板的请求
+                // 实际应用中可能需要更复杂的逻辑，比如返回任务ID
+                const prompt = this.zhihuService.generateContentPrompt(topicInfo);
+                const articleContent = await getGeminiChatAnswer(prompt, [], this.env);
+                return new Response(JSON.stringify({ success: true, article: articleContent }), { headers: { 'Content-Type': 'application/json' } });
+            }
+             // 来自管理面板的请求，搜索话题
+            if (path.includes('/api/zhihu/search')) {
+                const { keyword } = await request.json();
+                const topics = await this.zhihuService.generateRelatedTopics(keyword, 10);
+                return new Response(JSON.stringify({ topics }), { headers: { 'Content-Type': 'application/json' } });
+            }
+
+            return new Response("ZhihuServiceDO is running.", { status: 200 });
+
+        } catch (error) {
+            this._log(`处理请求 ${path} 失败`, 'ERROR', error);
+            return new Response(JSON.stringify({ success: false, error: error.message }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
     }
 }

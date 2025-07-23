@@ -19,6 +19,7 @@ import {
     getKimiExplanation,
     getKimiImageDescription
 } from './ai.js';
+import {MSG_TYPE_GEMINI_CHAT } from './constants.js';
 
 // Export Durable Object classes for Cloudflare platform
 export { HibernatingChating2, ToutiaoServiceDO2, AuthServiceDO2, InspirationDO ,ZhihuServiceDO}; // 【新增】导出 InspirationDO
@@ -95,7 +96,13 @@ export default {
                     const stub = env.TOUTIAO_SERVICE_DO.get(doId);
                     return stub.fetch(request);
                 }
-                
+               
+                if (pathname.startsWith('/api/zhihu/')) {
+                    if (!env.ZHIHU_SERVICE_DO) throw new Error("Durable Object 'ZHIHU_SERVICE_DO' is not bound.");
+                    const doId = env.ZHIHU_SERVICE_DO.idFromName("global"); // 使用一个固定的ID
+                    const stub = env.ZHIHU_SERVICE_DO.get(doId);
+                    return stub.fetch(request); // 将请求直接转发给DO的fetch处理器
+                }
                 // 【新增】处理房间状态API请求
                 if (pathname.startsWith('/api/room/status')) {
                     const roomName = url.searchParams.get('roomName');

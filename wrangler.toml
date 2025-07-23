@@ -63,6 +63,11 @@ tag = "v4"
 new_sqlite_classes = ["InspirationDO"]
 # ---
 
+# ✅ 新增的迁移，用于注册 ZhihuServiceDO
+[[migrations]]
+tag = "v5"
+new_sqlite_classes = ["ZhihuServiceDO"]
+
 # 环境变量
 [vars]
 MANAGEMENT_ROOMS_LIST = "test,future,kerry,program" # 逗号分隔的房间名
