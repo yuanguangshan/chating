@@ -256,7 +256,26 @@ export class HibernatingChating2 extends DurableObject {
             } else {
                 // 处理非文本命令，如心跳、WebRTC等
                 switch (data.type) {
-                    case MSG_TYPE_HEARTBEAT: break;
+                // 如果不是@头条任务，则按原逻辑继续
+        
+                case MSG_TYPE_CHAT:
+                    await this.handleChatMessage(session, data.payload); 
+                    break;
+                case MSG_TYPE_GEMINI_CHAT:
+                    await this.handleGeminiChatMessage(session, data.payload);
+                    break;
+                case 'deepseek_chat':
+                    await this.handleDeepSeekChatMessage(session, data.payload);
+                    break;
+                case 'kimi_chat':
+                    await this.handleKimiChatMessage(session, data.payload);
+                    break;
+                case MSG_TYPE_DELETE:
+                    await this.handleDeleteMessageRequest(session, data.payload);
+                    break;
+                case MSG_TYPE_HEARTBEAT:
+                    // this.debugLog(`💓 收到心跳包💓 👦  ${session.username}`, 'HEARTBEAT');
+                    
                     case MSG_TYPE_OFFER:
                     case MSG_TYPE_ANSWER:
                     case MSG_TYPE_CANDIDATE:
