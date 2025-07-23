@@ -2044,6 +2044,14 @@
             updateZhihuStatus('请选择一个目标房间', 'error');
             return;
         }
+
+        // 使用索引从原始数据中获取完整的topic对象
+        const topicIndex = parseInt(selectedTopicId);
+        const selectedTopic = zhihuTopicsData[topicIndex];
+        if (!selectedTopic) {
+            updateZhihuStatus('未能找到选定话题的详细信息', 'error');
+            return;
+        }
         
         updateZhihuStatus(`正在基于选定话题生成文章，文章将发送到房间"${selectedRoom}"...`, 'info');
         
@@ -2053,7 +2061,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    topicInfo: selectedTopicId,
+                    topicInfo: selectedTopic, // 传递完整的topic对象
                     roomName: selectedRoom
                 })
             });
