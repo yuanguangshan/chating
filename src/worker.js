@@ -87,11 +87,11 @@ export default {
                     return stub.fetch(request);
                 }
                 
-                // 【修改】将管理面板API请求路由到 CHAT_ROOM_DO
+                // 【修改】将管理面板API请求路由到 TOUTIAO_SERVICE_DO
                 if (pathname.startsWith('/api/toutiao/')) {
-                    if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
-                    const doId = env.CHAT_ROOM_DO.idFromName("management");
-                    const stub = env.CHAT_ROOM_DO.get(doId);
+                    if (!env.TOUTIAO_SERVICE_DO) throw new Error("Durable Object 'TOUTIAO_SERVICE_DO' is not bound.");
+                    const doId = env.TOUTIAO_SERVICE_DO.idFromName("management");
+                    const stub = env.TOUTIAO_SERVICE_DO.get(doId);
                     return stub.fetch(request);
                 }
                 
