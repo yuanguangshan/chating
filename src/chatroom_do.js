@@ -43,10 +43,22 @@ export class HibernatingChating2 extends DurableObject {
         this.isInitialized = false;
         this.heartbeatInterval = null;
         this.allowedUsers = undefined;
+        this.debugLog("🏗️ DO 实例已创建。");
+
+        // ✅✅✅ 核心修复：确保 DO 实例在创建时就获取并存储自己的房间名 ✅✅✅
         this.roomName = this.ctx.id.name;
 
-        this.debugLog("🏗️ DO 实例已创建。");
+        // 增加一个强制的启动日志，以便我们在 tail log 中确认此代码已执行
+        console.log(`[ChatRoomDO] CONSTRUCTOR FIRED! Room Name Initialized to: "${this.roomName}"`);
+
+        // 增加一个安全检查
+        if (!this.roomName) {
+            console.error(`[ChatRoomDO] FATAL: ChatRoomDO instance created without a name! Callbacks will fail. ID: ${this.ctx.id.toString()}`);
+        }
+
+        this.debugLog("🏗️ DO 实例已创建或唤醒。");
         this.startHeartbeat();
+    }
     }
 
     // ============ 调试与心跳系统 (保持不变) ============
