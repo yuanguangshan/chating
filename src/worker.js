@@ -1,176 +1,43 @@
-// src/worker.js (Merged, Final Version - CORRECTED)
+// 文件: src/worker.js (重构优化版)
+// 职责: "办公室经理" - 路由外部请求，派发内部任务
 
-/*
- * 这个 `worker.js` 文件是 Cloudflare Worker 的入口点，它扮演着"前台总机"的角色。
- * 它的主要职责是：
- * 1. 处理全局性的、与特定聊天室无关的API请求（如AI服务、文件上传）。
- * 2. 识别出与特定聊天室相关的请求（无论是API还是WebSocket），并将它们准确地转发给对应的Durable Object实例。
- * 3. 响应定时触发器（Cron Triggers），并调度Durable Object执行定时任务。
- * 4. 为用户提供初始的HTML页面。
- */
-// src/worker.js
-
-// --- ✨ 核心修正：添加 polyfill 来定义 global ---
-// Cloudflare Workers环境没有`global`，但有些npm包（如echarts）会依赖它。
-// 我们在这里创建一个全局的 `global` 变量，并让它指向Worker环境的全局对象 `self`。
+// --- Polyfill for npm packages that expect 'global' ---
 globalThis.global = globalThis;
-
 
 import { HibernatingChating2 } from './chatroom_do.js';
 import { ToutiaoServiceDO2 } from './toutiaoDO.js';
 import { AuthServiceDO2 } from './authServiceDO.js';
-import { NewsInspirationService } from './newsInspirationService.js';
+import { InspirationDO } from './InspirationDO.js'; // 【新增】导入 InspirationDO
 import html from '../public/index.html';
 import managementHtml from '../public/management.html';
-import { generateAndPostCharts } from './chart_generator.js';
 import { taskMap } from './autoTasks.js';
-import { 
-    getDeepSeekExplanation, 
-    getGeminiExplanation, 
+import {
+    getDeepSeekExplanation,
+    getGeminiExplanation,
     getGeminiImageDescription,
     getKimiExplanation,
-    getKimiImageDescription,
-    getKimiChatAnswer
+    getKimiImageDescription
 } from './ai.js';
-import { getPrice } from './futuresDataService.js';
-import ZhihuHotService from './zhihuHotService.js';
 
-// 导出Durable Object类，以便Cloudflare平台能够识别和实例化它。
-export { HibernatingChating2, ToutiaoServiceDO2, AuthServiceDO2};
+// Export Durable Object classes for Cloudflare platform
+export { HibernatingChating2, ToutiaoServiceDO2, AuthServiceDO2, InspirationDO }; // 【新增】导出 InspirationDO
 
-/**
- * 统一的环境变量注入函数
- * @param {string} htmlContent - HTML内容
- * @param {object} env - 环境变量对象
- * @param {string} pageType - 页面类型，用于区分不同的变量注入
- * @returns {string} - 带有注入变量的HTML内容
- */
-function injectEnvVariables(htmlContent, env, pageType = 'main') {
-    let injectedScript = '';
-    
-    if (pageType === 'main') {
-        injectedScript += `window.API_DOMAIN = "${env.API_DOMAIN || 'chat.want.biz'}";\n`;
-        injectedScript += `window.FLASK_API = "${env.FLASK_API || 'api.yuangs.cc'}";\n`;
-        injectedScript += `window.FLASK_API_URL = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost";\n`;
-        injectedScript += `window.FLASK_PROXY_API_URL_TOUTIAO = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost";\n`;
-        injectedScript += `window.FLASK_PROXY_API_URL_ZHIHU = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/zhihu";\n`;
-    } else if (pageType === 'management') {
-        const roomsListString = env.MANAGEMENT_ROOMS_LIST || 'general,test,future,admin,kerry';
-        const roomsArray = roomsListString.split(',').map(room => room.trim());
-        
-        injectedScript += `window.MANAGEMENT_ROOMS_LIST = ${JSON.stringify(roomsArray)};\n`;
-        injectedScript += `window.API_DOMAIN = "${env.API_DOMAIN || 'chat.want.biz'}";\n`;
-        injectedScript += `window.FLASK_API = "${env.FLASK_API || 'api.yuangs.cc'}";\n`;
-        injectedScript += `window.FLASK_API_URL = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost";\n`;
-        injectedScript += `window.FLASK_PROXY_API_URL_TOUTIAO = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost";\n`;
-        injectedScript += `window.FLASK_PROXY_API_URL_ZHIHU = "${env.FLASK_API || 'https://api.yuangs.cc'}/api/zhihu";\n`;
-        injectedScript += `window.ENV_CONFIG = ${JSON.stringify({
-            managementRoomsList: roomsArray,
-            apiDomain: env.API_DOMAIN || 'chat.want.biz',
-            flaskApi: env.FLASK_API || 'api.yuangs.cc',
-            flaskApiUrl: `${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost`,
-            toutiaoApiUrl: `${env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost`,
-            zhihuApiUrl: `${env.FLASK_API || 'https://api.yuangs.cc'}/api/zhihu`
-})};\n`;
-    }
-    
-    // 替换HTML中的占位符
-    return htmlContent.replace(
-        '//--CONFIG-PLACEHOLDER--//',
-        injectedScript
-    );
-}
-
-/**
- * 注入环境变量到主页面HTML中的辅助函数
- * @param {object} env - 环境变量对象
- * @returns {Response} - 带有注入变量的HTML响应
- */
-function serveMainHtmlWithEnv(env) {
-    const modifiedHtml = injectEnvVariables(html, env, 'main');
-    
-    return new Response(modifiedHtml, { 
-        headers: { 'Content-Type': 'text/html;charset=UTF-8' } 
-    });
-}
-
-/**
- * 注入环境变量到管理页面HTML中的辅助函数
- * @param {object} env - 环境变量对象
- * @returns {Response} - 带有注入变量的HTML响应
- */
-function serveManagementHtmlWithEnv(env) {
-    const modifiedHtml = injectEnvVariables(managementHtml, env, 'management');
-    
-    return new Response(modifiedHtml, { 
-        headers: { 'Content-Type': 'text/html;charset=UTF-8' } 
-    });
-}
-
-// --- CORS (Cross-Origin Resource Sharing) Headers ---
-// 这是一个可重用的对象，用于为API响应添加正确的CORS头部，允许跨域访问。
+// --- CORS Headers ---
 const corsHeaders = {
-    'Access-Control-Allow-Origin': '*', // 生产环境建议替换为您的前端域名
-    'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
+    'Access-Control-Allow-Origin': '*',
+    'Access-control-allow-methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Filename',
-    'Access-Control-Max-Age': '86400', // 预检请求的缓存时间
+    'Access-Control-Max-Age': '86400',
 };
 
-/**
- * 处理浏览器发送的CORS预检请求（OPTIONS方法）。
- */
-function handleOptions(request) {
-    if (
-        request.headers.get('Origin') !== null &&
-        request.headers.get('Access-Control-Request-Method') !== null &&
-        request.headers.get('Access-Control-Request-Headers') !== null
-    ) {
-        console.log(`[Worker] Handling CORS preflight request from Origin: ${request.headers.get('Origin')}`);
-        return new Response(null, { headers: corsHeaders });
-    } else {
-        console.log(`[Worker] Handling non-CORS OPTIONS request.`);
-        return new Response(null, { headers: { Allow: 'GET, HEAD, POST, OPTIONS' } });
-    }
-}
-
-// --- AI Service Functions are now in src/ai.js ---
-// 文件: src/worker.js
-
-/**
- * 独立的、顶级的辅助函数，用于向指定的房间发送自动帖子。
- * @param {object} env 环境变量
- * @param {string} roomName 要发帖的房间名
- * @param {string} text 帖子的内容
- * @param {object} ctx 执行上下文，用于 waitUntil
- */
-async function sendAutoPost(env, roomName, text, ctx) {
-    console.log(`Dispatching auto-post to room: ${roomName} via RPC`);
-    try {
-        if (!env.CHAT_ROOM_DO) {
-            throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
-        }
-        
-        const doId = env.CHAT_ROOM_DO.idFromName(roomName);
-        const stub = env.CHAT_ROOM_DO.get(doId);
-
-        // 【重大修改】从 fetch 调用改为 RPC 调用
-        // 使用传入的 ctx.waitUntil 来确保 RPC 调用执行完毕
-        ctx.waitUntil(stub.cronPost(text, env.CRON_SECRET));
-
-        console.log(`Successfully dispatched auto-post RPC to room: ${roomName}`);
-    } catch (error) {
-        console.error(`Error in sendAutoPost for room ${roomName}:`, error.stack || error);
-    }
-}
-
-
-
-// --- 主Worker入口点 ---
-// 在 worker.js 的 fetch 函数中
+// =================================================================
+// ==               主 Worker 入口点 (fetch handler)              ==
+// =================================================================
 
 export default {
     async fetch(request, env, ctx) {
         try {
+            // Handle CORS preflight requests
             if (request.method === 'OPTIONS') {
                 return handleOptions(request);
             }
@@ -178,628 +45,62 @@ export default {
             const url = new URL(request.url);
             const pathname = url.pathname;
 
-            // --- 路由 1: 全局独立API (不需转发) ---
-
-                
-            // --- ✨ 管理页面路由 ---
-            if (pathname === '/management') {
-                console.log(`[Worker] Handling /management request.`);
-                return serveManagementHtmlWithEnv(env);
+            // --- 路由 1: 内部任务处理器 (核心重构部分) ---
+            // This is the new endpoint for DOs to delegate tasks to the worker.
+            if (pathname === '/api/internal-task-handler') {
+                if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+                const task = await request.json();
+                ctx.waitUntil(dispatchInternalTask(task, env));
+                return new Response('Task accepted', { status: 202 });
             }
 
-            // --- ✨ 新增：用户管理API路由转发 ---
-            if (pathname.startsWith('/api/users/')) {
-                console.log(`[Worker] Handling /api/users/ request.`);
-                const roomName = url.searchParams.get('roomName');
-                if (!roomName) {
-                    console.warn(`[Worker] /api/users/ request missing roomName parameter.`);
-                    return new Response('API request requires a roomName parameter', { status: 400 });
-                }
-                const doId = env.CHAT_ROOM_DO.idFromName(roomName);
-                const stub = env.CHAT_ROOM_DO.get(doId);
-                // 将原始请求转发给DO，让DO内部处理
-                return await stub.fetch(request);
-            }
-        
-            
-            // 将所有全局API的判断合并到一个if/else if结构中
+            // --- 路由 2: 全局独立API (不与特定房间DO强相关) ---
             if (pathname === '/upload') {
-                // --- ✨ 这是唯一且正确的 /upload 处理逻辑 ✨ ---
-                // (基于您提供的"改进版"代码，并修正了key的使用)
-                if (request.method !== 'POST') {
-                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                }
-                try {
-                    if (!env.R2_BUCKET) {
-                        throw new Error('Server config error: R2_BUCKET not bound.');
-                    }
-                    
-                    const filenameHeader = request.headers.get('X-Filename');
-                    if (!filenameHeader) {
-                        throw new Error('Missing X-Filename header');
-                    }
-                    
-                    const filename = decodeURIComponent(filenameHeader);
-                    const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
-                    
-                    // 正确生成包含目录的、唯一的R2对象Key
-                    const r2ObjectKey = `chating/${Date.now()}-${crypto.randomUUID().substring(0, 8)}-${filename}`;
-                    
-                    // 使用正确的key上传到R2
-                    const object = await env.R2_BUCKET.put(r2ObjectKey, request.body, {
-                         httpMetadata: { contentType: contentType },
-                    });
-                    
-                    // 生成与存储路径完全匹配的公开URL
-                    // const r2PublicDomain = "pub-8dfbdda6df204465aae771b4c080140b.r2.dev";
-                    const r2PublicDomain = "https://pic.want.biz";
-                    const publicUrl = `${r2PublicDomain}/${object.key}`; // object.key 现在是 "chating/..."
-                    
-                    console.log(`[Worker] File uploaded successfully to R2: ${publicUrl}`);
-                    return new Response(JSON.stringify({ url: publicUrl }), {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-
-                } catch (error) {
-                    console.error('[Worker] R2 Upload error:', error.stack || error);
-                    return new Response(`Error uploading file: ${error.message}`, { 
-                        status: 500, 
-                        headers: corsHeaders 
-                    });
-                }
-
-            } else if (pathname === '/ai-explain') {
-                const { text, model = 'gemini', roomName } = await request.json();
-                if (!text) return new Response('Missing "text"', { status: 400, headers: corsHeaders });
-
-                if (roomName) {
-                    const doId = env.CHAT_ROOM_DO.idFromName(roomName);
-                    const stub = env.CHAT_ROOM_DO.get(doId);
-                    ctx.waitUntil(stub.logAndBroadcast(`[AI] 用户请求文本解释，使用模型: ${model}`, 'INFO'));
-                }
-
-                const fullPrompt = `你是一位非常耐心的小学老师，专门给小学生讲解新知识。  我是一名小学三年级学生，我特别渴望弄明白事物的含义。  请你用精准、详细的语言解释（Markdown 格式）：1. 用通俗易懂的语言解释下面这段文字。2. 给出关键概念的定义。3. 用生活中的比喻或小故事帮助理解。4. 举一个具体例子，并示范"举一反三"的思考方法。5. 最后用一至两个问题来引导我延伸思考。:\n\n${text}`;
-                
-                let explanation;
-                switch (model) {
-                    case 'kimi':
-                        explanation = await getKimiExplanation(fullPrompt, env);
-                        break;
-                    case 'deepseek':
-                        explanation = await getDeepSeekExplanation(fullPrompt, env);
-                        break;
-                    case 'gemini':
-                    default:
-                        explanation = await getGeminiExplanation(fullPrompt, env);
-                        break;
-                }
-
-                return new Response(JSON.stringify({ explanation }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-
-            } else if (pathname === '/ai-describe-image') {
-                const { imageUrl, model = 'gemini', roomName } = await request.json();
-                if (!imageUrl) return new Response('Missing "imageUrl"', { status: 400, headers: corsHeaders });
-
-                if (roomName) {
-                    const doId = env.CHAT_ROOM_DO.idFromName(roomName);
-                    const stub = env.CHAT_ROOM_DO.get(doId);
-                    ctx.waitUntil(stub.logAndBroadcast(`[AI] 用户请求图片描述，使用模型: ${model}`, 'INFO'));
-                }
-                
-                let description;
-                switch (model) {
-                    case 'kimi':
-                        description = await getKimiImageDescription(imageUrl, env);
-                        break;
-                    case 'gemini':
-                    default:
-                        description = await getGeminiImageDescription(imageUrl, env);
-                        break;
-                }
-                
-                return new Response(JSON.stringify({ description }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-            } else if (pathname === '/api/zhihu/hot') {
-                console.log(`[Worker] Handling /api/zhihu/hot request.`);
-                try {
-                    const limit = parseInt(url.searchParams.get('limit')) || 10;
-                    const zhihuHotService = new ZhihuHotService(env);
-                    const data = await zhihuHotService.getCombinedTopics(limit, limit);
-                    return new Response(JSON.stringify(data), {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                } catch (error) {
-                    console.error('[Worker] Error fetching Zhihu hot topics:', error);
-                    return new Response(JSON.stringify({ error: error.message }), {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                }
-            } else if (pathname === '/api/zhihu/combined') {
-                console.log(`[Worker] Handling /api/zhihu/combined request.`);
-                try {
-                    const hotLimit = parseInt(url.searchParams.get('hot_limit')) || 15;
-                    const inspirationLimit = parseInt(url.searchParams.get('inspiration_limit')) || 15;
-                    const zhihuHotService = new ZhihuHotService(env);
-                    const data = await zhihuHotService.getCombinedTopics(hotLimit, inspirationLimit);
-                    return new Response(JSON.stringify(data), {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                } catch (error) {
-                    console.error('[Worker] Error fetching Zhihu combined topics:', error);
-                    return new Response(JSON.stringify({ error: error.message }), {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                }
-            } else if (pathname === '/api/zhihu/inspiration') {
-                console.log(`[Worker] Handling /api/zhihu/inspiration request.`);
-                try {
-                    const limit = parseInt(url.searchParams.get('limit')) || 15;
-                    const zhihuHotService = new ZhihuHotService(env);
-                    const questions = await zhihuHotService.fetchZhihuInspirationQuestions();
-                    
-                    // 按热度排序并限制数量
-                    const sortedQuestions = questions
-                        .sort((a, b) => {
-                            const hotA = parseInt(a.hot) || 0;
-                            const hotB = parseInt(b.hot) || 0;
-                            return hotB - hotA;
-                        })
-                        .slice(0, limit);
-                    
-                    return new Response(JSON.stringify({ data: sortedQuestions }), {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                } catch (error) {
-                    console.error('[Worker] Error fetching Zhihu inspiration questions:', error);
-                    return new Response(JSON.stringify({ error: error.message }), {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                }
-            } else if (pathname === '/api/zhihu/search') {
-                console.log(`[Worker] Handling /api/zhihu/search request.`);
-                if (request.method !== 'POST') {
-                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                }
-                
-                try {
-                    const { keyword } = await request.json();
-                    if (!keyword) {
-                        return new Response(JSON.stringify({ error: 'Missing keyword parameter' }), {
-                            status: 400,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                    
-                    const zhihuHotService = new ZhihuHotService(env);
-                    const topics = await zhihuHotService.generateRelatedTopics(keyword);
-                    
-                    return new Response(JSON.stringify({ topics }), {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                } catch (error) {
-                    console.error('[Worker] Error searching Zhihu topics:', error);
-                    return new Response(JSON.stringify({ error: error.message }), {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                }
-            } else if (pathname === '/api/zhihu/article') {
-                console.log(`[Worker] Handling /api/zhihu/article request.`);
-                if (request.method !== 'POST') {
-                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                }
-                
-                try {
-                    const { topicInfo, roomName = 'test' } = await request.json();
-                    if (!topicInfo) {
-                        return new Response(JSON.stringify({ error: 'Missing topicInfo parameter' }), {
-                            status: 400,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                    
-                    // Forward the request to the DO for processing
-                    if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
-                    const doId = env.CHAT_ROOM_DO.idFromName(roomName);
-                    const stub = env.CHAT_ROOM_DO.get(doId);
-                    
-                    // Call the appropriate method on the DO
-                    ctx.waitUntil(stub.generateZhihuArticle({username: 'api_user'}, topicInfo));
-                    
-                    return new Response(JSON.stringify({ 
-                        success: true, 
-                        message: "Article generation started. Check the room for results."
-                    }), {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                } catch (error) {
-                    console.error('[Worker] Error generating Zhihu article:', error);
-                    return new Response(JSON.stringify({ error: error.message }), {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                }
-            } else if (pathname === '/api/news/combined') {
-                console.log(`[Worker] Handling /api/news/combined request.`);
-                const limit = parseInt(url.searchParams.get('limit')) || 20;
-                
-                try {
-                    const newsService = new NewsInspirationService(env);
-                    const news = await newsService.getCombinedNewsInspiration(limit);
-                    
-                    return new Response(JSON.stringify({ news }), {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                } catch (error) {
-                    console.error('[Worker] Error fetching combined news:', error);
-                    return new Response(JSON.stringify({ error: error.message }), {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                }
-            } else if (pathname === '/api/news/search') {
-                console.log(`[Worker] Handling /api/news/search request.`);
-                if (request.method !== 'GET') {
-                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                }
-                
-                try {
-                    const url = new URL(request.url);
-                    const keyword = url.searchParams.get('keyword');
-                    const limit = parseInt(url.searchParams.get('limit')) || 10;
-                    
-                    if (!keyword) {
-                        return new Response(JSON.stringify({ error: 'Missing keyword parameter' }), {
-                            status: 400,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                    
-                    const newsService = new NewsInspirationService(env);
-                    const allInspirations = await newsService.getCombinedNewsInspiration();
-                    console.log(`[Worker] Total inspirations before filter: ${allInspirations.length}`);
-                    
-                    // 根据关键词过滤新闻灵感
-                    const lowerKeyword = keyword.toLowerCase();
-                    const filteredNews = allInspirations
-                        .filter(item => 
-                            item && 
-                            ((item.title && item.title.toLowerCase().includes(lowerKeyword)) || 
-                             (item.description && item.description.toLowerCase().includes(lowerKeyword))) ||
-                            (item.content && item.content.toLowerCase().includes(lowerKeyword))
-                        );
-                    console.log(`[Worker] Total inspirations after filter: ${filteredNews.length}`);
-                    const slicedNews = filteredNews.slice(0, limit);
-                    
-                    return new Response(JSON.stringify({ news: slicedNews }), {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                } catch (error) {
-                    console.error('[Worker] Error searching news:', error);
-                    return new Response(JSON.stringify({ error: error.message }), {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                }
-            } else if (pathname === '/api/news/article') {
-                console.log(`[Worker] Handling /api/news/article request.`);
-                if (request.method !== 'POST') {
-                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                }
-                
-                try {
-                    const { newsItem, roomName = 'test' } = await request.json();
-                    if (!newsItem) {
-                        return new Response(JSON.stringify({ error: 'Missing newsItem parameter' }), {
-                            status: 400,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                    if (!roomName) {
-                        return new Response(JSON.stringify({ error: 'API request requires a roomName parameter' }), {
-                            status: 400,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                    
-                    const newsService = new NewsInspirationService(env);
-                    const prompt = newsService.generateContentPrompt(newsItem);
-                    
-                    // 转发到聊天室DO进行AI文章生成
-                    if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
-                    const doId = env.CHAT_ROOM_DO.idFromName(roomName);
-                    const stub = env.CHAT_ROOM_DO.get(doId);
-                    
-                    ctx.waitUntil(stub.generateNewsArticle({username: 'api_user'}, newsItem, prompt));
-                    
-                    return new Response(JSON.stringify({ 
-                        success: true, 
-                        message: "News article generation started. Check the room for results."
-                    }), {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                } catch (error) {
-                    console.error('[Worker] Error generating news article:', error);
-                    return new Response(JSON.stringify({ error: error.message }), {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                }
+                return handleUpload(request, env);
+            }
+            if (pathname === '/ai-explain') {
+                return handleAiExplain(request, env);
+            }
+            if (pathname === '/ai-describe-image') {
+                return handleAiDescribeImage(request, env);
             }
 
-            // --- 路由 2: /api/ 路由处理 ---
-            if (pathname.startsWith('/api/')) {
-                // 全局API，不转发给DO
-                if (pathname === '/api/price') {
-                    console.log(`[Worker] Handling /api/price request for symbol: ${url.searchParams.get('symbol')}`);
-                    const symbol = url.searchParams.get('symbol');
-                    if (!symbol) {
-                        console.warn(`[Worker] /api/price request missing symbol parameter.`);
-                        return new Response(JSON.stringify({ error: 'Missing symbol parameter' }), {
-                            status: 400,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                    const priceDataString = await getPrice(symbol);
-                    const priceData = JSON.parse(priceDataString);
-                    console.log(`[Worker] Successfully fetched price for ${symbol}.`);
-                    return new Response(JSON.stringify(priceData), {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                }
-
-                // 需要转发给DO的API
-                let roomName = null;
-                // 对于这些API，房间名在查询参数里
-                if (pathname.startsWith('/api/messages') || pathname.startsWith('/api/reset-room')|| pathname.startsWith('/api/debug')|| pathname.startsWith('/api/room')) {
-                    roomName = url.searchParams.get('roomName');
-                }
-                // 新增：处理 /api/ai/kimi 路由
-                if (pathname === '/api/ai/kimi') {
-                    const roomName = url.searchParams.get('roomName');
-                    if (!roomName) {
-                        return new Response(JSON.stringify({ error: 'Missing roomName parameter' }), {
-                            status: 400,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                    if (request.method !== 'POST') {
-                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                    }
-                    try {
-                        const { query } = await request.json();
-                        if (!query) {
-                            return new Response(JSON.stringify({ error: 'Missing query in request body' }), {
-                                status: 400,
-                                headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                            });
-                        }
-                        // 注意：getKimiChatAnswer 可能需要一个 history 参数，这里我们传递一个空数组
-                        const result = await getKimiChatAnswer(query, [], env);
-                        return new Response(JSON.stringify({ result }), {
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    } catch (error) {
-                        console.error('Kimi API error in worker:', error);
-                        return new Response(JSON.stringify({ error: error.message }), {
-                            status: 500,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                }
-
-                // 新增：头条自动发文外部API路由
-                if (pathname === '/api/toutiao/direct') {
-                    if (request.method !== 'POST') {
-                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                    }
-                    
-                    try {
-                        const { text, username = 'external_user', roomName = 'external' } = await request.json();
-                        if (!text) {
-                            return new Response(JSON.stringify({ error: 'Missing text parameter' }), {
-                                status: 400,
-                                headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                            });
-                        }
-
-                        // 创建头条任务
-                        // 转发到聊天室DO的/toutiao/submit端点
-                if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
-                const doId = env.CHAT_ROOM_DO.idFromName(roomName);
-                const stub = env.CHAT_ROOM_DO.get(doId);
-                
-                // 调用DO的handleToutiaoSubmit方法
-                const apiUrl = new URL(request.url);
-                apiUrl.pathname = '/api/toutiao/submit';
-                
-                const response = await stub.fetch(new Request(apiUrl.toString(), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        content: text,
-                        topic: '外部提交',
-                        platform: 'default'
-                    })
-                }));
-
-                const result = await response.json();
-                return new Response(JSON.stringify(result), {
-                    headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                });
-
-                    } catch (error) {
-                        console.error('Toutiao direct API error:', error);
-                        return new Response(JSON.stringify({ error: error.message }), {
-                            status: 500,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                }
-
-                if (pathname.startsWith('/api/toutiao/status/')) {
-                    if (request.method !== 'GET') {
-                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                    }
-                    try {
-                        const taskId = pathname.substring('/api/toutiao/status/'.length);
-                        if (!taskId) {
-                            return new Response(JSON.stringify({ error: 'Missing taskId parameter' }), {
-                                status: 400,
-                                headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                            });
-                        }
-                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
-                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
-                        const result = await stub.fetch(new Request(new URL(`/results?id=${taskId}`, request.url).toString()));
-                        return new Response(result.body, {
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    } catch (error) {
-                        console.error('Toutiao status API error:', error);
-                        return new Response(JSON.stringify({ error: error.message }), {
-                            status: 500,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                } else if (pathname === '/api/toutiao/queue') {
-                    if (request.method !== 'GET') {
-                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                    }
-                    try {
-                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
-                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
-                    const result = await stub.fetch(new Request(new URL(`/queue`, request.url).toString()));
-                        return new Response(result.body, {
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    } catch (error) {
-                        console.error('Toutiao queue API error:', error);
-                        return new Response(JSON.stringify({ error: error.message }), {
-                            status: 500,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                } else if (pathname === '/api/toutiao/clearQueue') {
-                if (request.method !== 'POST') {
-                    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                }
-                try {
-                    const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
-                    const stub = env.TOUTIAO_SERVICE_DO.get(doId);
-                    const result = await stub.fetch(new Request(new URL(`/clearQueue`, request.url).toString(), {
-                        method: 'POST'
-                    }));
-                    return new Response(result.body, {
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                } catch (error) {
-                    console.error('Toutiao clearQueue API error:', error);
-                    return new Response(JSON.stringify({ error: error.message }), {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                    });
-                }
-                } else if (pathname === '/api/toutiao/stats') {
-                    if (request.method !== 'GET') {
-                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                    }
-                    try {
-                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
-                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
-                        const result = await stub.fetch(new Request(new URL(`/stats`, request.url).toString()));
-                        return new Response(result.body, {
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    } catch (error) {
-                        console.error('Toutiao stats API error:', error);
-                        return new Response(JSON.stringify({ error: error.message }), {
-                            status: 500,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                } else if (pathname === '/api/toutiao/results') {
-                    if (request.method !== 'GET') {
-                        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-                    }
-                    try {
-                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
-                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
-                        const result = await stub.fetch(new Request(new URL(`/results`, request.url).toString()));
-                        return new Response(result.body, {
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    } catch (error) {
-                        console.error('Toutiao results API error:', error);
-                        return new Response(JSON.stringify({ error: error.message }), {
-                            status: 500,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
-                } else if (pathname === '/api/toutiao/queue' && request.method === 'DELETE') {
-                    try {
-                        const doId = env.TOUTIAO_SERVICE_DO.idFromName('default');
-                        const stub = env.TOUTIAO_SERVICE_DO.get(doId);
-                        const result = await stub.fetch(new Request(new URL(`/queue`, request.url).toString(), {
-                            method: 'DELETE'
-                        }));
-                        return new Response(result.body, {
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    } catch (error) {
-                        console.error('Toutiao process queue API error:', error);
-                        return new Response(JSON.stringify({ error: error.message }), {
-                            status: 500,
-                            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-                        });
-                    }
+            // --- 路由 3: 静态页面与资源 ---
+            if (pathname === '/management') {
+                return serveHtmlWithEnv(managementHtml, env, 'management');
             }
-
-
-
-                // (未来可以为其他API在这里添加 roomName 的获取逻辑)
-
-                if (!roomName) {
-                    return new Response('API request requires a roomName parameter', { status: 400 });
-                }
-
-                if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
-                const doId = env.CHAT_ROOM_DO.idFromName(roomName);
-                const stub = env.CHAT_ROOM_DO.get(doId);
-                return stub.fetch(request); // 直接转发并返回DO的响应
-            }
-
-            // --- 路由 3: favicon.ico 处理 ---
             if (pathname === '/favicon.ico') {
-                return new Response(null, { 
-                    status: 302, 
-                    headers: { 'Location': 'https://pic.want.biz/favicon.svg' } 
-                });
+                return new Response(null, { status: 302, headers: { 'Location': 'https://pic.want.biz/favicon.svg' } });
             }
 
-            // --- 路由 4: 房间页面加载 和 WebSocket 连接 ---
-            // 匹配所有不以 /api/ 开头的路径，例如 /test, /general
+            // --- 路由 4: 转发到特定Durable Object ---
+            // This handles WebSocket upgrades, room-specific APIs, and serving the main chat page.
             const pathParts = pathname.slice(1).split('/');
             const roomNameFromPath = pathParts[0];
 
-            // 过滤掉空的路径部分
             if (roomNameFromPath) {
-                 if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
-                 const doId = env.CHAT_ROOM_DO.idFromName(roomNameFromPath);
-                 const stub = env.CHAT_ROOM_DO.get(doId);
-                 const response = await stub.fetch(request);
+                // 【新增】将 /api/inspirations 请求直接路由到 InspirationDO
+                if (pathname === '/api/inspirations' || pathname === '/inspirations') {
+                    if (!env.INSPIRATION_DO) throw new Error("Durable Object 'INSPIRATION_DO' is not bound.");
+                    const doId = env.INSPIRATION_DO.idFromName("global");
+                    const stub = env.INSPIRATION_DO.get(doId);
+                    return stub.fetch(request);
+                }
+                
+                if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+                const doId = env.CHAT_ROOM_DO.idFromName(roomNameFromPath);
+                const stub = env.CHAT_ROOM_DO.get(doId);
+                const response = await stub.fetch(request);
 
-                 // 只有在DO明确要求时，才返回HTML
-                 if (response.headers.get("X-DO-Request-HTML") === "true") {
-                     return serveMainHtmlWithEnv(env);
-                 }
-                 return response;
+                // If the DO indicates it needs the HTML, serve it.
+                if (response.headers.get("X-DO-Request-HTML") === "true") {
+                    return serveHtmlWithEnv(html, env, 'main');
+                }
+                return response;
             }
 
-            // --- 路由 4: 根路径 或 其他未匹配路径，注入环境变量后返回HTML ---
-            return serveMainHtmlWithEnv(env);
+            // --- 路由 5: 根路径 (默认页面) ---
+            return serveHtmlWithEnv(html, env, 'main');
 
         } catch (e) {
             console.error("Critical error in main Worker fetch:", e.stack || e);
@@ -807,40 +108,14 @@ export default {
         }
     },
 
-    /**
-     * 【重构后】处理由Cron Trigger触发的定时事件。
-     */
-async scheduled(event, env, ctx) {
-        console.log(`[Worker] 🚀🚀🚀🚀 Cron Trigger firing! Rule: ${event.cron}🚀🚀🚀`);
-
+    // =================================================================
+    // ==                 定时任务 (scheduled handler)                ==
+    // =================================================================
+    async scheduled(event, env, ctx) {
+        console.log(`[Worker] 🚀 Cron Trigger firing! Rule: ${event.cron}`);
         const taskFunction = taskMap.get(event.cron);
-
         if (taskFunction) {
-            console.log(`[Worker] 🧮 Executing task for cron rule: ${event.cron}`);
-            
-            // 【关键修改】: 执行任务并获取返回的状态结果
-            const result = await taskFunction(env, ctx);
-            
-            // 如果任务函数返回了结果，就进行广播通知
-            if (result && result.roomName) {
-                try {
-                    const doId = env.CHAT_ROOM_DO.idFromName(result.roomName);
-                    const stub = env.CHAT_ROOM_DO.get(doId);
-                    
-                    // 准备要广播的系统消息内容
-                    const systemMessagePayload = result.success 
-                        ? { message: `✅ 定时任务'${event.cron}'执行成功: ${result.message}`, level: 'SUCCESS' }
-                        : { message: `❌ 定时任务'${event.cron}'执行失败: ${result.error}`, level: 'ERROR', data: result };
-
-                    // 调用新的RPC方法来广播通知
-                    // 同样使用 waitUntil 确保它在后台完成
-                    ctx.waitUntil(stub.broadcastSystemMessage(systemMessagePayload, env.CRON_SECRET));
-
-                } catch(e) {
-                    console.error(`[Worker] Failed to broadcast cron status for room ${result.roomName}:`, e);
-                }
-            }
-
+            ctx.waitUntil(taskFunction(env, ctx));
         } else {
             console.warn(`[Worker] No task defined for cron rule: ${event.cron}`);
         }
@@ -848,21 +123,147 @@ async scheduled(event, env, ctx) {
 };
 
 
-const API_BASE_URL = 'https://api.yuangs.cc';
+// =================================================================
+// ==               【新】内部任务派发器 (办公室经理)             ==
+// =================================================================
 
-async function fetchFuturesData() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/futures/hqdata`);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    
-    const { data, columns } = await response.json();
-    // 处理数据...
-    console.log('成功获取期货数据:', data);
-    return data;
-  } catch (error) {
-    console.error('获取期货数据失败:', error);
-    throw error;
-  }
+
+/**
+ * Dispatches tasks delegated from Durable Objects to the appropriate service/handler.
+ * @param {object} task - The task object from the DO.
+ * @param {object} env - The environment variables.
+ */
+async function dispatchInternalTask(task, env) {
+    const { command, payload, callbackInfo } = task;
+    console.log(`[Worker] Dispatching task: ${command}`, { payload, callbackInfo });
+
+    try {
+        let stub;
+        switch (command) {
+            case 'toutiao_article':
+                if (!env.TOUTIAO_SERVICE_DO) throw new Error("Toutiao Service DO is not configured.");
+                stub = env.TOUTIAO_SERVICE_DO.get(env.TOUTIAO_SERVICE_DO.idFromName('default'));
+                // 将完整的任务单派发给专家DO
+                await stub.processAndCallback(task);
+                break;
+
+            case 'inspiration':
+                if (!env.INSPIRATION_DO) throw new Error("Inspiration Service DO is not configured.");
+                // 经理只需将完整的任务单派发给专家，然后就去忙别的了
+                stub = env.INSPIRATION_DO.get(env.INSPIRATION_DO.idFromName('global'));
+                await stub.processAndCallback(task);
+                break;
+
+            case 'zhihu_hot':
+            case 'zhihu_article':
+                throw new Error(`Command "${command}" is not yet implemented with a dedicated DO.`);
+                break;
+            
+            case 'kimi_chat':
+            case 'news_article':
+                throw new Error(`Command "${command}" is not yet implemented with a dedicated DO.`);
+                break;
+
+            default:
+                throw new Error(`Unknown command: ${command}`);
+        }
+    } catch (e) {
+        console.error(`[Worker] Task dispatch failed for command "${command}":`, e);
+        // 如果派发失败，通知用户
+        await handleErrorCallback(e, callbackInfo, env);
+    }
+}
+/**
+ * Sends an error message back to the chatroom via RPC if a task fails.
+ * @param {Error} error - The error that occurred.
+ * @param {object} callbackInfo - Information needed to call back to the correct chatroom.
+ * @param {object} env - The environment variables.
+ */
+async function handleErrorCallback(error, callbackInfo, env) {
+    if (!callbackInfo || !callbackInfo.roomName || !callbackInfo.messageId) {
+        console.error("[Worker] FATAL: Cannot perform error callback due to missing callbackInfo.", { error, callbackInfo });
+        return;
+    }
+    try {
+        const chatroomId = env.CHAT_ROOM_DO.idFromName(callbackInfo.roomName);
+        const chatroomStub = env.CHAT_ROOM_DO.get(chatroomId);
+        const errorText = `> (❌ 任务处理失败: ${error.message})`;
+        // Use the 'updateMessage' RPC method on the chatroom DO
+        await chatroomStub.updateMessage(callbackInfo.messageId, errorText);
+    } catch (callbackError) {
+        console.error(`[Worker] FATAL: Error callback to room ${callbackInfo.roomName} failed!`, callbackError);
+    }
 }
 
-// 其他数据库的类似方法...
+
+// =================================================================
+// ==                 全局 API 处理器 (Worker职责)                ==
+// =================================================================
+
+function handleOptions(request) {
+    if (
+        request.headers.get('Origin') !== null &&
+        request.headers.get('Access-Control-Request-Method') !== null &&
+        request.headers.get('Access-Control-Request-Headers') !== null
+    ) {
+        return new Response(null, { headers: corsHeaders });
+    }
+    return new Response(null, { headers: { Allow: 'GET, HEAD, POST, OPTIONS' } });
+}
+
+async function handleUpload(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+    }
+    try {
+        if (!env.R2_BUCKET) throw new Error('Server config error: R2_BUCKET not bound.');
+        const filename = decodeURIComponent(request.headers.get('X-Filename') || 'untitled');
+        const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
+        const r2ObjectKey = `chating/${Date.now()}-${crypto.randomUUID().substring(0, 8)}-${filename}`;
+        const object = await env.R2_BUCKET.put(r2ObjectKey, request.body, { httpMetadata: { contentType } });
+        const publicUrl = `${env.R2_PUBLIC_DOMAIN || 'https://pic.want.biz'}/${object.key}`;
+        return new Response(JSON.stringify({ url: publicUrl }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    } catch (error) {
+        console.error('[Worker] R2 Upload error:', error);
+        return new Response(`Error uploading file: ${error.message}`, { status: 500, headers: corsHeaders });
+    }
+}
+
+async function handleAiExplain(request, env) {
+    const { text, model = 'gemini' } = await request.json();
+    if (!text) return new Response('Missing "text"', { status: 400, headers: corsHeaders });
+    const fullPrompt = `你是一位非常耐心的小学老师...[your prompt]...\n\n${text}`;
+    let explanation;
+    switch (model) {
+        case 'kimi': explanation = await getKimiExplanation(fullPrompt, env); break;
+        case 'deepseek': explanation = await getDeepSeekExplanation(fullPrompt, env); break;
+        default: explanation = await getGeminiExplanation(fullPrompt, env); break;
+    }
+    return new Response(JSON.stringify({ explanation }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+}
+
+async function handleAiDescribeImage(request, env) {
+    const { imageUrl, model = 'gemini' } = await request.json();
+    if (!imageUrl) return new Response('Missing "imageUrl"', { status: 400, headers: corsHeaders });
+    let description;
+    switch (model) {
+        case 'kimi': description = await getKimiImageDescription(imageUrl, env); break;
+        default: description = await getGeminiImageDescription(imageUrl, env); break;
+    }
+    return new Response(JSON.stringify({ description }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+}
+
+
+// =================================================================
+// ==                     辅助函数 (HTML注入等)                   ==
+// =================================================================
+
+function serveHtmlWithEnv(htmlContent, env, pageType = 'main') {
+    let injectedScript = `window.ENV_CONFIG = ${JSON.stringify({
+        apiDomain: env.API_DOMAIN || 'chat.want.biz',
+        flaskApi: env.FLASK_API || 'https://api.yuangs.cc',
+        managementRoomsList: (env.MANAGEMENT_ROOMS_LIST || 'general,test').split(',').map(r => r.trim()),
+    })};\n`;
+    const modifiedHtml = htmlContent.replace('//--CONFIG-PLACEHOLDER--//', injectedScript);
+    return new Response(modifiedHtml, { headers: { 'Content-Type': 'text/html;charset=UTF-8' } });
+}

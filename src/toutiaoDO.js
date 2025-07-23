@@ -1,173 +1,164 @@
-/**
- * 头条Durable Object - 独立的头条服务
- * 提供完整的头条内容生成和发布功能
- */
+// 文件: src/toutiaoDO.js (真正完整版)
+// 职责: "市场部专家" - 专门处理头条文章生成任务，并负责回调
 
 import { DurableObject } from "cloudflare:workers";
-import { ToutiaoTaskProcessor, ToutiaoQueueManager, AIContentProcessor, ToutiaoPublisher } from './toutiaoService.js';
+// 导入您提供的完整业务逻辑模块
+import { ToutiaoTaskProcessor, ToutiaoQueueManager } from './toutiaoService.js';
 
 // 存储键常量
 const TOUTIAO_QUEUE_KEY = 'toutiao_task_queue';
 const TASK_RESULTS_KEY = 'toutiao_task_results';
 const SERVICE_STATS_KEY = 'toutiao_service_stats';
 
-/**
- * 头条服务Durable Object
- * 完全独立于聊天室功能的头条服务
- */
 export class ToutiaoServiceDO2 extends DurableObject {
     constructor(ctx, env) {
         super(ctx, env);
         this.ctx = ctx;
         this.env = env;
-        // 创建兼容的logger对象
+
         const logger = {
-            log: (message, data) => this.logger(message, 'INFO', data),
-            error: (message, error) => this.logger(message, 'ERROR', error)
+            log: (message, data) => this._log(message, 'INFO', data),
+            error: (message, error) => this._log(message, 'ERROR', error),
         };
+
         this.processor = new ToutiaoTaskProcessor(env, logger);
         this.queueManager = new ToutiaoQueueManager(ctx.storage, logger);
         this.isInitialized = false;
     }
 
-    /**
-     * 日志记录器
-     */
-    logger(message, level = 'INFO', data = null) {
+    _log(message, level = 'INFO', data = null) {
         const timestamp = new Date().toISOString();
-        const logEntry = {
-            timestamp,
-            level,
-            message,
-            data,
-            id: crypto.randomUUID().substring(0, 8)
-        };
+        console.log(`[ToutiaoDO] [${timestamp}] [${level}] ${message}`, data || '');
+    }
 
-        if (data) {
-            console.log(`[ToutiaoService] [${timestamp}] [${level}] ${message}`, data);
-        } else {
-            console.log(`[ToutiaoService] [${timestamp}] [${level}] ${message}`);
+    // =================================================================
+    // ==          【新架构核心】实时任务处理与回调 (for ChatRoom)        ==
+    // =================================================================
+
+    async processAndCallback(task) {
+        const { payload, callbackInfo } = task;
+        this._log(`收到实时任务: ${task.command}`, { payload, callbackInfo });
+
+        let finalContent;
+        let metadata = {};
+
+        try {
+            const processorTask = {
+                text: payload.content,
+                username: callbackInfo.username,
+                id: callbackInfo.messageId,
+            };
+
+            const result = await this.processor.processTask(processorTask);
+            
+            const originalText = `> (原始命令: /头条 ${payload.content})`;
+
+            if (result.success) {
+                const publishStatus = result.publishResult?.data?.msg || (result.publishResult?.success ? '成功' : '未知');
+                finalContent = `${originalText}\n\n` +
+                               `✅ **头条内容已生成并发布**\n\n` +
+                               `**标题**: ${result.title}\n` +
+                               `**发布状态**: ${publishStatus}\n` +
+                               `**智能模板**: ${result.templateUsed}\n\n` +
+                               `---\n${result.content}`;
+                metadata = { toutiaoResult: result };
+                await this.updateStats(true);
+            } else {
+                finalContent = `${originalText}\n\n> (❌ **头条任务处理失败**: ${result.error})`;
+                await this.updateStats(false);
+            }
+
+        } catch (error) {
+            this._log(`处理实时任务时发生严重错误`, 'ERROR', error);
+            const originalText = `> (原始命令: /头条 ${payload.content})`;
+            finalContent = `${originalText}\n\n> (💥 **系统异常**: 处理任务时发生意外错误。详情: ${error.message})`;
+            await this.updateStats(false);
         }
 
-        return logEntry;
+        await this._performCallback(callbackInfo, finalContent, metadata);
     }
 
-    /**
-     * 初始化服务
-     */
+    async _performCallback(callbackInfo, finalContent, metadata) {
+        try {
+            const chatroomId = this.env.CHAT_ROOM_DO.idFromName(callbackInfo.roomName);
+            const chatroomStub = this.env.CHAT_ROOM_DO.get(chatroomId);
+            this._log(`正在回调房间: ${callbackInfo.roomName}, 消息ID: ${callbackInfo.messageId}`);
+            await chatroomStub.updateMessage(callbackInfo.messageId, finalContent, metadata);
+            this._log(`回调成功!`);
+        } catch (callbackError) {
+            this._log(
+                `FATAL: 回调到房间 ${callbackInfo.roomName} 失败! 用户 ${callbackInfo.username} 将不会看到消息 ${callbackInfo.messageId} 的更新。`,
+                'ERROR',
+                callbackError
+            );
+        }
+    }
+
+    // =================================================================
+    // ==      【保留功能】独立的API服务与队列管理 (for Cron/Direct API)    ==
+    // =================================================================
+    
     async initialize() {
         if (this.isInitialized) return;
-
-        // 初始化统计数据
         const stats = await this.ctx.storage.get(SERVICE_STATS_KEY) || {
-            totalTasks: 0,
-            successfulTasks: 0,
-            failedTasks: 0,
-            lastProcessedAt: null,
-            createdAt: new Date().toISOString()
+            totalTasks: 0, successfulTasks: 0, failedTasks: 0, lastProcessedAt: null, createdAt: new Date().toISOString()
         };
-
         await this.ctx.storage.put(SERVICE_STATS_KEY, stats);
         this.isInitialized = true;
-        this.logger('🚀 头条服务已初始化');
+        this._log('头条服务已初始化');
     }
 
-    /**
-     * 处理单个头条任务
-     * @param {Object} task - 任务信息
-     * @param {string} task.text - 用户输入
-     * @param {string} task.username - 用户名
-     * @param {string} task.id - 任务ID
-     * @returns {Promise<Object>} 处理结果
-     */
     async processTask(task) {
         await this.initialize();
-        
         const result = await this.processor.processTask(task);
-        
-        // 更新统计信息
         await this.updateStats(result.success);
-        
-        // 保存结果
         await this.saveTaskResult(result);
-        
         return result;
     }
 
-    /**
-     * 添加任务到队列
-     * @param {Object} task - 任务信息
-     * @returns {Promise<number>} 队列长度
-     */
     async addTask(task) {
         await this.initialize();
-        const queueLength = await this.queueManager.addTask(task);
-        
-        // 自动处理队列（如果队列长度小于等于3，立即处理）
-        if (queueLength <= 3) {
-            this.ctx.waitUntil(this.processQueue());
-        }
-        
-        return queueLength;
+        return await this.queueManager.addTask(task);
     }
 
-    /**
-     * 处理队列中的所有任务
-     * @returns {Promise<Array>} 处理结果
-     */
     async processQueue() {
         await this.initialize();
-        
         const results = await this.queueManager.processQueue(this.processor);
-        
-        // 保存结果并更新统计信息
         for (const result of results) {
             await this.saveTaskResult(result);
             await this.updateStats(result.success);
         }
-        
         return results;
     }
-
-    /**
-     * 获取队列状态
-     * @returns {Promise<Object>} 队列状态
-     */
-    async getQueueStatus() {
-        await this.initialize();
-        
-        const queue = await this.queueManager.getQueue();
-        return {
-            length: queue.length,
-            tasks: queue,
-            lastProcessedAt: await this.getLastProcessedTime()
-        };
+    
+    async updateStats(success) {
+        const stats = await this.ctx.storage.get(SERVICE_STATS_KEY) || {};
+        stats.totalTasks = (stats.totalTasks || 0) + 1;
+        if (success) {
+            stats.successfulTasks = (stats.successfulTasks || 0) + 1;
+        } else {
+            stats.failedTasks = (stats.failedTasks || 0) + 1;
+        }
+        stats.lastProcessedAt = new Date().toISOString();
+        await this.ctx.storage.put(SERVICE_STATS_KEY, stats);
     }
 
-    /**
-     * 获取服务统计信息
-     * @returns {Promise<Object>} 统计信息
-     */
+    async saveTaskResult(result) {
+        const results = await this.ctx.storage.get(TASK_RESULTS_KEY) || {};
+        results[result.taskId] = { ...result, completedAt: new Date().toISOString() };
+        await this.ctx.storage.put(TASK_RESULTS_KEY, results);
+    }
+
     async getStats() {
         await this.initialize();
         return await this.ctx.storage.get(SERVICE_STATS_KEY);
     }
 
-    /**
-     * 获取任务结果
-     * @param {string} taskId - 任务ID
-     * @returns {Promise<Object>} 任务结果
-     */
     async getTaskResult(taskId) {
         const results = await this.ctx.storage.get(TASK_RESULTS_KEY) || {};
         return results[taskId];
     }
 
-    /**
-     * 获取所有任务结果
-     * @param {number} limit - 限制返回数量
-     * @returns {Promise<Array>} 任务结果列表
-     */
     async getAllTaskResults(limit = 50) {
         const results = await this.ctx.storage.get(TASK_RESULTS_KEY) || {};
         return Object.values(results)
@@ -175,16 +166,10 @@ export class ToutiaoServiceDO2 extends DurableObject {
             .slice(0, limit);
     }
 
-    /**
-     * 清理旧的任务结果
-     * @param {number} daysToKeep - 保留天数
-     * @returns {Promise<number>} 清理数量
-     */
     async cleanupOldResults(daysToKeep = 7) {
         const results = await this.ctx.storage.get(TASK_RESULTS_KEY) || {};
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-
         let cleanedCount = 0;
         for (const [taskId, result] of Object.entries(results)) {
             if (new Date(result.completedAt) < cutoffDate) {
@@ -192,269 +177,94 @@ export class ToutiaoServiceDO2 extends DurableObject {
                 cleanedCount++;
             }
         }
-
         if (cleanedCount > 0) {
             await this.ctx.storage.put(TASK_RESULTS_KEY, results);
-            this.logger(`🧹 清理了 ${cleanedCount} 个过期任务结果`);
+            this._log(`🧹 清理了 ${cleanedCount} 个过期任务结果`);
         }
-
         return cleanedCount;
     }
 
-    /**
-     * 更新统计信息
-     * @param {boolean} success - 任务是否成功
-     */
-    async updateStats(success) {
-        const stats = await this.ctx.storage.get(SERVICE_STATS_KEY) || {};
-        stats.totalTasks = (stats.totalTasks || 0) + 1;
-        
-        if (success) {
-            stats.successfulTasks = (stats.successfulTasks || 0) + 1;
-        } else {
-            stats.failedTasks = (stats.failedTasks || 0) + 1;
-        }
-        
-        stats.lastProcessedAt = new Date().toISOString();
-        await this.ctx.storage.put(SERVICE_STATS_KEY, stats);
-    }
-
-    /**
-     * 保存任务结果
-     * @param {Object} result - 任务结果
-     */
-    async saveTaskResult(result) {
-        const results = await this.ctx.storage.get(TASK_RESULTS_KEY) || {};
-        results[result.taskId] = {
-            ...result,
-            completedAt: new Date().toISOString()
-        };
-        await this.ctx.storage.put(TASK_RESULTS_KEY, results);
-    }
-
-    /**
-     * 获取最后处理时间
-     * @returns {Promise<string|null>}
-     */
-    async getLastProcessedTime() {
-        const stats = await this.ctx.storage.get(SERVICE_STATS_KEY);
-        return stats?.lastProcessedAt || null;
-    }
-
-    /**
-     * 处理HTTP请求
-     */
     async fetch(request) {
         const url = new URL(request.url);
         const method = request.method;
-
-        this.logger(`📡 收到请求: ${method} ${url.pathname}`);
+        this._log(`收到API请求: ${method} ${url.pathname}`);
 
         try {
+            await this.initialize();
             switch (url.pathname) {
                 case '/task':
                     if (method === 'POST') {
                         const task = await request.json();
                         const result = await this.processTask(task);
-                        return new Response(JSON.stringify(result), {
-                            headers: { 'Content-Type': 'application/json' }
-                        });
+                        return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
                     }
                     break;
-
                 case '/queue':
                     if (method === 'POST') {
                         const task = await request.json();
                         const queueLength = await this.addTask(task);
-                        return new Response(JSON.stringify({ queueLength }), {
-                            headers: { 'Content-Type': 'application/json' }
-                        });
+                        return new Response(JSON.stringify({ queueLength }), { headers: { 'Content-Type': 'application/json' } });
                     } else if (method === 'GET') {
-                        const status = await this.getQueueStatus();
-                        return new Response(JSON.stringify(status), {
-                            headers: { 'Content-Type': 'application/json' }
-                        });
+                        const status = await this.queueManager.getQueueStatus();
+                        return new Response(JSON.stringify(status), { headers: { 'Content-Type': 'application/json' } });
                     } else if (method === 'DELETE') {
                         const results = await this.processQueue();
-                        return new Response(JSON.stringify({ results }), {
-                            headers: { 'Content-Type': 'application/json' }
-                        });
+                        return new Response(JSON.stringify({ results }), { headers: { 'Content-Type': 'application/json' } });
                     }
                     break;
-
                 case '/clearQueue':
                     if (method === 'POST') {
                         await this.ctx.storage.delete(TOUTIAO_QUEUE_KEY);
-                        return new Response(JSON.stringify({ message: 'Queue cleared successfully' }), {
-                            headers: { 'Content-Type': 'application/json' }
-                        });
+                        return new Response(JSON.stringify({ message: 'Queue cleared' }), { headers: { 'Content-Type': 'application/json' } });
                     }
                     break;
                 case '/stats':
                     if (method === 'GET') {
                         const stats = await this.getStats();
-                        return new Response(JSON.stringify(stats), {
-                            headers: { 'Content-Type': 'application/json' }
-                        });
+                        return new Response(JSON.stringify(stats), { headers: { 'Content-Type': 'application/json' } });
                     }
                     break;
-
                 case '/results':
                     if (method === 'GET') {
                         const taskId = url.searchParams.get('id');
                         if (taskId) {
                             const result = await this.getTaskResult(taskId);
-                            return new Response(JSON.stringify(result || null), {
-                                headers: { 'Content-Type': 'application/json' }
-                            });
+                            return new Response(JSON.stringify(result || null), { headers: { 'Content-Type': 'application/json' } });
                         } else {
                             const limit = parseInt(url.searchParams.get('limit')) || 50;
                             const results = await this.getAllTaskResults(limit);
-                            return new Response(JSON.stringify(results), {
-                                headers: { 'Content-Type': 'application/json' }
-                            });
+                            return new Response(JSON.stringify(results), { headers: { 'Content-Type': 'application/json' } });
                         }
                     }
                     break;
-
                 case '/status':
                     if (method === 'GET') {
-                        const parts = url.pathname.split('/');
-                        const taskId = parts.length > 2 ? parts[2] : null; // 从 /status/{taskId} 提取 taskId
+                        const taskId = url.pathname.split('/')[2];
                         if (taskId) {
                             const result = await this.getTaskResult(taskId);
                             if (result) {
-                                return new Response(JSON.stringify({
-                                    taskId: taskId,
-                                    status: result.status || 'unknown',
-                                    message: result.message || '',
-                                    completedAt: result.completedAt || null,
-                                    error: result.error || null,
-                                    data: result
-                                }), {
-                                    headers: { 'Content-Type': 'application/json' }
-                                });
+                                return new Response(JSON.stringify({ taskId, status: result.success ? 'completed' : 'failed', data: result }), { headers: { 'Content-Type': 'application/json' } });
                             } else {
-                                return new Response(JSON.stringify({
-                                    taskId: taskId,
-                                    status: 'not_found',
-                                    message: '任务不存在或未找到'
-                                }), {
-                                    headers: { 'Content-Type': 'application/json' }
-                                });
+                                return new Response(JSON.stringify({ taskId, status: 'not_found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
                             }
-                        } else {
-                            return new Response(JSON.stringify({
-                                error: '缺少任务ID参数'
-                            }), {
-                                status: 400,
-                                headers: { 'Content-Type': 'application/json' }
-                            });
                         }
+                        return new Response(JSON.stringify({ error: 'Missing task ID in path /status/{taskId}' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
                     }
                     break;
-
                 case '/cleanup':
                     if (method === 'POST') {
                         const days = parseInt(url.searchParams.get('days')) || 7;
-                        const cleaned = await this.cleanupOldResults(days);
-                        return new Response(JSON.stringify({ cleaned }), {
-                            headers: { 'Content-Type': 'application/json' }
-                        });
+                        const cleanedCount = await this.cleanupOldResults(days);
+                        return new Response(JSON.stringify({ cleanedCount }), { headers: { 'Content-Type': 'application/json' } });
                     }
                     break;
-
                 case '/health':
-                    return new Response(JSON.stringify({
-                        status: 'healthy',
-                        timestamp: new Date().toISOString()
-                    }), {
-                        headers: { 'Content-Type': 'application/json' }
-                    });
+                    return new Response(JSON.stringify({ status: 'healthy', timestamp: new Date().toISOString() }), { headers: { 'Content-Type': 'application/json' } });
             }
-
-            return new Response('Not Found', { status: 404 });
+            return new Response('API Endpoint Not Found', { status: 404 });
         } catch (error) {
-            this.logger(`❌ 请求处理失败: ${error.message}`, 'ERROR', error);
-            return new Response(JSON.stringify({
-                error: error.message,
-                stack: error.stack
-            }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-    }
-}
-
-// 辅助函数，用于从聊天室调用
-export class ToutiaoServiceClient {
-    constructor(env, roomName = 'default') {
-        this.env = env;
-        this.roomName = roomName;
-    }
-
-    /**
-     * 获取头条服务实例
-     * @returns {Object} Durable Object 实例
-     * @throws {Error} 如果头条服务未配置
-     */
-    getService() {
-        if (!this.env.TOUTIAO_SERVICE_DO) {
-            throw new Error('头条服务未配置：TOUTIAO_SERVICE_DO 环境变量缺失');
-        }
-        
-        const doId = this.env.TOUTIAO_SERVICE_DO.idFromName(this.roomName);
-        if (!doId) {
-            throw new Error('无法创建头条服务实例');
-        }
-        
-        return this.env.TOUTIAO_SERVICE_DO.get(doId);
-    }
-
-    /**
-     * 提交任务到队列
-     * @param {Object} task - 任务信息
-     */
-    async submitTask(task) {
-        const service = this.getService();
-        return await service.fetch('http://localhost/queue', {
-            method: 'POST',
-            body: JSON.stringify(task)
-        }).then(r => r.json());
-    }
-
-    /**
-     * 立即处理任务（不经过队列）
-     * @param {Object} task - 任务信息
-     */
-    async processTask(task) {
-        const service = this.getService();
-        return await service.fetch('http://localhost/task', {
-            method: 'POST',
-            body: JSON.stringify(task)
-        }).then(r => r.json());
-    }
-
-    /**
-     * 处理队列中的所有待处理任务
-     * @returns {Promise<Object>} 处理结果，包含 processedCount 字段
-     */
-    async processQueue() {
-        try {
-            const service = this.getService();
-            const response = await service.fetch('http://localhost/queue', {
-                method: 'DELETE'
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('处理头条队列时出错:', error);
-            throw error;
+            this._log(`API请求处理失败: ${error.message}`, 'ERROR', error);
+            return new Response(JSON.stringify({ error: error.message, stack: error.stack }), { status: 500, headers: { 'Content-Type': 'application/json' } });
         }
     }
 }
