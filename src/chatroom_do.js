@@ -2,6 +2,7 @@
 // 职责: 纯粹的聊天室"前台接待" Durable Object
 
 import { DurableObject } from "cloudflare:workers";
+import { ToutiaoTaskProcessor, ToutiaoQueueManager } from './toutiaoService.js';
 
 // 消息类型常量
 const MSG_TYPE_CHAT = 'chat';
