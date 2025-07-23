@@ -2,6 +2,12 @@ name = "global"
 main = "src/worker.js"
 compatibility_date = "2024-07-08"
 
+
+# 它指向这个Worker本身。
+[[services]]
+binding = "SELF"
+service = "global" # <--- ！！！请将 "your-worker-name" 替换为你的Worker名称
+
 # 启用 nodejs_compat 以便 ECharts 库能正常工作
 compatibility_flags = [ "nodejs_compat" ]
 
