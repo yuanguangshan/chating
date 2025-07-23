@@ -333,10 +333,7 @@ export class HibernatingChating2 extends DurableObject {
         } else if (text.startsWith('/新闻')) {
             command = 'news_article';
             taskPayload = { topic: text.substring(3).trim() };
-        } else if (text.startsWith('/kimi')) {
-            command = 'kimi_chat';
-            taskPayload = { prompt: text.substring(5).trim() };
-        }
+        } 
         // ... 在这里可以轻松扩展其他命令
 
         if (!command) {
