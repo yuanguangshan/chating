@@ -6,6 +6,7 @@ globalThis.global = globalThis;
 
 import { HibernatingChating2 } from './chatroom_do.js';
 import { ToutiaoServiceDO2 } from './toutiaoDO.js';
+zhihuServiceDO.js'; // 【新增】导入知乎专家DO
 import { AuthServiceDO2 } from './authServiceDO.js';
 import { InspirationDO } from './InspirationDO.js'; // 【新增】导入 InspirationDO
 import html from '../public/index.html';
@@ -20,7 +21,7 @@ import {
 } from './ai.js';
 
 // Export Durable Object classes for Cloudflare platform
-export { HibernatingChating2, ToutiaoServiceDO2, AuthServiceDO2, InspirationDO }; // 【新增】导出 InspirationDO
+export { HibernatingChating2, ToutiaoServiceDO2, AuthServiceDO2, InspirationDO ,zhihuServiceDO.js'}; // 【新增】导出 InspirationDO
 
 // --- CORS Headers ---
 const corsHeaders = {
@@ -174,9 +175,12 @@ async function dispatchInternalTask(task, env) {
                 await stub.processAndCallback(task);
                 break;
 
+   // 【新增】处理知乎任务的分支
             case 'zhihu_hot':
             case 'zhihu_article':
-                throw new Error(`Command "${command}" is not yet implemented with a dedicated DO.`);
+                if (!env.ZHIHU_SERVICE_DO) throw new Error("Zhihu Service DO is not configured.");
+                stub = env.ZHIHU_SERVICE_DO.get(env.ZHIHU_SERVICE_DO.idFromName('global'));
+                await stub.processAndCallback(task);
                 break;
             
             case 'kimi_chat':

@@ -28,6 +28,10 @@ class_name = "AuthServiceDO2"
 name = "INSPIRATION_DO"
 class_name = "InspirationDO"
 # ---
+# 【新增】为知乎专家DO添加绑定
+[[durable_objects.bindings]]
+name = "ZHIHU_SERVICE_DO"
+class_name = "ZhihuServiceDO"
 
 # R2 存储桶绑定 (聊天媒体和图表共用)
 [[r2_buckets]]
