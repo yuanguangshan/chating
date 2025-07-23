@@ -21,7 +21,7 @@ import {
 } from './ai.js';
 
 // Export Durable Object classes for Cloudflare platform
-export { HibernatingChating2, ToutiaoServiceDO2, AuthServiceDO2, InspirationDO ,zhihuServiceDO}; // 【新增】导出 InspirationDO
+export { HibernatingChating2, ToutiaoServiceDO2, AuthServiceDO2, InspirationDO ,ZhihuServiceDO}; // 【新增】导出 InspirationDO
 
 // --- CORS Headers ---
 const corsHeaders = {
