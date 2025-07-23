@@ -6,7 +6,7 @@ globalThis.global = globalThis;
 
 import { HibernatingChating2 } from './chatroom_do.js';
 import { ToutiaoServiceDO2 } from './toutiaoDO.js';
-zhihuServiceDO.js'; // 【新增】导入知乎专家DO
+import { ZhihuServiceDO } from './zhihuServiceDO.js';
 import { AuthServiceDO2 } from './authServiceDO.js';
 import { InspirationDO } from './InspirationDO.js'; // 【新增】导入 InspirationDO
 import html from '../public/index.html';
