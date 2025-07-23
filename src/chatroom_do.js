@@ -43,6 +43,7 @@ export class HibernatingChating2 extends DurableObject {
         this.isInitialized = false;
         this.heartbeatInterval = null;
         this.allowedUsers = undefined;
+
         this.debugLog("🏗️ DO 实例已创建。");
 
         // ✅✅✅ 核心修复：确保 DO 实例在创建时就获取并存储自己的房间名 ✅✅✅
@@ -59,7 +60,7 @@ export class HibernatingChating2 extends DurableObject {
         this.debugLog("🏗️ DO 实例已创建或唤醒。");
         this.startHeartbeat();
     }
-    }
+    
 
     // ============ 调试与心跳系统 (保持不变) ============
     debugLog(message, level = 'INFO', data = null) {
@@ -335,7 +336,7 @@ export class HibernatingChating2 extends DurableObject {
         }
     }
 
-    // ============ 核心业务逻辑 ============
+// ============ 核心业务逻辑 ============
     async handleUserCommand(session, data) {
         const text = data.text.trim();
         let command, taskPayload;
@@ -355,7 +356,6 @@ export class HibernatingChating2 extends DurableObject {
         }
 
         if (!command) {
-            // 如果不是一个已知的 `/` 命令，则当作普通聊天处理
             await this.handleChatMessage(session, data);
             return;
         }
@@ -371,7 +371,7 @@ export class HibernatingChating2 extends DurableObject {
         };
         await this.addAndBroadcastMessage(thinkingMessage);
 
-        this.ctx.waitUntil(this.delegateTaskToWorker({
+        const task = {
             command: command,
             payload: taskPayload,
             callbackInfo: {
@@ -379,7 +379,13 @@ export class HibernatingChating2 extends DurableObject {
                 messageId: thinkingMessage.id,
                 username: session.username
             }
-        }));
+        };
+
+        // ✅✅✅ 添加一个无法否认的“金丝雀”日志 ✅✅✅
+        // 如果部署成功，我们一定能在 tail log 中看到这条消息！
+        console.log(`[ChatRoomDO V2] 准备委托任务，包含 roomName: "${task.callbackInfo.roomName}"`);
+
+        this.ctx.waitUntil(this.delegateTaskToWorker(task));
     }
 
     async delegateTaskToWorker(task) {
