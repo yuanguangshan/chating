@@ -1497,57 +1497,6 @@ function createMessageElement(msg) {
  * @param {Array<Object>} messages - 要处理的消息数组
  * @param {boolean} scrollToBottom - 是否滚动到底部
  */
-function renderOrUpdateMessages(messages, scrollToBottom = true) {
-    if (!chatWindowEl) {
-        logDebug('❗ 聊天窗口元素未找到，无法渲染消息', LOG_LEVELS.ERROR);
-        return;
-    }
-
-    const fragmentForNewMessages = document.createDocumentFragment();
-
-    messages.forEach(msg => {
-        if (!msg || !msg.id) {
-            logDebug("❗ 尝试渲染无效消息", LOG_LEVELS.ERROR, msg);
-            return;
-        }
-
-        const messageDomId = `message-${msg.id}`;
-        const existingElement = document.getElementById(messageDomId);
-
-        if (existingElement) {
-            // --- 更新逻辑 ---
-            // 如果元素已存在，说明是“处理中”消息的更新
-            logDebug(`🔄 更新消息: ${msg.id}`, LOG_LEVELS.INFO, msg.text.substring(0, 50));
-            const newElement = createMessageElement(msg);
-            // 替换内部HTML和class，以反映新内容和状态
-            existingElement.innerHTML = newElement.innerHTML;
-            existingElement.className = newElement.className;
-            // 同时更新dataset，确保右键菜单等功能获取的是最新数据
-            Object.assign(existingElement.dataset, newElement.dataset);
-        } else {
-            // --- 追加逻辑 ---
-            // 如果元素不存在，是新消息，创建并添加到文档片段中
-            const msgEl = createMessageElement(msg);
-            fragmentForNewMessages.appendChild(msgEl);
-        }
-    });
-
-    // 批量追加所有新消息
-    if (fragmentForNewMessages.children.length > 0) {
-        chatWindowEl.appendChild(fragmentForNewMessages);
-    }
-
-    // 根据需要滚动
-    if (scrollToBottom) {
-        requestAnimationFrame(() => {
-            // 检查用户是否正在向上滚动查看历史记录
-            const isScrolledUp = chatWindowEl.scrollHeight - chatWindowEl.scrollTop - chatWindowEl.clientHeight > 150;
-            if (!isScrolledUp) {
-                chatWindowEl.scrollTop = chatWindowEl.scrollHeight;
-            }
-        });
-    }
-}
 
 // 新增的辅助函数：去除Markdown符号
 function stripMarkdown(text) {
