@@ -2143,11 +2143,17 @@
                 quickGenerateBtn.textContent = '生成中...';
                 
                 try {
+                    const topicToSend = zhihuTopicsData[index];
+                    if (!topicToSend) {
+                        updateZhihuStatus('未能找到话题的详细信息', 'error');
+                        return;
+                    }
+                    
                     const res = await fetch('/api/zhihu/article', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            topicInfo: (index + 1).toString(), // Still pass index+1 for Zhihu for now if that's what the DO expects
+                            topicInfo: topicToSend,
                             roomName: selectedRoom
                         })
                     });
@@ -2437,8 +2443,8 @@
                     return;
                 }
                 
-                // CORRECTED: Pass the current topic object directly
-                const newsItemToSend = topics[index];
+                // CORRECTED: Pass the current news item object directly
+                const newsItemToSend = newsTopicsData[index];
                 if (!newsItemToSend) {
                     updateNewsStatus('未能找到新闻话题的详细信息', 'error');
                     return;
