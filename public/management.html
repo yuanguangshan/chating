@@ -2056,12 +2056,26 @@
         updateZhihuStatus(`正在基于选定话题生成文章，文章将发送到房间"${selectedRoom}"...`, 'info');
         
         try {
+            // 确保传递的对象的所有属性都是字符串类型
+            const sanitizedTopic = {
+                title: String(selectedTopic.title || ''),
+                type: String(selectedTopic.type || 'hot'),
+                url: String(selectedTopic.url || ''),
+                excerpt: String(selectedTopic.excerpt || ''),
+                // 确保tags是字符串数组
+                tags: Array.isArray(selectedTopic.tags)
+                    ? selectedTopic.tags.map(tag => String(tag))
+                    : [],
+                contentPrompt: String(selectedTopic.contentPrompt || ''),
+                hotValue: String(selectedTopic.hotValue || '0')
+            };
+            
             const domain = `https://${apiDomain}`;
             const res = await fetch(`${domain}/api/zhihu/article`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    topicInfo: selectedTopic, // 传递完整的topic对象
+                    topicInfo: sanitizedTopic, // 传递处理过的对象
                     roomName: selectedRoom
                 })
             });
@@ -2149,11 +2163,24 @@
                         return;
                     }
                     
+                    // 与上面相同的数据处理逻辑
+                    const sanitizedTopic = {
+                        title: String(topicToSend.title || ''),
+                        type: String(topicToSend.type || 'hot'),
+                        url: String(topicToSend.url || ''),
+                        excerpt: String(topicToSend.excerpt || ''),
+                        tags: Array.isArray(topicToSend.tags)
+                            ? topicToSend.tags.map(tag => String(tag))
+                            : [],
+                        contentPrompt: String(topicToSend.contentPrompt || ''),
+                        hotValue: String(topicToSend.hotValue || '0')
+                    };
+                    
                     const res = await fetch('/api/zhihu/article', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            topicInfo: topicToSend,
+                            topicInfo: sanitizedTopic,
                             roomName: selectedRoom
                         })
                     });
@@ -2454,12 +2481,28 @@
                 quickGenerateBtn.textContent = '生成中...';
                 
                 try {
+                    // 确保传递的对象的所有属性都是字符串类型
+                    const sanitizedNewsItem = {
+                        title: String(newsItemToSend.title || ''),
+                        type: String(newsItemToSend.type || 'news'),
+                        url: String(newsItemToSend.url || ''),
+                        excerpt: String(newsItemToSend.excerpt || ''),
+                        content: String(newsItemToSend.content || ''),
+                        // 确保tags是字符串数组
+                        tags: Array.isArray(newsItemToSend.tags)
+                            ? newsItemToSend.tags.map(tag => String(tag))
+                            : [],
+                        contentPrompt: String(newsItemToSend.contentPrompt || ''),
+                        source: String(newsItemToSend.source || ''),
+                        publishedAt: String(newsItemToSend.publishedAt || '')
+                    };
+                    
                     const domain = `https://${apiDomain}`;
                     const res = await fetch(`${domain}/api/news/article`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            newsItem: newsItemToSend, // CORRECTED: Pass the full newsItem object
+                            newsItem: sanitizedNewsItem, // 传递处理过的对象
                             roomName: selectedRoom
                         })
                     });
