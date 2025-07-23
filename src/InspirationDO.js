@@ -23,10 +23,8 @@ export class InspirationDO extends DurableObject {
      */
     async initialize() {
         if (this.initialized) return;
-        // 使用 SQLite 创建一个简单的键值缓存表
-        await this.ctx.db.exec("CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT, timestamp INTEGER);");
         this.initialized = true;
-        this._log('🗄️ 数据库表初始化完成。');
+        this._log('🗄️ 存储初始化完成。');
     }
 
     _log(message, level = 'INFO', data = null) {
@@ -38,27 +36,22 @@ export class InspirationDO extends DurableObject {
      * @returns {Promise<Array>} 灵感数据列表
      */
     async getOrFetchInspirations() {
-        // 确保数据库表已创建
         await this.initialize();
 
-        // 1. 尝试从 SQLite 缓存读取
-        const stmt = this.ctx.db.prepare("SELECT value, timestamp FROM cache WHERE key = ?");
-        const cachedRow = await stmt.bind(CACHE_KEY).first();
-        
+        // 1. 尝试从存储中读取缓存
+        const cached = await this.ctx.storage.get(CACHE_KEY);
         let cachedData = null;
-        if (cachedRow) {
+        
+        if (cached) {
             try {
-                cachedData = {
-                    data: JSON.parse(cachedRow.value),
-                    timestamp: cachedRow.timestamp
-                };
+                cachedData = JSON.parse(cached);
             } catch (e) {
                 this._log('解析缓存数据失败', 'ERROR', e);
             }
         }
 
-        if (cachedData && (Date.now() - cachedData.timestamp < CACHE_DURATION_MS)) {
-            this._log('✅ 从 SQLite 缓存中获取灵感数据。');
+        if (cachedData && cachedData.timestamp && (Date.now() - cachedData.timestamp < CACHE_DURATION_MS)) {
+            this._log('✅ 从缓存中获取灵感数据。');
             return cachedData.data;
         }
 
@@ -67,11 +60,14 @@ export class InspirationDO extends DurableObject {
         try {
             const freshData = await this.inspirationService.getCombinedInspirations();
             
-            // 3. 存入 SQLite 缓存 (使用 INSERT OR REPLACE 实现 upsert)
+            // 3. 存入缓存
             if (freshData && freshData.length > 0) {
-                const insertStmt = this.ctx.db.prepare("INSERT OR REPLACE INTO cache (key, value, timestamp) VALUES (?, ?, ?)");
-                await insertStmt.bind(CACHE_KEY, JSON.stringify(freshData), Date.now()).run();
-                this._log(`💾 已将 ${freshData.length} 条新灵感数据缓存至 SQLite。`);
+                const cacheData = {
+                    data: freshData,
+                    timestamp: Date.now()
+                };
+                await this.ctx.storage.put(CACHE_KEY, JSON.stringify(cacheData));
+                this._log(`💾 已将 ${freshData.length} 条新灵感数据缓存。`);
             }
             return freshData;
         } catch (error) {

@@ -7,8 +7,6 @@
   <link rel="icon" type="image/svg+xml" href="https://pic.want.biz/favicon.svg" />
     <link rel="alternate icon" href="https://pic.want.biz/favicon.svg" />
   <script>  //--CONFIG-PLACEHOLDER--//</script>
-  <script src="../src/zhihuHotService.js"></script>
-  <script src="../src/newsInspirationService.js"></script>
   <style>
     /* ====== THEME VARIABLES ====== */
     :root {
@@ -1973,17 +1971,17 @@
         
         try {
             const domain = `https://${apiDomain}`;
-            const res = await fetch(`${domain}/api/zhihu/combined?hot_limit=15&inspiration_limit=15`);
+            const res = await fetch(`${domain}/api/inspirations`);
             if (!res.ok) throw new Error(await res.text());
             
             const data = await res.json();
             
-            // 合并热点和灵感问题
-            const allTopics = [...(data.hotTopics || []), ...(data.inspirationQuestions || [])];
+            // 使用InspirationDO返回的统一数据格式
+            const allTopics = data.data || [];
             zhihuTopicsData = allTopics; // 保存数据供后续使用
             
             renderZhihuTopics(allTopics);
-            updateZhihuStatus(`成功获取 ${allTopics.length} 个知乎热点话题和灵感问题`, 'success');
+            updateZhihuStatus(`成功获取 ${allTopics.length} 个灵感话题`, 'success');
             
         } catch (e) {
             updateZhihuStatus(`获取知乎热点失败: ${e.message}`, 'error');
@@ -1999,34 +1997,20 @@
             return;
         }
         
-        updateZhihuStatus(`正在搜索关键词"${keyword}"相关话题...`, 'info');
-        zhihuTopicsContainer.innerHTML = '<div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 120px;"><span style="color: var(--text-sub); font-style: italic; font-size: 0.85em;">搜索中，请稍候...</span></div>';
+        // 本地搜索已加载的话题
+        const filteredTopics = zhihuTopicsData.filter(topic => 
+            topic.title.toLowerCase().includes(keyword.toLowerCase()) ||
+            (topic.description && topic.description.toLowerCase().includes(keyword.toLowerCase()))
+        );
         
-        try {
-            const domain = `https://${apiDomain}`;
-            const res = await fetch(`${domain}/api/zhihu/search`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ keyword })
-            });
-            
-            if (!res.ok) throw new Error(await res.text());
-            
-            const data = await res.json();
-            if (!data.topics || data.topics.length === 0) {
-                updateZhihuStatus(`未找到与"${keyword}"相关的话题`, 'info');
-                zhihuTopicsContainer.innerHTML = `<div class="zhihu-card" style="text-align: center;"><p>未找到相关话题，请尝试其他关键词</p></div>`;
-                return;
-            }
-            
-            zhihuTopicsData = data.topics; // 保存搜索结果
-            renderZhihuTopics(data.topics);
-            updateZhihuStatus(`找到 ${data.topics.length} 个与"${keyword}"相关的话题`, 'success');
-            
-        } catch (e) {
-            updateZhihuStatus(`搜索话题失败: ${e.message}`, 'error');
-            zhihuTopicsContainer.innerHTML = `<div class="zhihu-card" style="color: var(--error); text-align: center;"><strong>搜索失败:</strong> ${e.message}</div>`;
+        if (filteredTopics.length === 0) {
+            updateZhihuStatus(`未找到与"${keyword}"相关的话题`, 'info');
+            zhihuTopicsContainer.innerHTML = `<div class="zhihu-card" style="text-align: center;"><p>未找到相关话题，请尝试其他关键词</p></div>`;
+            return;
         }
+        
+        renderZhihuTopics(filteredTopics);
+        updateZhihuStatus(`找到 ${filteredTopics.length} 个与"${keyword}"相关的话题`, 'success');
     }
     
     // 根据选定的话题生成文章
@@ -2070,23 +2054,13 @@
                 hotValue: String(selectedTopic.hotValue || '0')
             };
             
-            const domain = `https://${apiDomain}`;
-            const res = await fetch(`${domain}/api/zhihu/article`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    topicInfo: sanitizedTopic, // 传递处理过的对象
-                    roomName: selectedRoom
-                })
-            });
-            
-            if (!res.ok) throw new Error(await res.text());
-            
-            const data = await res.json();
-            if (data.success) {
-                updateZhihuStatus(`文章生成任务已启动，请在房间"${selectedRoom}"中查看结果`, 'success');
-            } else {
-                updateZhihuStatus(`文章生成请求失败: ${data.message || '未知错误'}`, 'error');
+            updateZhihuStatus(`已添加话题到聊天室"${selectedRoom}"`, 'success');
+            // 将话题信息添加到聊天输入框
+            const chatInput = document.querySelector(`#chat-${selectedRoom} .chat-input`);
+            if (chatInput) {
+                chatInput.value = `我们来聊聊「${sanitizedTopic.title || sanitizedTopic}」这个话题吧！`;
+                chatInput.focus();
+                chatInput.dispatchEvent(new Event('input'));
             }
             
         } catch (e) {
@@ -2273,12 +2247,12 @@
         
         try {
             const domain = `https://${apiDomain}`;
-            const res = await fetch(`${domain}/api/news/combined?limit=20`);
+            const res = await fetch(`${domain}/api/inspirations`);
             if (!res.ok) throw new Error(await res.text());
             
             const data = await res.json();
-            // CORRECTED: Access data.news instead of data.topics
-            newsTopicsData = data.news || [];
+            // 使用InspirationDO返回的统一数据格式
+            newsTopicsData = data.data || [];
             renderNewsTopics(newsTopicsData);
             updateNewsStatus(`成功获取 ${newsTopicsData.length} 个新闻灵感话题`, 'success');
             
@@ -2299,32 +2273,22 @@
         updateNewsStatus(`正在搜索关键词"${keyword}"相关新闻...`, 'info');
         newsTopicsContainer.innerHTML = '<div class="zhihu-card" style="display: flex; justify-content: center; align-items: center; min-height: 120px;"><span style="color: var(--text-sub); font-style: italic; font-size: 0.85em;">搜索中，请稍候...</span></div>';
         
-        try {
-            const domain = `https://${apiDomain}`;
-            // CORRECTED: Change to GET request with keyword in URL
-            const res = await fetch(`${domain}/api/news/search?keyword=${encodeURIComponent(keyword)}`, {
-                method: 'GET', // Changed from POST to GET
-                headers: { 'Content-Type': 'application/json' } // Headers might not be strictly needed for GET, but harmless
-            });
-            
-            if (!res.ok) throw new Error(await res.text());
-            
-            const data = await res.json();
-            // CORRECTED: Access data.news instead of data.topics
-            if (!data.news || data.news.length === 0) {
-                updateNewsStatus(`未找到与"${keyword}"相关的新闻`, 'info');
-                newsTopicsContainer.innerHTML = `<div class="zhihu-card" style="text-align: center;"><p>未找到相关新闻，请尝试其他关键词</p></div>`;
-                return;
-            }
-            
-            newsTopicsData = data.news; // Corrected: Save data.news
-            renderNewsTopics(data.news);
-            updateNewsStatus(`找到 ${data.news.length} 个与"${keyword}"相关的新闻`, 'success');
-            
-        } catch (e) {
-            updateNewsStatus(`搜索新闻失败: ${e.message}`, 'error');
-            newsTopicsContainer.innerHTML = `<div class="zhihu-card" style="color: var(--error); text-align: center;"><strong>搜索失败:</strong> ${e.message}</div>`;
+        // 本地搜索已加载的新闻数据
+        const filteredNews = newsTopicsData.filter(item => 
+            (item.title && item.title.toLowerCase().includes(keyword.toLowerCase())) ||
+            (item.description && item.description.toLowerCase().includes(keyword.toLowerCase())) ||
+            (item.source && item.source.toLowerCase().includes(keyword.toLowerCase()))
+        );
+        
+        if (filteredNews.length === 0) {
+            updateNewsStatus(`未找到与"${keyword}"相关的新闻`, 'info');
+            newsTopicsContainer.innerHTML = `<div class="zhihu-card" style="text-align: center;"><p>未找到相关新闻，请尝试其他关键词</p></div>`;
+            return;
         }
+        
+        newsTopicsData = filteredNews;
+        renderNewsTopics(filteredNews);
+        updateNewsStatus(`找到 ${filteredNews.length} 个与"${keyword}"相关的新闻`, 'success');
     }
     
     // 根据选定的新闻话题生成文章
@@ -2348,30 +2312,13 @@
             return;
         }
         
-        updateNewsStatus(`正在基于选定新闻话题生成文章，文章将发送到房间"${selectedRoom}"...`, 'info');
-        
-        try {
-            const domain = `https://${apiDomain}`;
-            const res = await fetch(`${domain}/api/news/article`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    newsItem: selectedNewsItem, // CORRECTED: Pass the full newsItem object
-                    roomName: selectedRoom
-                })
-            });
-            
-            if (!res.ok) throw new Error(await res.text());
-            
-            const data = await res.json();
-            if (data.success) {
-                updateNewsStatus(`文章生成任务已启动，请在房间"${selectedRoom}"中查看结果`, 'success');
-            } else {
-                updateNewsStatus(`文章生成请求失败: ${data.message || '未知错误'}`, 'error');
-            }
-            
-        } catch (e) {
-            updateNewsStatus(`生成文章失败: ${e.message}`, 'error');
+        updateNewsStatus(`已添加新闻话题到聊天室"${selectedRoom}"`, 'success');
+        // 将新闻信息添加到聊天输入框
+        const chatInput = document.querySelector(`#chat-${selectedRoom} .chat-input`);
+        if (chatInput) {
+            chatInput.value = `我们来讨论一下这条新闻：「${selectedNewsItem.title || selectedNewsItem}」`;
+            chatInput.focus();
+            chatInput.dispatchEvent(new Event('input'));
         }
     }
     

@@ -193,6 +193,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
             await this.initialize();
             switch (url.pathname) {
                 case '/task':
+                case '/api/toutiao/task':
                     if (method === 'POST') {
                         const task = await request.json();
                         const result = await this.processTask(task);
@@ -200,6 +201,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
                     }
                     break;
                 case '/queue':
+                case '/api/toutiao/queue':
                     if (method === 'POST') {
                         const task = await request.json();
                         const queueLength = await this.addTask(task);
@@ -213,18 +215,21 @@ export class ToutiaoServiceDO2 extends DurableObject {
                     }
                     break;
                 case '/clearQueue':
+                case '/api/toutiao/clearQueue':
                     if (method === 'POST') {
                         await this.ctx.storage.delete(TOUTIAO_QUEUE_KEY);
                         return new Response(JSON.stringify({ message: 'Queue cleared' }), { headers: { 'Content-Type': 'application/json' } });
                     }
                     break;
                 case '/stats':
+                case '/api/toutiao/stats':
                     if (method === 'GET') {
                         const stats = await this.getStats();
                         return new Response(JSON.stringify(stats), { headers: { 'Content-Type': 'application/json' } });
                     }
                     break;
                 case '/results':
+                case '/api/toutiao/results':
                     if (method === 'GET') {
                         const taskId = url.searchParams.get('id');
                         if (taskId) {
@@ -238,8 +243,9 @@ export class ToutiaoServiceDO2 extends DurableObject {
                     }
                     break;
                 case '/status':
+                case '/api/toutiao/status':
                     if (method === 'GET') {
-                        const taskId = url.pathname.split('/')[2];
+                        const taskId = url.pathname.split('/')[2] || url.pathname.split('/')[3];
                         if (taskId) {
                             const result = await this.getTaskResult(taskId);
                             if (result) {
@@ -252,6 +258,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
                     }
                     break;
                 case '/cleanup':
+                case '/api/toutiao/cleanup':
                     if (method === 'POST') {
                         const days = parseInt(url.searchParams.get('days')) || 7;
                         const cleanedCount = await this.cleanupOldResults(days);
@@ -259,6 +266,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
                     }
                     break;
                 case '/health':
+                case '/api/toutiao/health':
                     return new Response(JSON.stringify({ status: 'healthy', timestamp: new Date().toISOString() }), { headers: { 'Content-Type': 'application/json' } });
             }
             return new Response('API Endpoint Not Found', { status: 404 });

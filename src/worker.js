@@ -87,6 +87,14 @@ export default {
                     return stub.fetch(request);
                 }
                 
+                // 【新增】将管理面板API请求路由到 ToutiaoServiceDO
+                if (pathname.startsWith('/api/toutiao/')) {
+                    if (!env.TOUTIAO_SERVICE_DO) throw new Error("Durable Object 'TOUTIAO_SERVICE_DO' is not bound.");
+                    const doId = env.TOUTIAO_SERVICE_DO.idFromName("global");
+                    const stub = env.TOUTIAO_SERVICE_DO.get(doId);
+                    return stub.fetch(request);
+                }
+                
                 if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
                 const doId = env.CHAT_ROOM_DO.idFromName(roomNameFromPath);
                 const stub = env.CHAT_ROOM_DO.get(doId);
