@@ -508,16 +508,33 @@ async generateZhihuArticle(session, topicInfo) {
                     throw new Error(`话题索引 ${topicInfo} 无效，请使用 1-${topics.length} 之间的数字`);
                 }
             } else {
-                // 按关键词搜索话题
-                const keyword = topicInfo.toLowerCase();
-                selectedTopic = topics.find(topic => 
-                    topic.title.toLowerCase().includes(keyword) || 
-                    (topic.excerpt && topic.excerpt.toLowerCase().includes(keyword)) ||
-                    (topic.tags && topic.tags.some(tag => tag.toLowerCase().includes(keyword)))
-                );
+                // 按关键词搜索话题或直接使用对象
+                let keyword;
+                let searchText;
+                
+                if (typeof topicInfo === 'object' && topicInfo.title) {
+                    // 如果topicInfo是对象，直接使用
+                    keyword = topicInfo.title.toLowerCase();
+                    selectedTopic = topics.find(topic => 
+                        topic.title === topicInfo.title && 
+                        topic.url === topicInfo.url
+                    );
+                    searchText = topicInfo.title;
+                } else if (typeof topicInfo === 'string') {
+                    // 如果是字符串，按关键词搜索
+                    keyword = topicInfo.toLowerCase();
+                    selectedTopic = topics.find(topic => 
+                        topic.title.toLowerCase().includes(keyword) || 
+                        (topic.excerpt && topic.excerpt.toLowerCase().includes(keyword)) ||
+                        (topic.tags && topic.tags.some(tag => tag.toLowerCase().includes(keyword)))
+                    );
+                    searchText = topicInfo;
+                } else {
+                    throw new Error('话题信息格式无效，请提供字符串或话题对象');
+                }
                 
                 if (!selectedTopic) {
-                    throw new Error(`未找到包含关键词 "${topicInfo}" 的话题`);
+                    throw new Error(`未找到匹配的话题: ${searchText}`);
                 }
             }
 
