@@ -469,6 +469,19 @@ export class HibernatingChating2 extends DurableObject {
             return new Response("房间已重置", { status: 200 });
         }
 
+        // 房间状态
+        if (path.endsWith('/room/status')) {
+            await this.loadMessages();
+            const status = {
+                roomName: this.roomName,
+                messageCount: this.messages.length,
+                userCount: this.sessions.size,
+                hasWhitelist: this.allowedUsers !== undefined,
+                userList: this.allowedUsers ? Array.from(this.allowedUsers) : []
+            };
+            return new Response(JSON.stringify(status), { headers: JSON_HEADERS });
+        }
+
         return new Response("API endpoint not found or unauthorized", { status: 404 });
     }
 }

@@ -95,6 +95,18 @@ export default {
                     return stub.fetch(request);
                 }
                 
+                // 【新增】处理房间状态API请求
+                if (pathname.startsWith('/api/room/status')) {
+                    const roomName = url.searchParams.get('roomName');
+                    if (!roomName) {
+                        return new Response('roomName parameter is required', { status: 400 });
+                    }
+                    if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
+                    const doId = env.CHAT_ROOM_DO.idFromName(roomName);
+                    const stub = env.CHAT_ROOM_DO.get(doId);
+                    return stub.fetch(request);
+                }
+                
                 if (!env.CHAT_ROOM_DO) throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.");
                 const doId = env.CHAT_ROOM_DO.idFromName(roomNameFromPath);
                 const stub = env.CHAT_ROOM_DO.get(doId);
