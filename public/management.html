@@ -1172,7 +1172,6 @@
             <div class="form-group" style="margin-bottom: 10px;">
                 <select id="zhihu-room-select" style="padding: 8px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); font-size: 0.9em;">
                     <option value="test">test</option>
-                    <option value="general">general</option>
                     <option value="future">future</option>
                 </select>
                 <button id="zhihu-generate-btn" onclick="generateArticleFromTopic()" class="submit-button" style="padding: 8px 12px; font-size: 0.85em;">生成文章到选定房间</button>
@@ -1207,7 +1206,6 @@
                 <div class="form-group" style="margin-bottom: 10px;">
                     <select id="news-room-select" style="padding: 8px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); font-size: 0.9em;">
                         <option value="test">test</option>
-                        <option value="general">general</option>
                         <option value="future">future</option>
                     </select>
                     <button id="news-generate-btn" onclick="generateArticleFromNews()" class="submit-button" style="padding: 8px 12px; font-size: 0.85em;">生成文章到选定房间</button>
@@ -1250,7 +1248,7 @@
     }
 
     // 从全局变量获取配置
-    const potentialRoomsToCheck = window.MANAGEMENT_ROOMS_LIST || ['general', 'test', 'future', 'admin', 'kerry'];
+    const potentialRoomsToCheck = window.MANAGEMENT_ROOMS_LIST || [ 'test', 'future', 'admin', 'kerry'];
     const envConfig = window.ENV_CONFIG || {};
     const apiDomain = window.ENV_CONFIG.apiDomain;
     console.log(apiDomain)
