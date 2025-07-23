@@ -1,13 +1,9 @@
-/**
- * 灵感 Durable Object (SQLite 后端兼容版)
- * 职责: "创意总监" - 负责聚合、缓存并提供来自全网的创作灵感。
- */
+// 文件: src/InspirationDO.js (修正版)
 import { DurableObject } from "cloudflare:workers";
 import { InspirationService } from './inspirationService.js';
 
-// 定义缓存相关的常量
 const CACHE_KEY = 'inspiration_cache_v1';
-const CACHE_DURATION_MS = 5 * 60 * 1000; // 5分钟缓存有效期
+const CACHE_DURATION_MS = 5 * 60 * 1000;
 
 export class InspirationDO extends DurableObject {
     constructor(ctx, env) {
@@ -15,12 +11,10 @@ export class InspirationDO extends DurableObject {
         this.ctx = ctx;
         this.env = env;
         this.inspirationService = new InspirationService(env);
-        this.initialized = false; // 防止重复初始化数据库表
+        this.initialized = false;
     }
 
-    /**
-     * 初始化数据库，确保缓存表存在
-     */
+    // ... (initialize, _log, getOrFetchInspirations, processAndCallback, getInspirationsForChat 方法保持不变) ...
     async initialize() {
         if (this.initialized) return;
         this.initialized = true;
@@ -31,41 +25,20 @@ export class InspirationDO extends DurableObject {
         console.log(`[InspirationDO] [${new Date().toISOString()}] [${level}] ${message}`, data || '');
     }
 
-    /**
-     * 核心缓存逻辑：获取或刷新灵感数据 (使用 SQLite)
-     * @returns {Promise<Array>} 灵感数据列表
-     */
     async getOrFetchInspirations() {
         await this.initialize();
-
-        // 1. 尝试从存储中读取缓存
         const cached = await this.ctx.storage.get(CACHE_KEY);
         let cachedData = null;
-        
-        if (cached) {
-            try {
-                cachedData = JSON.parse(cached);
-            } catch (e) {
-                this._log('解析缓存数据失败', 'ERROR', e);
-            }
-        }
-
+        if (cached) { try { cachedData = JSON.parse(cached); } catch (e) { this._log('解析缓存数据失败', 'ERROR', e); } }
         if (cachedData && cachedData.timestamp && (Date.now() - cachedData.timestamp < CACHE_DURATION_MS)) {
             this._log('✅ 从缓存中获取灵感数据。');
             return cachedData.data;
         }
-
-        // 2. 缓存失效或不存在，则重新获取
         this._log('🔄 缓存失效或不存在，正在获取新的灵感数据...');
         try {
             const freshData = await this.inspirationService.getCombinedInspirations();
-            
-            // 3. 存入缓存
             if (freshData && freshData.length > 0) {
-                const cacheData = {
-                    data: freshData,
-                    timestamp: Date.now()
-                };
+                const cacheData = { data: freshData, timestamp: Date.now() };
                 await this.ctx.storage.put(CACHE_KEY, JSON.stringify(cacheData));
                 this._log(`💾 已将 ${freshData.length} 条新灵感数据缓存。`);
             }
@@ -80,50 +53,30 @@ export class InspirationDO extends DurableObject {
         }
     }
 
-/**
-     * 【新增】处理灵感任务并执行回调
-     * 这是符合 "委托-回调" 模式的入口方法。
-     * @param {object} task - 从 worker 派发过来的完整任务对象
-     */
     async processAndCallback(task) {
         const { payload, callbackInfo } = task;
         let finalContent;
-
         try {
-            // 1. 调用现有逻辑获取格式化好的灵感文本
-            // 这里的 payload 可以用来传递参数，比如 limit
             finalContent = await this.getInspirationsForChat(payload.limit || 15);
         } catch (error) {
             this._log('在 processAndCallback 中获取灵感失败', 'ERROR', error);
             finalContent = `> (❌ **灵感获取失败**: ${error.message})`;
         }
-
-        // 2. 【关键】执行回调，将结果更新回聊天室
         try {
-            if (!this.env.CHAT_ROOM_DO) {
-                throw new Error("CHAT_ROOM_DO is not bound. Cannot perform callback.");
-            }
-            // 根据回调信息，找到原来的聊天室DO
+            if (!this.env.CHAT_ROOM_DO) throw new Error("CHAT_ROOM_DO is not bound. Cannot perform callback.");
             const chatroomId = this.env.CHAT_ROOM_DO.idFromName(callbackInfo.roomName);
             const chatroomStub = this.env.CHAT_ROOM_DO.get(chatroomId);
-
-            // 调用聊天室DO的简单更新方法
             await chatroomStub.updateMessage(callbackInfo.messageId, finalContent);
             this._log(`✅ 成功回调到房间 ${callbackInfo.roomName} 的消息 ${callbackInfo.messageId}`);
-
         } catch (callbackError) {
-            // 这是一个严重错误，意味着用户看不到最终结果，需要重点监控
             this._log(`FATAL: 回调到房间 ${callbackInfo.roomName} 失败`, 'FATAL', callbackError);
         }
     }
 
-    // RPC 方法 (无需改动)
     async getInspirationsForChat(limit = 15) {
         try {
             const inspirations = await this.getOrFetchInspirations();
-            if (!inspirations || inspirations.length === 0) {
-                return "😔 抱歉，暂时没有获取到任何创作灵感。";
-            }
+            if (!inspirations || inspirations.length === 0) return "😔 抱歉，暂时没有获取到任何创作灵感。";
             let markdown = "🔥 **今日灵感速递 (Top 15)** 🔥\n\n---\n\n";
             inspirations.slice(0, limit).forEach((item, index) => {
                 markdown += `${index + 1}. **[${item.source}]** ${item.title}\n`;
@@ -138,9 +91,28 @@ export class InspirationDO extends DurableObject {
         }
     }
 
-    // API 接口 (无需改动)
+    // ✅ [核心修正] 修改 fetch 方法以处理内部任务
     async fetch(request) {
         const url = new URL(request.url);
+
+        // 1. 优先处理来自 worker 的内部任务派发 (POST请求)
+        if (request.method === 'POST') {
+            try {
+                const task = await request.json();
+                // 确认这是一个合法的任务对象
+                if (task.command && task.callbackInfo) {
+                    this._log(`收到内部任务: ${task.command}`, 'INFO', task);
+                    // 使用 waitUntil 确保任务在后台执行完毕，同时立即响应 worker
+                    this.ctx.waitUntil(this.processAndCallback(task));
+                    return new Response('Task accepted by InspirationDO', { status: 202 });
+                }
+            } catch (e) {
+                this._log('解析内部任务POST请求失败', 'WARN', e);
+                // 如果解析失败，继续执行下面的逻辑，可能是一个合法的公共API POST请求
+            }
+        }
+
+        // 2. 处理原有的公共 API 请求
         try {
             switch (url.pathname) {
                 case '/api/inspirations':

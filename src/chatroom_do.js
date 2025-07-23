@@ -169,7 +169,7 @@ export class HibernatingChating2 extends DurableObject {
         this.debugLog(`🚘 服务端入站请求: ${request.method} ${url.pathname}`);
         await this.initialize();
 
-        if (url.pathname === '/api/internal-callback' && request.method === 'POST') {
+        if (url.pathname === '/api/callback' && request.method === 'POST') {
             try {
                 const { messageId, newContent, status, metadata } = await request.json();
                 if (status === 'success') {
