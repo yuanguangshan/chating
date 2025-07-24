@@ -425,20 +425,7 @@
       font-size: 0.75em;
       border-radius: 6px;
     }
-    .inspiration-card-type {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      font-size: 0.7em;
-      padding: 2px 5px;
-      border-radius: 4px;
-      font-weight: 600;
-      color: white;
-    }
-    .inspiration-card-type.hot { background: var(--error); }
-    .inspiration-card-type.inspiration { background: var(--info); }
-    .inspiration-card-type.news { background: var(--accent2); }
-
+    
     /* ====== Specific Tab Content ====== */
     .section-container {
         display: grid;
@@ -780,7 +767,7 @@
         statusUpdater(`正在为房间 [${roomName}] 提交生成任务...`, 'info', true);
 
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
             const res = await fetch(`${domain}/api/inspirations/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -832,7 +819,7 @@
         updateStatus(inspirationStatus, '正在获取推荐灵感...', 'info', true);
         inspirationTopicsContainer.innerHTML = '<div class="inspiration-card" style="justify-content: center; align-items: center;"><span style="color: var(--text-sub);">加载中...</span></div>';
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
             const res = await fetch(`${domain}/api/inspirations?secret=${adminSecret}`);
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
@@ -848,7 +835,7 @@
         updateStatus(newsStatus, '正在获取新闻灵感...', 'info', true);
         newsTopicsContainer.innerHTML = '<div class="inspiration-card" style="justify-content: center; align-items: center;"><span style="color: var(--text-sub);">加载中...</span></div>';
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
             const res = await fetch(`${domain}/api/inspirations?secret=${adminSecret}&type=news`);
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
@@ -895,9 +882,13 @@
             const card = document.createElement('div');
             card.className = 'inspiration-card';
             
-            const typeTag = `<div class="inspiration-card-type ${item.type}">${item.type}</div>`;
+            const typeTag = '';
+            const sourceTag = item.source ? `<div style="font-size: 0.75em; color: var(--text-sub); margin-bottom: 4px;">📍 ${item.source}</div>` : '';
             const title = `<h3>${item.title}</h3>`;
-            const description = `<div class="inspiration-card-description">${item.excerpt || item.description || '暂无描述'}</div>`;
+            const descriptionContent = item.excerpt || item.description;
+            const description = (descriptionContent && descriptionContent !== item.title) 
+                ? `<div class="inspiration-card-description">${descriptionContent}</div>` 
+                : '';
             
             const actions = document.createElement('div');
             actions.className = 'inspiration-card-actions';
@@ -925,7 +916,7 @@
             actions.appendChild(generateBtn);
             if (item.url) actions.appendChild(viewBtn);
 
-            card.innerHTML = typeTag + title + description;
+            card.innerHTML = typeTag + sourceTag + title + description;
             card.appendChild(actions);
             container.appendChild(card);
         });
@@ -936,10 +927,16 @@
     // =================================================================
     async function fetchPublishQueueStatus() {
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
+            console.log('Fetching queue status from:', `${domain}/api/toutiao/queue?secret=${adminSecret}`);
             const res = await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`);
-            if (!res.ok) throw new Error(await res.text());
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('Failed to fetch queue status:', errorText);
+                throw new Error(errorText);
+            }
             const data = await res.json();
+            console.log('Queue status data:', data);
             publishQueueLength.textContent = data.length || 0;
             publishPendingTasksList.innerHTML = '';
             if (data.tasks && data.tasks.length > 0) {
@@ -953,6 +950,7 @@
                 publishPendingTasksList.innerHTML = '<li>队列为空</li>';
             }
         } catch (e) {
+            console.error('Error fetching queue status:', e);
             publishPendingTasksList.innerHTML = `<li style="color: var(--error);">加载失败: ${e.message}</li>`;
         }
     }
@@ -960,7 +958,7 @@
     async function clearPublishQueue() {
         if (!confirm('确定要清空所有待处理的发布任务吗？')) return;
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
             await fetch(`${domain}/api/toutiao/clearQueue?secret=${adminSecret}`, { method: 'POST' });
             fetchPublishQueueStatus();
         } catch (e) { alert(`清空失败: ${e.message}`); }
@@ -969,7 +967,7 @@
     async function processPublishQueue() {
         if (!confirm('确定要立即处理队列中的所有任务吗？')) return;
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
             await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`, { method: 'DELETE' });
             fetchPublishQueueStatus();
             fetchPublishResults();
@@ -980,7 +978,7 @@
         const taskId = publishCheckTaskId.value.trim();
         if (!taskId) return;
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
             const res = await fetch(`${domain}/api/toutiao/status/${taskId}?secret=${adminSecret}`);
             const data = await res.json();
             publishTaskStatusDisplay.textContent = JSON.stringify(data, null, 2);
@@ -991,7 +989,7 @@
 
     async function fetchPublishStats() {
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
             const res = await fetch(`${domain}/api/toutiao/stats?secret=${adminSecret}`);
             const data = await res.json();
             publishStatsDisplay.textContent = JSON.stringify(data, null, 2);
@@ -1003,10 +1001,16 @@
     async function fetchPublishResults() {
         publishResultsList.innerHTML = '<li>加载中...</li>';
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
+            console.log('Fetching publish results from:', `${domain}/api/toutiao/results?secret=${adminSecret}`);
             const res = await fetch(`${domain}/api/toutiao/results?secret=${adminSecret}`);
-            if (!res.ok) throw new Error(await res.text());
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('Failed to fetch publish results:', errorText);
+                throw new Error(errorText);
+            }
             const data = await res.json();
+            console.log('Publish results data:', data);
             publishResultsList.innerHTML = '';
             if (data && data.length > 0) {
                 showLatestResult(data[0]);
@@ -1024,6 +1028,7 @@
                 publishResultsList.innerHTML = '<li>暂无历史发布结果</li>';
             }
         } catch (e) {
+            console.error('Error fetching publish results:', e);
             latestResultContainer.style.display = 'none';
             publishResultsList.innerHTML = `<li style="color: var(--error);">加载失败: ${e.message}</li>`;
         }
@@ -1083,7 +1088,7 @@
         }
         updateStatus(statusMessage, `正在加载房间 "${room}" 的白名单…`, 'info');
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
             const res = await fetch(`${domain}/api/users/list?roomName=${encodeURIComponent(room)}`);
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
@@ -1117,7 +1122,7 @@
         addUserBtn.disabled = true;
         addUserBtn.textContent = '添加中…';
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
             const res = await fetch(`${domain}/api/users/add?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1140,7 +1145,7 @@
         if (!room || !adminSecret) return updateStatus(statusMessage, '缺少 room 或 secret', 'error');
         if (!confirm(`确认移除 "${u}"？`)) return;
         try {
-            const domain = `https://${apiDomain}`;
+            const domain = `https://${apiDomain || 'api.yuangs.cc'}`;
             await fetch(`${domain}/api/users/remove?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
