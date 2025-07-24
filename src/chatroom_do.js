@@ -43,7 +43,7 @@ export class HibernatingChating2 extends DurableObject {
 
     // ✅ [核心修正] 在构造函数中立即、正确地设置 roomName
     // 这是最可靠的方式，确保任何类型的请求都能访问到正确的房间名
-    this.roomName = ctx.id.roomName;
+    this.roomName = "test"
 
 // ✅ [最终验证标记]
 console.log(`[ChatRoomDO] DEPLOY-SUCCESS-MARKER-V3! Room Name is: "${this.roomName}"`);
