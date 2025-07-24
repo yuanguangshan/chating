@@ -58,13 +58,13 @@ export default {
       }
 
       // ✅ 路由 2: 专用 API 端点 (上传、AI等)
-      if (pathname === '/api/upload') {
+      if (pathname === '/upload') {
         return handleUpload(request, env);
       }
-      if (pathname === '/api/ai/explain') {
+      if (pathname === '/ai/explain') {
         return handleAiExplain(request, env);
       }
-      if (pathname === '/api/ai/describe-image') {
+      if (pathname === '/ai/describe-image') {
         return handleAiDescribeImage(request, env);
       }
 
