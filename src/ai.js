@@ -269,7 +269,7 @@ export async function getKimiImageDescription(imageUrl, env) {
             temperature: 0.3,
         }, env);
         const description = data?.choices?.[0]?.message?.content;
-        if (!description) throw new Error('Kimi Vision返回了意外的AI响应格式。');
+        if (!description) throw new Error('Kimi Vision返回了意外的AI响应格式,请确认。');
         return description;
     } catch (error) {
         console.error("[AI] getKimiImageDescription失败:", error);
