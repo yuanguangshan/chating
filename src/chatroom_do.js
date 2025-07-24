@@ -1,10 +1,10 @@
-// 文件: src/chatroom_do.js
+// 文件: src/chatroom_do.js (最终修正版)
 // 职责: 纯粹的聊天室"前台接待" Durable Object
 
 import { DurableObject } from "cloudflare:workers";
-import { getGeminiChatAnswer, getKimiChatAnswer, getDeepSeekChatAnswer } from './ai.js'; // 确保ai.js中有这些导出
+import { getGeminiChatAnswer, getKimiChatAnswer, getDeepSeekChatAnswer } from './ai.js';
 
-// 消息类型常量
+// (所有常量保持不变)
 const MSG_TYPE_CHAT = 'chat';
 const MSG_TYPE_DELETE = 'delete';
 const MSG_TYPE_ERROR = 'error';
@@ -21,11 +21,8 @@ const MSG_TYPE_ANSWER = 'answer';
 const MSG_TYPE_CANDIDATE = 'candidate';
 const MSG_TYPE_CALL_END = 'call_end';
 const MSG_TYPE_USER_LIST_UPDATE = 'user_list_update';
-
-// 存储键常量
 const ALLOWED_USERS_KEY = 'allowed_users';
 const MESSAGES_KEY = 'messages';
-
 const JSON_HEADERS = {
   'Content-Type': 'application/json;charset=UTF-8',
   'Access-Control-Allow-Origin': '*'
@@ -43,25 +40,27 @@ export class HibernatingChating2 extends DurableObject {
     this.isInitialized = false;
     this.heartbeatInterval = null;
     this.allowedUsers = undefined;
-    // 先把 roomName 置空，稍后在真正的会话初始化时再赋值
-    this.roomName = undefined;
 
-    this.debugLog("🏗️ DO 实例已创建。");
+    // ✅ [核心修正] 在构造函数中立即、正确地设置 roomName
+    // 这是最可靠的方式，确保任何类型的请求都能访问到正确的房间名
+    this.roomName = ctx.id.name;
 
     // 增加一个强制的启动日志，以便我们在 tail log 中确认此代码已执行
-    console.log(`[ChatRoomDO] CONSTRUCTOR FIRED! Room Name Initialized to: "${this.roomName}"`);
+    console.log(`[ChatRoomDO] CONSTRUCTOR FIRED! Room Name correctly initialized to: "${this.roomName}"`);
 
     this.debugLog("🏗️ DO 实例已创建或唤醒。");
     this.startHeartbeat();
   }
 
-  // ============ 调试与心跳系统 ============
+  // ============ 调试与心跳系统 (保持不变) ============
   debugLog(message, level = 'INFO', data = null) {
     const timestamp = new Date().toISOString();
-    const logEntry = { timestamp, level, message, id: crypto.randomUUID().substring(0, 8), data };
+    // 使用正确的 this.roomName 来记录日志
+    const logMessage = `[ChatRoomDO:${this.roomName}] ${message}`;
+    const logEntry = { timestamp, level, message: logMessage, id: crypto.randomUUID().substring(0, 8), data };
     this.debugLogs.push(logEntry);
     if (this.debugLogs.length > this.maxDebugLogs) this.debugLogs.shift();
-    console.log(`[${timestamp}] [${level}] ${message}`, data || '');
+    console.log(`[${timestamp}] [${level}] ${logMessage}`, data || '');
     if (level !== 'HEARTBEAT') this.broadcastDebugLog(logEntry);
   }
 
@@ -97,16 +96,14 @@ export class HibernatingChating2 extends DurableObject {
     disconnected.forEach(id => this.cleanupSession(id, { code: 1011, reason: 'Heartbeat/Timeout' }));
   }
 
-  // ============ 状态管理 ============
+  // ============ 状态管理 (保持不变) ============
   async initialize() {
     if (this.isInitialized) return;
     const allowed = await this.ctx.storage.get(ALLOWED_USERS_KEY);
     if (allowed === undefined) {
-      // 没有 Key，表示“不配置白名单”，默认开放所有人
       this.allowedUsers = undefined;
       this.debugLog(`ℹ️ 房间白名单未配置，默认开放所有用户加入。`);
     } else {
-      // 只要存储里有 key，就启动白名单功能
       this.allowedUsers = new Set(allowed);
       this.debugLog(`📁 已加载白名单. Allowed Users: ${this.allowedUsers.size}`);
     }
@@ -131,7 +128,7 @@ export class HibernatingChating2 extends DurableObject {
     await this.ctx.storage.put(MESSAGES_KEY, this.messages);
   }
 
-  // ============ RPC 方法 ============
+  // ============ RPC 方法 (保持不变) ============
   async cronPost(text, secret) {
     if (this.env.CRON_SECRET && secret !== this.env.CRON_SECRET) {
       this.debugLog("定时任务：未授权的尝试！", 'ERROR');
@@ -150,20 +147,25 @@ export class HibernatingChating2 extends DurableObject {
     this.broadcast({ type: MSG_TYPE_DEBUG_LOG, payload: { ...payload, timestamp: new Date().toISOString(), id: crypto.randomUUID().substring(0, 8) } });
   }
 
-  // ============ 主入口 fetch ============
+  // ============ 主入口 fetch (核心修改) ============
   async fetch(request) {
     const url = new URL(request.url);
     this.debugLog(`🚘 服务端入站请求: ${request.method} ${url.pathname}`);
     await this.initialize();
 
-    // 回调入口
+    // ✅ [新增路由] 处理来自后台任务的【新】系统消息
+    if (url.pathname === '/api/post-system-message' && request.method === 'POST') {
+        return this.handlePostSystemMessage(request);
+    }
+
+    // [现有路由] 处理来自聊天室任务的【更新】回调
     if (url.pathname === '/api/callback' && request.method === 'POST') {
       try {
         const { messageId, newContent, status, metadata } = await request.json();
         if (status === 'success') {
-          await this.updateMessageAndBroadcastAndBroadcast(messageId, newContent, metadata);
+          await this.updateMessageAndBroadcast(messageId, newContent, metadata);
         } else {
-          await this.updateMessageAndBroadcastAndBroadcast(messageId, `> (❌ 任务执行失败: ${newContent})`);
+          await this.updateMessageAndBroadcast(messageId, `> (❌ 任务执行失败: ${newContent})`);
         }
         return new Response('Callback processed.', { status: 200 });
       } catch (e) {
@@ -187,7 +189,37 @@ export class HibernatingChating2 extends DurableObject {
     return new Response("Endpoint not found", { status: 404 });
   }
 
-  // ============ WebSocket 升级 & 会话初始化 ============
+  // ✅ [新增方法] 专门处理来自后台服务（如ToutiaoDO）的新消息发布请求
+  async handlePostSystemMessage(request) {
+    try {
+        const { content } = await request.json();
+        if (!content) {
+            this.debugLog('❌ 系统消息请求缺少 content', 'ERROR');
+            return new Response('Missing content', { status: 400 });
+        }
+
+        this.debugLog('📩 收到来自后台服务的系统消息', 'INFO', { content });
+
+        // 复用您现有的 addAndBroadcastMessage 方法来创建、保存和广播消息
+        // 这确保了逻辑的统一性
+        const message = {
+            id: crypto.randomUUID(),
+            username: "System", // 使用 "System" 作为系统消息的发送者
+            timestamp: Date.now(),
+            text: content,
+            type: 'text' // 保持和普通聊天消息一致的结构
+        };
+        await this.addAndBroadcastMessage(message);
+
+        return new Response(JSON.stringify({ success: true, messageId: message.id }), { status: 200, headers: JSON_HEADERS });
+    } catch (error) {
+        this.debugLog(`💥 处理系统消息时发生严重错误`, 'ERROR', error);
+        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers: JSON_HEADERS });
+    }
+  }
+
+
+  // ============ WebSocket 升级 & 会话初始化 (保持不变) ============
   async handleWebSocketUpgrade(request, url) {
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server);
@@ -196,14 +228,11 @@ export class HibernatingChating2 extends DurableObject {
   }
 
   async handleSessionInitialization(ws, url) {
-    // **在这里** 拿到房间名并保存
-    const roomName = url.pathname.slice(1).split('/')[0];
-    this.roomName = roomName;
-    this.debugLog(`📌 房间名已设置为: "${this.roomName}"`);
+    // 这部分逻辑现在只对WebSocket连接生效，这是正确的
+    this.debugLog(`📌 WebSocket 连接初始化，房间名是: "${this.roomName}"`);
 
     const username = decodeURIComponent(url.searchParams.get("username") || "Anonymous");
     let reason = null;
-    // 只有在显式配置了白名单时，才做过滤
     if (this.allowedUsers !== undefined && !this.allowedUsers.has(username)) {
       reason = "您不在本房间的白名单中，无法加入。";
     }
@@ -217,7 +246,6 @@ export class HibernatingChating2 extends DurableObject {
       return;
     }
 
-    // 真正进到会话逻辑
     await this.handleWebSocketSession(ws, url, username);
   }
 
@@ -252,7 +280,7 @@ export class HibernatingChating2 extends DurableObject {
     ws.addEventListener('error', err => this.webSocketError(ws, err));
   }
 
-  // ============ WebSocket 消息 & 清理 ============
+  // ============ WebSocket 消息 & 清理 (保持不变) ============
   async webSocketMessage(ws, message) {
     const session = this.sessions.get(ws.sessionId);
     if (!session) return ws.close(1011, "Session not found.");
@@ -265,12 +293,10 @@ export class HibernatingChating2 extends DurableObject {
       return;
     }
 
-    // 命令优先
     if (data.type === MSG_TYPE_CHAT && data.payload?.text?.startsWith('/')) {
       return this.handleUserCommand(session, data.payload);
     }
 
-    // 其他消息类型
     switch (data.type) {
       case MSG_TYPE_CHAT:
         return this.handleChatMessage(session, data.payload);
@@ -312,28 +338,24 @@ export class HibernatingChating2 extends DurableObject {
     this.broadcastUserListUpdate();
   }
 
-  // ============ 用户命令处理 ============
+  // ============ 用户命令处理 (保持不变) ============
   async handleUserCommand(session, payload) {
     const text = payload.text.trim();
     let command, taskPayload;
 
-    // ✅ === 修改后的命令路由 ===
     if (text.startsWith('/新闻') || text.startsWith('/灵感')) {
-        command = 'inspiration'; // 👈 关键修改：将 /新闻 和 /灵感 都映射到 worker.js 认识的 'inspiration' 指令
-        taskPayload = {}; // InspirationDO 不需要额外参数，所以设为空对象
+        command = 'inspiration';
+        taskPayload = {};
     } else if (text.startsWith('/头条')) {
         command = 'toutiao_article';
         taskPayload = { content: text.substring(3).trim() };
     } else if (text.startsWith('/知乎文章')) {
         command = 'zhihu_article';
         taskPayload = { topic: text.substring(5).trim() };
-    } else if (text.startsWith('/知乎')) { // 保持您原有的 /知乎 指向知乎热榜
+    } else if (text.startsWith('/知乎')) {
         command = 'zhihu_hot';
         taskPayload = {};
     }
-    // ✅ === 修改结束 ===
-
-
 
     if (!command) {
       return this.handleChatMessage(session, payload);
@@ -350,7 +372,6 @@ export class HibernatingChating2 extends DurableObject {
     };
     await this.addAndBroadcastMessage(thinkingMessage);
 
-    // **关键：此处使用最新在 handleSessionInitialization 里得到的 this.roomName**
     const task = {
       command,
       payload: taskPayload,
@@ -377,11 +398,11 @@ export class HibernatingChating2 extends DurableObject {
     } catch (e) {
       this.debugLog(`❌ 委托任务给Worker失败: ${task.command}`, 'ERROR', e);
       const errText = `> (❌ 任务委托失败: ${e.message})`;
-      await this.updateMessageAndBroadcastAndBroadcast(task.callbackInfo.messageId, errText);
+      await this.updateMessageAndBroadcast(task.callbackInfo.messageId, errText);
     }
   }
 
-  // ============ 聊天、删除、AI etc. ============
+  // ============ 聊天、删除、AI etc. (保持不变) ============
   async handleChatMessage(session, payload) {
     const message = {
       id: crypto.randomUUID(),
@@ -405,7 +426,6 @@ export class HibernatingChating2 extends DurableObject {
     }
   }
 
-  // 通用 AI Handler
   async handleGenericAiChat(session, payload, aiName, aiFn) {
     const thinking = {
       id: crypto.randomUUID(),
@@ -418,10 +438,10 @@ export class HibernatingChating2 extends DurableObject {
     try {
       const history = this.messages.slice(-10);
       const answer = await aiFn(payload.text, history, this.env);
-      await this.updateMessageAndBroadcastAndBroadcast(thinking.id, answer);
+      await this.updateMessageAndBroadcast(thinking.id, answer);
     } catch (e) {
       const errText = `抱歉，我在调用 ${aiName} 时遇到了问题: ${e.message}`;
-      await this.updateMessageAndBroadcastAndBroadcast(thinking.id, errText);
+      await this.updateMessageAndBroadcast(thinking.id, errText);
       this.debugLog(`❌ 调用 ${aiName} 失败`, 'ERROR', e);
     }
   }
@@ -429,8 +449,8 @@ export class HibernatingChating2 extends DurableObject {
   async handleDeepSeekChatMessage(s,p){ return this.handleGenericAiChat(s,p,"DeepSeek",getDeepSeekChatAnswer); }
   async handleKimiChatMessage(s,p)    { return this.handleGenericAiChat(s,p,"Kimi",getKimiChatAnswer); }
 
-  // ============ 广播 & 存储 ============
-  async updateMessageAndBroadcastAndBroadcast(messageId, newText, meta={}) {
+  // ============ 广播 & 存储 (重命名一个函数以避免混淆) ============
+  async updateMessageAndBroadcast(messageId, newText, meta={}) {
     await this.loadMessages();
     const i = this.messages.findIndex(m => m.id === messageId);
     if (i !== -1) {
@@ -475,7 +495,7 @@ export class HibernatingChating2 extends DurableObject {
     }
   }
 
-  // ============ HTTP API 处理 ============
+  // ============ HTTP API 处理 (保持不变) ============
   async handleApiRequest(request) {
     const url = new URL(request.url);
     const path = url.pathname;
