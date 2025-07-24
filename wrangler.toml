@@ -20,7 +20,7 @@ bucket = "./public"
 name       = "CHAT_ROOM_DO"
 class_name = "HibernatingChating2"
 
-# 头条相关服务---
+# 头条相关服务---。
 [[durable_objects.bindings]]
 name = "TOUTIAO_SERVICE_DO"
 class_name = "ToutiaoServiceDO2"
