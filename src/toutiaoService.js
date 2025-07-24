@@ -443,6 +443,33 @@ export class ToutiaoQueueManager {
      */
     async clearQueue() {
         await this.storage.delete(this.queueKey);
+        await this.updateStats(); // 清空后更新统计
+        this.logger.log('Task queue has been cleared via API.');
+    }
+
+    /**
+     * 获取已完成的结果
+     * @returns {Promise<Array>}
+     */
+    async getResults() {
+        return await this.storage.get('toutiao_history') || [];
+    }
+
+    /**
+     * 获取统计数据
+     * @returns {Promise<Object>}
+     */
+    async getStats() {
+        const queue = await this.getQueue();
+        const history = await this.getResults();
+        const failedCount = history.filter(r => !r.success).length;
+
+        const stats = {
+            pending: queue.length,
+            completed: history.filter(r => r.success).length,
+            failed: failedCount
+        };
+        return { success: true, stats: stats };
     }
 
     /**
@@ -451,15 +478,64 @@ export class ToutiaoQueueManager {
      * @returns {Promise<Array>} 处理结果
      */
     async processQueue(processor) {
+        this.logger.log('Starting manual queue processing...');
+
         const queue = await this.getQueue();
         if (queue.length === 0) {
+            this.logger.log('Queue is empty, nothing to process.');
             return [];
         }
 
-        await this.clearQueue();
-        this.logger.log(`️ 开始处理队列中的 ${queue.length} 个任务`);
-        
-        return await processor.processTaskQueue(queue);
+        const results = [];
+        // 注意：这里我们串行处理任务，以避免瞬间产生大量并发
+        for (const task of queue) {
+            // 从队列中移除当前任务
+            // 这里不直接清空队列，而是逐个处理并移除，确保即使处理中断，未处理的任务仍在队列中
+            let currentQueue = await this.getQueue();
+            currentQueue = currentQueue.filter(t => t.id !== task.id);
+            await this.storage.put(this.queueKey, currentQueue);
+
+            // 根据任务类型调用不同的处理逻辑
+            if (task.command === 'toutiao_article' || !task.command) { // 兼容旧任务没有command字段的情况
+                // 这是来自管理面板或旧系统的任务
+                const processorTask = {
+                    id: task.id,
+                    text: task.inspiration.contentPrompt || task.inspiration.title,
+                    username: task.username,
+                };
+                // 调用您已有的 processAndNotify 逻辑
+                const result = await processor.processTask(processorTask, task.roomName); // 使用传入的processor实例
+                results.push(result);
+            } else {
+                // 这里可以处理其他类型的任务
+                this.logger.log(`Skipping unknown task type in queue: ${task.command}`, 'WARN');
+                results.push({ success: false, taskId: task.id, error: `Unknown task type: ${task.command}` });
+            }
+
+            // 更新统计数据
+            await this.updateStats();
+        }
+        this.logger.log('Manual queue processing finished.');
+        return results;
+    }
+
+    /**
+     * 更新统计数据 (这是一个内部辅助方法)
+     * @returns {Promise<void>}
+     */
+    async updateStats() {
+        const queue = await this.getQueue();
+        const results = await this.getResults();
+        const failedCount = results.filter(r => !r.success).length;
+
+        const stats = {
+            pending: queue.length,
+            completed: results.filter(r => r.success).length,
+            failed: failedCount
+        };
+
+        await this.storage.put('stats', stats);
+        this.logger.log('Stats updated', 'DEBUG', stats);
     }
 
     /**
@@ -469,22 +545,22 @@ export class ToutiaoQueueManager {
      */
     async getTaskStatus(taskId) {
         const queue = await this.getQueue();
-        const task = queue.find(t => t.id === taskId);
-        
-        if (task) {
+        const taskInQueue = queue.find(t => t.id === taskId);
+
+        if (taskInQueue) {
             return {
                 found: true,
-                task: task,
-                status: task.status || 'pending',
-                position: queue.indexOf(task) + 1,
-                queueLength: queue.length
+                task: taskInQueue,
+                status: taskInQueue.status || 'pending',
+                position: queue.indexOf(taskInQueue) + 1,
+                queueLength: queue.length,
+                inQueue: true
             };
         }
-        
-        // 检查历史记录
-        const history = await this.storage.get('toutiao_history') || [];
+
+        const history = await this.getResults();
         const historicalTask = history.find(t => t.id === taskId);
-        
+
         if (historicalTask) {
             return {
                 found: true,
@@ -493,7 +569,7 @@ export class ToutiaoQueueManager {
                 inQueue: false
             };
         }
-        
+
         return {
             found: false,
             error: '任务未找到'
@@ -505,28 +581,33 @@ export class ToutiaoQueueManager {
      * @returns {Promise<Object>} 队列状态
      */
     async getQueueStatus() {
+        const stats = await this.getStats();
         const queue = await this.getQueue();
-        const history = await this.storage.get('toutiao_history') || [];
-        
-        const pendingTasks = queue.filter(t => t.status === 'pending' || !t.status);
-        const processingTasks = queue.filter(t => t.status === 'processing');
-        const completedTasks = history.filter(t => t.status === 'completed').slice(-10); // 最近10个
-        
+        const history = await this.getResults();
+
+        const completedTasks = history.filter(t => t.success).slice(-10); // 最近10个成功任务
+
         return {
-            totalInQueue: queue.length,
-            pending: pendingTasks.length,
-            processing: processingTasks.length,
+            totalInQueue: stats.stats.pending,
+            pending: stats.stats.pending,
+            completed: stats.stats.completed,
+            failed: stats.stats.failed,
             completedToday: history.filter(t => {
                 const taskDate = new Date(t.createdAt);
                 const today = new Date();
                 return taskDate.toDateString() === today.toDateString();
             }).length,
-            recentCompleted: completedTasks,
+            recentCompleted: completedTasks.map(t => ({
+                id: t.taskId,
+                title: t.title,
+                status: 'completed',
+                createdAt: t.timestamp || new Date().toISOString() // 假设有时间戳
+            })),
             queue: queue.map(t => ({
                 id: t.id,
-                topic: t.topic,
+                topic: t.topic || '未知',
                 status: t.status || 'pending',
-                createdAt: t.createdAt
+                createdAt: t.enqueuedAt || new Date().toISOString()
             }))
         };
     }
