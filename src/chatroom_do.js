@@ -161,9 +161,9 @@ export class HibernatingChating2 extends DurableObject {
       try {
         const { messageId, newContent, status, metadata } = await request.json();
         if (status === 'success') {
-          await this.updateMessageAndBroadcast(messageId, newContent, metadata);
+          await this.updateMessageAndBroadcastAndBroadcast(messageId, newContent, metadata);
         } else {
-          await this.updateMessageAndBroadcast(messageId, `> (❌ 任务执行失败: ${newContent})`);
+          await this.updateMessageAndBroadcastAndBroadcast(messageId, `> (❌ 任务执行失败: ${newContent})`);
         }
         return new Response('Callback processed.', { status: 200 });
       } catch (e) {
@@ -373,7 +373,7 @@ export class HibernatingChating2 extends DurableObject {
     } catch (e) {
       this.debugLog(`❌ 委托任务给Worker失败: ${task.command}`, 'ERROR', e);
       const errText = `> (❌ 任务委托失败: ${e.message})`;
-      await this.updateMessageAndBroadcast(task.callbackInfo.messageId, errText);
+      await this.updateMessageAndBroadcastAndBroadcast(task.callbackInfo.messageId, errText);
     }
   }
 
@@ -414,10 +414,10 @@ export class HibernatingChating2 extends DurableObject {
     try {
       const history = this.messages.slice(-10);
       const answer = await aiFn(payload.text, history, this.env);
-      await this.updateMessageAndBroadcast(thinking.id, answer);
+      await this.updateMessageAndBroadcastAndBroadcast(thinking.id, answer);
     } catch (e) {
       const errText = `抱歉，我在调用 ${aiName} 时遇到了问题: ${e.message}`;
-      await this.updateMessageAndBroadcast(thinking.id, errText);
+      await this.updateMessageAndBroadcastAndBroadcast(thinking.id, errText);
       this.debugLog(`❌ 调用 ${aiName} 失败`, 'ERROR', e);
     }
   }
@@ -426,7 +426,7 @@ export class HibernatingChating2 extends DurableObject {
   async handleKimiChatMessage(s,p)    { return this.handleGenericAiChat(s,p,"Kimi",getKimiChatAnswer); }
 
   // ============ 广播 & 存储 ============
-  async updateMessageAndBroadcast(messageId, newText, meta={}) {
+  async updateMessageAndBroadcastAndBroadcast(messageId, newText, meta={}) {
     await this.loadMessages();
     const i = this.messages.findIndex(m => m.id === messageId);
     if (i !== -1) {

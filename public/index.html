@@ -2755,7 +2755,7 @@ function onSocketOpen() {
  * @param {boolean} scrollToBottom - 是否滚动到底部
  * @param {boolean} isHistory - 是否是加载历史消息 (如果是，则添加到顶部)
  */
-function renderOrUpdateMessages(messages, scrollToBottom = true, isHistory = false) {
+function renderOrupdateMessageAndBroadcasts(messages, scrollToBottom = true, isHistory = false) {
     if (!chatWindowEl) {
         logDebug('❗ 聊天窗口元素未找到，无法渲染消息', LOG_LEVELS.ERROR);
         return;
@@ -2851,7 +2851,7 @@ const messageHandlers = {
                 messageIdSet.add(newMessage.id);
             }
             // ✅ 调用新的渲染函数，注意将单个消息包装在数组中
-            renderOrUpdateMessages([newMessage], true, false);
+            renderOrupdateMessageAndBroadcasts([newMessage], true, false);
         }
         throttledUpdateActivityStats();
     },

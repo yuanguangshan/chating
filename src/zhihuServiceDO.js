@@ -1,4 +1,4 @@
-// 文件: src/zhihuServiceDO.js (最终修正版)
+// 文件: src/zhihuServiceDO.js (已修正 path is not defined 错误)
 // 职责: "知乎专家" - 专门处理知乎热点获取、文章生成等任务
 
 import { DurableObject } from "cloudflare:workers";
@@ -17,9 +17,6 @@ export class ZhihuServiceDO extends DurableObject {
         console.log(`[ZhihuServiceDO] [${new Date().toISOString()}] [${level}] ${message}`, data || '');
     }
 
-    /**
-     * 统一的任务处理与回调入口 (此方法无需修改)
-     */
     async processAndCallback(task) {
         const { command, payload, callbackInfo } = task;
         this._log(`收到知乎任务: ${command}`, { payload, callbackInfo });
@@ -31,7 +28,7 @@ export class ZhihuServiceDO extends DurableObject {
                     finalContent = await this.getZhihuHotListFormatted();
                     break;
                 case 'zhihu_article':
-                    finalContent = await this.generateZhihuArticle(payload.content); // 修正：从 payload.content 获取话题
+                    finalContent = await this.generateZhihuArticle(payload.content);
                     break;
                 default:
                     finalContent = `> (❌ **未知知乎命令**: ${command})`;
@@ -44,9 +41,6 @@ export class ZhihuServiceDO extends DurableObject {
         await this.performCallback(callbackInfo, finalContent);
     }
 
-    /**
-     * 获取并格式化知乎热点列表 (此方法无需修改)
-     */
     async getZhihuHotListFormatted() {
         const [hotTopics, inspirationQuestions] = await Promise.all([
             this.zhihuService.getHotTopicsForContent(10),
@@ -78,9 +72,6 @@ export class ZhihuServiceDO extends DurableObject {
         return responseText;
     }
 
-    /**
-     * 根据话题生成知乎风格文章 (此方法无需修改)
-     */
     async generateZhihuArticle(topicInfo) {
         const topics = await this.ctx.storage.get('last_zhihu_topics');
         if (!topics) {
@@ -107,9 +98,6 @@ export class ZhihuServiceDO extends DurableObject {
                `---\n\n${articleContent}`;
     }
 
-    /**
-     * 执行回调的辅助函数 (您的实现很棒，无需修改)
-     */
     async performCallback(callbackInfo, finalContent) {
         try {
             if (!this.env.CHAT_ROOM_DO) {
@@ -118,7 +106,6 @@ export class ZhihuServiceDO extends DurableObject {
             const chatroomId = this.env.CHAT_ROOM_DO.idFromName(callbackInfo.roomName);
             const chatroomStub = this.env.CHAT_ROOM_DO.get(chatroomId);
             
-            // 您的 fetch 回调实现非常健壮，予以保留！
             const response = await chatroomStub.fetch("https://do-internal/api/callback", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -138,32 +125,27 @@ export class ZhihuServiceDO extends DurableObject {
         }
     }
 
-    /**
-     * ✅ [核心修正] fetch处理器，现在可以正确路由内部任务和公共API
-     */
     async fetch(request) {
         const url = new URL(request.url);
+        // ✅ [核心修正] 将 path 的定义提前，确保在整个方法中都可用
+        const path = url.pathname;
 
         // 1. 优先处理来自 worker 的内部任务派发 (POST请求)
-        if (request.method === 'POST') {
+        if (request.method === 'POST' && path === '/internal-task') { 
             try {
                 const task = await request.json();
-                // 通过检查 task 结构来判断是内部任务
                 if (task.command && task.callbackInfo) {
                     this._log(`收到内部任务: ${task.command}`, 'INFO', task);
-                    // 在后台执行任务，并立即响应 worker
                     this.ctx.waitUntil(this.processAndCallback(task));
                     return new Response('Task accepted by ZhihuServiceDO', { status: 202 });
                 }
             } catch (e) {
-                // 如果请求体不是合法的内部任务JSON，就忽略错误，让它继续执行下面的公共API逻辑
                 this._log('POST请求不是内部任务，将尝试作为公共API处理', 'DEBUG');
             }
         }
 
-        // 2. 如果不是内部任务，则执行原有的公共 API 路由逻辑
+        // 2. 如果不是内部任务，则执行公共 API 路由逻辑
         try {
-            const path = url.pathname;
             if (path.includes('/api/zhihu/combined')) {
                 const hotTopics = await this.zhihuService.getHotTopicsForContent(15);
                 const inspirationQuestions = await this.zhihuService.getInspirationQuestionsForContent(15);
@@ -182,7 +164,6 @@ export class ZhihuServiceDO extends DurableObject {
                 return new Response(JSON.stringify({ topics }), { headers: { 'Content-Type': 'application/json' } });
             }
 
-            // 如果没有任何API匹配，返回一个默认响应
             return new Response('ZhihuServiceDO is running. No matching API endpoint found for this request.', { status: 404 });
 
         } catch (error) {

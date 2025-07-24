@@ -1,4 +1,4 @@
-// 文件: src/worker.js (基于您的版本进行修正和优化)
+// 文件: src/worker.js (已修正并优化)
 
 // --- Polyfill for npm packages that expect 'global' ---
 globalThis.global = globalThis;
@@ -10,7 +10,7 @@ import { AuthServiceDO2 } from './authServiceDO.js';
 import { InspirationDO } from './InspirationDO.js';
 import html from '../public/index.html';
 import managementHtml from '../public/management.html';
-import { taskMap } from './autoTasks.js'; // 保持导入，以防您用于其他cron规则
+import { taskMap } from './autoTasks.js';
 import {
     getDeepSeekExplanation,
     getGeminiExplanation,
@@ -49,7 +49,6 @@ export default {
             if (pathname === '/api/internal-task-handler') {
                 if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
                 const task = await request.json();
-                // ✅ [优化] 使用 ctx.waitUntil 确保后台任务执行完毕
                 ctx.waitUntil(dispatchInternalTask(task, env));
                 return new Response('Task accepted', { status: 202 });
             }
@@ -119,16 +118,13 @@ export default {
     async scheduled(event, env, ctx) {
         console.log(`[Worker] 🚀 Cron Trigger firing! Rule: ${event.cron}`);
 
-        // ✅ [核心修正] 直接处理已知的cron规则，不再完全依赖taskMap
         switch (event.cron) {
             case '* * * * *':
-                // 这个任务是向 "general" 房间发送一条定时消息
                 const roomName = "test";
                 const message = "⏰ 滴答！这是一条来自服务器的每分钟定时消息。";
                 try {
                     const roomId = env.CHAT_ROOM_DO.idFromName(roomName);
                     const roomStub = env.CHAT_ROOM_DO.get(roomId);
-                    // 使用RPC调用ChatRoomDO的cronPost方法
                     ctx.waitUntil(roomStub.cronPost(message, env.CRON_SECRET));
                     console.log(`[Worker] ✅ Cron task for rule "${event.cron}" has been dispatched to room "${roomName}".`);
                 } catch (e) {
@@ -137,7 +133,6 @@ export default {
                 break;
 
             default:
-                // 对于其他规则，仍然尝试使用taskMap
                 const taskFunction = taskMap.get(event.cron);
                 if (taskFunction) {
                     ctx.waitUntil(taskFunction(env, ctx));
@@ -150,7 +145,7 @@ export default {
 };
 
 // =================================================================
-// ==               【优化】内部任务派发器 (办公室经理)             ==
+// ==               【核心修改】内部任务派发器                     ==
 // =================================================================
 
 /**
@@ -165,18 +160,25 @@ async function dispatchInternalTask(task, env) {
     try {
         let serviceStub;
         let serviceName = '';
+        // ✅ [核心修改] 定义一个变量来存储目标路径
+        let internalPath = '';
 
         switch (command) {
             case 'toutiao_article':
                 if (!env.TOUTIAO_SERVICE_DO) throw new Error("Toutiao Service DO is not configured.");
+                // ❌ 错误原因：之前这里没有指定正确的路径
+                // ✅ 修正：为头条任务指定正确的内部路径 'internal-task'
                 serviceStub = env.TOUTIAO_SERVICE_DO.get(env.TOUTIAO_SERVICE_DO.idFromName('default'));
                 serviceName = 'TOUTIAO_SERVICE_DO';
+                internalPath = 'internal-task'; // 指定正确的路径
                 break;
 
             case 'inspiration':
                 if (!env.INSPIRATION_DO) throw new Error("Inspiration Service DO is not configured.");
                 serviceStub = env.INSPIRATION_DO.get(env.INSPIRATION_DO.idFromName('global'));
                 serviceName = 'INSPIRATION_DO';
+                // 假设 InspirationDO 也使用 'internal-task' 路径，这是一种好的实践
+                internalPath = 'internal-task';
                 break;
 
             case 'zhihu_hot':
@@ -184,21 +186,23 @@ async function dispatchInternalTask(task, env) {
                 if (!env.ZHIHU_SERVICE_DO) throw new Error("Zhihu Service DO is not configured.");
                 serviceStub = env.ZHIHU_SERVICE_DO.get(env.ZHIHU_SERVICE_DO.idFromName('global'));
                 serviceName = 'ZHIHU_SERVICE_DO';
+                // 假设 ZhihuServiceDO 也使用 'internal-task' 路径
+                internalPath = 'internal-task';
                 break;
 
             default:
                 throw new Error(`Unknown or unimplemented command: ${command}`);
         }
 
-        // ✅ [推荐优化] 使用 fetch 将任务派发给目标DO，这是最稳健的方式
-        // 这要求目标DO的fetch()方法能处理POST请求和JSON体
-        const request = new Request(`https://internal-do/${command}`, {
+        // ✅ [核心修改] 使用定义好的 internalPath 变量来构建请求URL
+        const request = new Request(`https://internal-do/${internalPath}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(task)
         });
+        
         await serviceStub.fetch(request);
-        console.log(`[Worker] Task "${command}" successfully dispatched to ${serviceName} via fetch.`);
+        console.log(`[Worker] Task "${command}" successfully dispatched to ${serviceName} via fetch with path "/${internalPath}".`);
 
     } catch (e) {
         console.error(`[Worker] Task dispatch failed for command "${command}":`, e);
@@ -207,7 +211,6 @@ async function dispatchInternalTask(task, env) {
 }
 
 // --- 其他函数 (handleErrorCallback, handleOptions, handleUpload, etc.) 保持不变 ---
-// ... (将您原文件中的 handleErrorCallback 及之后的所有函数粘贴到这里)
 
 async function handleErrorCallback(error, callbackInfo, env) {
     if (!callbackInfo || !callbackInfo.roomName || !callbackInfo.messageId) {
@@ -218,7 +221,7 @@ async function handleErrorCallback(error, callbackInfo, env) {
         const chatroomId = env.CHAT_ROOM_DO.idFromName(callbackInfo.roomName);
         const chatroomStub = env.CHAT_ROOM_DO.get(chatroomId);
         const errorText = `> (❌ 任务处理失败: ${error.message})`;
-        await chatroomStub.updateMessage(callbackInfo.messageId, errorText);
+        await chatroomStub.updateMessageAndBroadcast(callbackInfo.messageId, errorText);
     } catch (callbackError) {
         console.error(`[Worker] FATAL: Error callback to room ${callbackInfo.roomName} failed!`, callbackError);
     }

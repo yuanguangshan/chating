@@ -90,7 +90,7 @@ async delegateTaskToWorker(task) {
 }
 
 // 功能二：【新增】一个简单的RPC方法，用于接收回调
-async updateMessage(messageId, newContent, metadata = {}) {
+async updateMessageAndBroadcast(messageId, newContent, metadata = {}) {
     if (this.messages === null) await this.loadMessages();
     
     const messageIndex = this.messages.findIndex(m => m.id === messageId);
@@ -154,7 +154,7 @@ async function dispatchInternalTask(task, env) {
         const chatroomId = env.CHAT_ROOM_DO.idFromName(callbackInfo.roomName);
         const chatroomStub = env.CHAT_ROOM_DO.get(chatroomId);
         const errorText = `> (❌ 任务派发失败: ${e.message})`;
-        await chatroomStub.updateMessage(callbackInfo.messageId, errorText);
+        await chatroomStub.updateMessageAndBroadcast(callbackInfo.messageId, errorText);
     }
 }
 第3步：改造 toutiaoDO.js，让它做“带回调功能的专家”
@@ -191,7 +191,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
             const chatroomStub = this.env.CHAT_ROOM_DO.get(chatroomId);
 
             // 调用聊天室DO的简单更新方法
-            await chatroomStub.updateMessage(callbackInfo.messageId, finalContent, metadata);
+            await chatroomStub.updateMessageAndBroadcast(callbackInfo.messageId, finalContent, metadata);
         } catch (callbackError) {
             console.error(`FATAL: Failed to callback to room ${callbackInfo.roomName} for message ${callbackInfo.messageId}`, callbackError);
             // 这里的错误需要重点监控，因为它意味着用户看不到最终结果
