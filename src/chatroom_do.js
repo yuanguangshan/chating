@@ -152,6 +152,18 @@ console.log(`[ChatRoomDO] DEPLOY-SUCCESS-MARKER-V3! Room Name is: "${this.roomNa
     const url = new URL(request.url);
     this.debugLog(`🚘 服务端入站请求: ${request.method} ${url.pathname}`);
     await this.initialize();
+    
+    // 从路径中解析房间名
+    const roomNameMatch = url.pathname.match(/^\/([a-zA-Z0-9_-]+)/);
+    if (roomNameMatch && roomNameMatch[1]) {
+        this.roomName = roomNameMatch[1];
+    } else if (!this.roomName) {
+        // 如果没有从路径中解析到，并且尚未设置，则使用默认值或从其他地方获取
+        // 对于内部回调，路径可能是 /api/callback，所以 roomName 不会变
+        this.roomName = this.roomName || 'test'; // 保证有个值
+    }
+
+    this.debugLog(`🚘 服务端入站请求: ${request.method} ${url.pathname} on room "${this.roomName}"`);
 
     // ✅ [新增路由] 处理来自后台任务的【新】系统消息
     if (url.pathname === '/api/post-system-message' && request.method === 'POST') {
