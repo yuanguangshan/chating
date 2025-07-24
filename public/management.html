@@ -965,31 +965,17 @@
             fetchPublishQueueStatus();
         } catch (e) { alert(`清空失败: ${e.message}`); }
     }
-async function processPublishQueue() {
-    // [修正] 语义从“处理”改为更准确的“触发处理”
-    if (!confirm('确定要立即触发队列处理吗？此操作会异步执行。')) return;
-    try {
-        const domain = `https://${apiDomain}`;
-        
-        // [修正] 使用 POST 方法请求一个新的、专门的端点
-        const res = await fetch(`${domain}/api/toutiao/processQueue?secret=${adminSecret}`, { 
-            method: 'POST' 
-        });
 
-        if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.message || '请求失败');
-        }
-
-        alert('✅ 处理指令已发送！任务将在后台执行，请稍后刷新查看结果。');
-        
-        // 刷新队列状态，让用户看到任务正在减少
-        fetchPublishQueueStatus();
-
-    } catch (e) { 
-        alert(`❌ 操作失败: ${e.message}`); 
+    async function processPublishQueue() {
+        if (!confirm('确定要立即处理队列中的所有任务吗？')) return;
+        try {
+            const domain = `https://${apiDomain}`;
+            await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`, { method: 'DELETE' });
+            fetchPublishQueueStatus();
+            fetchPublishResults();
+        } catch (e) { alert(`处理失败: ${e.message}`); }
     }
-}
+
     async function checkPublishTaskStatus() {
         const taskId = publishCheckTaskId.value.trim();
         if (!taskId) return;

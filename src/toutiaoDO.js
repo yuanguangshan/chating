@@ -162,106 +162,34 @@ export class ToutiaoServiceDO2 extends DurableObject {
         }
     }
 
-
-// [最终修正] 替换掉文件末尾的 fetch 方法
-
-async fetch(request) {
-    // 1. [健壮性] 使用 try...catch 包裹整个 fetch，防止 DO 崩溃
-    try {
-        // 2. [复用] 确保在处理任何请求前，DO都已初始化
-        await this.initialize();
-
+    // ✅ [修改] 更新 fetch 方法以包含新路由
+    async fetch(request) {
+        await this.initialize(); // 确保每次请求时都已初始化
         const url = new URL(request.url);
+        const method = request.method;
         const pathname = url.pathname;
 
-        // 3. [路由] 区分实时任务、管理面板API和内部回调
-        
-        // 3.1 处理来自聊天室的实时任务 (您现有的逻辑)
-        if (pathname === '/api/process') {
+        // 路由1: 处理来自聊天室的实时任务
+        if (method === 'POST' && pathname === '/internal-task') {
             const task = await request.json();
-            // 异步处理，不阻塞对聊天室的响应
+            this._log('收到内部任务: ' + task.command, 'INFO', task);
             this.ctx.waitUntil(this.processAndCallback(task));
-            return new Response(JSON.stringify({ success: true, message: 'Task received by ToutiaoDO' }), { status: 202 });
+            return new Response('Task accepted by ToutiaoDO', { status: 202 });
         }
 
-        // 3.2 处理来自管理面板的 API (需要密钥验证)
-        if (pathname.startsWith('/api/toutiao/') || pathname === '/api/inspirations/generate') {
-            const secret = url.searchParams.get('secret');
-            if (secret !== this.env.ADMIN_SECRET) {
-                return new Response(JSON.stringify({ success: false, message: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
-            }
-
-            // 使用 switch 处理所有管理 API
-            switch (true) {
-                // ✅ [新] 处理文章生成请求，调用您写好的 handleGenerateFromInspiration 方法
-                case pathname === '/api/inspirations/generate' && request.method === 'POST':
-                    return this.handleGenerateFromInspiration(request);
-
-                // ✅ [新] 返回任务队列，数据源是 taskProcessor
-                case pathname === '/api/toutiao/queue':
-                    const queue = await this.taskProcessor.getQueue();
-                    return new Response(JSON.stringify({
-                        success: true,
-                        length: queue.length,
-                        tasks: queue
-                    }), { headers: { 'Content-Type': 'application/json' } });
-
-                // ✅ [新] 返回统计数据，数据源是 taskProcessor
-                case pathname === '/api/toutiao/stats':
-                    const stats = await this.taskProcessor.getStats();
-                    return new Response(JSON.stringify(stats), { headers: { 'Content-Type': 'application/json' } });
-
-                // ✅ [新] 返回已完成的结果，数据源是 taskProcessor (增加健壮性)
-                case pathname === '/api/toutiao/results':
-                    const results = await this.taskProcessor.getResults();
-                    // 健壮的排序逻辑
-                    results.sort((a, b) => {
-                        const timeA = a && a.completedAt ? new Date(a.completedAt).getTime() : 0;
-                        const timeB = b && b.completedAt ? new Date(b.completedAt).getTime() : 0;
-                        if (isNaN(timeA) || isNaN(timeB)) return 0;
-                        return timeB - timeA;
-                    });
-                    return new Response(JSON.stringify(results), { headers: { 'Content-Type': 'application/json' } });
-
-                // ✅ [新] 清空队列，调用 taskProcessor
-                case pathname === '/api/toutiao/clearQueue' && request.method === 'POST':
-                    await this.taskProcessor.clearQueue();
-                    return new Response(JSON.stringify({ success: true, message: 'Queue cleared' }), { headers: { 'Content-Type': 'application/json' } });
-
-                // ✅ [新] 触发队列处理，调用 taskProcessor
-                case pathname === '/api/toutiao/processQueue' && request.method === 'POST':
-                    // 异步触发，不等待处理完成
-                    this.ctx.waitUntil(this.taskProcessor.processQueue());
-                    this._log('[API] Manual queue processing triggered.');
-                    return new Response(JSON.stringify({ success: true, message: 'Queue processing triggered' }), { headers: { 'Content-Type': 'application/json' } });
-
-                // ✅ [新] 查询单个任务状态，调用 taskProcessor
-                case pathname.startsWith('/api/toutiao/status/'):
-                    const taskId = pathname.split('/').pop();
-                    const task = await this.taskProcessor.getTaskStatus(taskId);
-                    if (task) {
-                        return new Response(JSON.stringify({ success: true, task }), { headers: { 'Content-Type': 'application/json' } });
-                    }
-                    return new Response(JSON.stringify({ success: false, message: 'Task not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
-
-                default:
-                    return new Response(JSON.stringify({ success: false, message: 'API Endpoint Not Found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
-            }
+        // 路由2: 处理来自管理面板的生成请求
+        if (method === 'POST' && pathname === '/api/inspirations/generate') {
+            return this.handleGenerateFromInspiration(request);
         }
 
-        // 4. [默认] 如果没有匹配的路由，返回 404
-        return new Response('Not Found', { status: 404 });
-
-    } catch (err) {
-        // 5. [健壮性] 捕获所有未处理的异常，返回标准 JSON 错误
-        this._log(`FATAL ERROR in fetch: ${err.stack}`, 'FATAL');
-        return new Response(JSON.stringify({
-            success: false,
-            message: 'Durable Object encountered an internal error.',
-            error: err.message
-        }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        // 路由3: 其他API端点
+        switch (pathname) {
+            case '/api/toutiao/status':
+                return new Response(JSON.stringify({ status: 'ok', initialized: this.initialized }), {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            default:
+                return new Response('API Endpoint Not Found in ToutiaoDO', { status: 404 });
+        }
     }
-}
-
-
 }
