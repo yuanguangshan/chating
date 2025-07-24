@@ -320,7 +320,7 @@ export class HibernatingChating2 extends DurableObject {
     if (text.startsWith('/头条')) {
       command = 'toutiao_article';
       taskPayload = { content: text.substring(3).trim() };
-    } else if (text.startsWith('/知乎热点')) {
+    } else if (text.startsWith('/知乎')) {
       command = 'zhihu_hot';
       taskPayload = {};
     } else if (text.startsWith('/知乎文章')) {
