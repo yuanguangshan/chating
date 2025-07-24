@@ -46,6 +46,32 @@ const MASTER_TOOL_DEFINITIONS = [
     { name: "get_lowest_price", description: "获取指定期货品种过去N天的最低价", parameters: { type: "OBJECT", properties: { symbol: { type: "STRING" }, days: { type: "INTEGER", default: 5 } }, required: ["symbol"] } },
 ];
 
+
+/**
+ * ✅ 新增辅助函数：递归地将JSON Schema中的类型转换为小写。
+ * @param {object} schema - 输入的JSON Schema对象。
+ * @returns {object} - 转换后的新对象。
+ */
+function convertSchemaTypesToLowercase(schema) {
+    if (typeof schema !== 'object' || schema === null) {
+        return schema;
+    }
+    if (Array.isArray(schema)) {
+        return schema.map(item => convertSchemaTypesToLowercase(item));
+    }
+    const newSchema = {};
+    for (const key in schema) {
+        if (key === 'type' && typeof schema[key] === 'string') {
+            newSchema[key] = schema[key].toLowerCase();
+        } else {
+            newSchema[key] = convertSchemaTypesToLowercase(schema[key]);
+        }
+    }
+    return newSchema;
+}
+
+
+
 /**
  * 将主工具列表格式化为 Gemini API 接受的格式。
  * @returns {object} 格式化后的工具对象
@@ -58,16 +84,21 @@ function formatToolsForGemini() {
  * 将主工具列表格式化为 OpenAI 兼容 API (Kimi, DeepSeek) 接受的格式。
  * @returns {Array<object>} 格式化后的工具数组
  */
+/**
+ * ✅ 已修正：现在会正确转换类型为小写。
+ */
 function formatToolsForOpenAI() {
     return MASTER_TOOL_DEFINITIONS.map(tool => ({
         type: 'function',
         function: {
             name: tool.name,
             description: tool.description,
-            parameters: tool.parameters
+            // 关键修正：调用新函数来转换参数的 schema
+            parameters: convertSchemaTypesToLowercase(tool.parameters) 
         }
     }));
 }
+
 
 /**
  * 将内部历史记录格式化为 Gemini API 接受的格式。
@@ -210,7 +241,7 @@ export async function getDeepSeekExplanation(text, env) {
 
 export async function getGeminiImageDescription(imageUrl, env) {
     const { base64, contentType } = await fetchImageAsBase64(imageUrl);
-    const proModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent`;
+    const proModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent`;
     const prompt = "请仔细描述图片的内容，如果图片中识别出有文字，则在回复的内容中返回这些文字，并且这些文字支持复制，之后是对文字的仔细描述，格式为：图片中包含文字：{文字内容}；图片的描述：{图片描述}";
     const payload = { contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: contentType, data: base64 } }] }] };
     try {
@@ -229,7 +260,7 @@ export async function getGeminiImageDescription(imageUrl, env) {
 }
 
 export async function getGeminiExplanation(text, env) {
-    const proModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent`;
+    const proModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent`;
     const payload = { contents: [{ parts: [{ text }] }] };
     try {
         const data = await callGeminiApi(proModelUrl, payload, env);
@@ -264,7 +295,7 @@ export async function getKimiExplanation(text, env) {
 export async function getKimiImageDescription(imageUrl, env) {
     const { base64, contentType } = await fetchImageAsBase64(imageUrl);
     try {
-        const data = await callKimiApi("moonshot-v1-vision-pro", {
+        const data = await callKimiApi("kimi-k2-0711-preview", {
             messages: [{ role: "user", content: [{ type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } }, { type: "text", text: "请仔细描述图片的内容，如果图片中识别出有文字，则在回复的内容中返回这些文字，并且这些文字支持复制，之后是对文字的仔细描述，格式为：图片中包含文字：{文字内容}；图片的描述：{图片描述}" }] }],
             temperature: 0.3,
         }, env);
@@ -280,8 +311,8 @@ export async function getKimiImageDescription(imageUrl, env) {
 // --- 聊天类函数 (Chat Functions) ---
 
 export async function getGeminiChatAnswer(question, history = [], env, logCallback = () => {}) {
-    const flashModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent`;
-    const proModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent`;
+    const flashModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
+    const proModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent`;
     const tools = formatToolsForGemini();
     const formattedHistory = formatHistoryForGemini(history);
     const contents = [
