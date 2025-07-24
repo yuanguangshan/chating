@@ -58,13 +58,13 @@ export default {
       }
 
       // ✅ 路由 2: 专用 API 端点 (上传、AI等)
-      if (pathname === '/api/upload') {
+      if (pathname === '/upload') {
         return handleUpload(request, env);
       }
-      if (pathname === '/api/ai/explain') {
+      if (pathname === '/ai/explain') {
         return handleAiExplain(request, env);
       }
-      if (pathname === '/api/ai/describe-image') {
+      if (pathname === '/ai/describe-image') {
         return handleAiDescribeImage(request, env);
       }
 
@@ -250,7 +250,7 @@ async function handleUpload(request, env) {
         const filename = decodeURIComponent(request.headers.get('X-Filename') || 'untitled');
         const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
         const r2ObjectKey = `chating/${Date.now()}-${crypto.randomUUID().substring(0, 8)}-${filename}`;
-        const object = await env.R2_BUCKET.put(request.body, { httpMetadata: { contentType } });
+        const object = await env.R2_BUCKET.put(r2ObjectKey, request.body, { httpMetadata: { contentType } });
         const publicUrl = `${env.R2_PUBLIC_DOMAIN || 'https://pic.want.biz'}/${object.key}`;
         return new Response(JSON.stringify({ url: publicUrl }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     } catch (error) {

@@ -484,7 +484,7 @@ Response: 房间已成功重置。 (纯文本)
 
 AI 文本解释 (Gemini / DeepSeek / Kimi)
 
-Endpoint: https://{API_DOMAIN}/ai-explain
+Endpoint: https://{API_DOMAIN}/ai/explain
 
 Method: POST
 
