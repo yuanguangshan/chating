@@ -317,19 +317,23 @@ export class HibernatingChating2 extends DurableObject {
     const text = payload.text.trim();
     let command, taskPayload;
 
-    if (text.startsWith('/头条')) {
-      command = 'toutiao_article';
-      taskPayload = { content: text.substring(3).trim() };
-    } else if (text.startsWith('/知乎')) {
-      command = 'zhihu_hot';
-      taskPayload = {};
+    // ✅ === 修改后的命令路由 ===
+    if (text.startsWith('/新闻') || text.startsWith('/灵感')) {
+        command = 'inspiration'; // 👈 关键修改：将 /新闻 和 /灵感 都映射到 worker.js 认识的 'inspiration' 指令
+        taskPayload = {}; // InspirationDO 不需要额外参数，所以设为空对象
+    } else if (text.startsWith('/头条')) {
+        command = 'toutiao_article';
+        taskPayload = { content: text.substring(3).trim() };
     } else if (text.startsWith('/知乎文章')) {
-      command = 'zhihu_article';
-      taskPayload = { topic: text.substring(5).trim() };
-    } else if (text.startsWith('/新闻')) {
-      command = 'news_article';
-      taskPayload = { topic: text.substring(3).trim() };
+        command = 'zhihu_article';
+        taskPayload = { topic: text.substring(5).trim() };
+    } else if (text.startsWith('/知乎')) { // 保持您原有的 /知乎 指向知乎热榜
+        command = 'zhihu_hot';
+        taskPayload = {};
     }
+    // ✅ === 修改结束 ===
+
+
 
     if (!command) {
       return this.handleChatMessage(session, payload);
