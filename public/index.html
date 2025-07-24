@@ -2099,7 +2099,7 @@ if (contextMenu) {
             logDebug("图片描述：缺少图片URL", LOG_LEVELS.WARNING);
             return;
         }
-        apiUrl = '/ai-describe-image';
+        apiUrl = '/ai/describe-image';
         requestBody = { imageUrl: originalImageUrl, model: model };
         explanationText = `正在通过 ${model} 模型解读图片...`;
     } else if (action === 'text-explain' && messageType === 'text') {
