@@ -434,7 +434,15 @@ export class ToutiaoQueueManager {
      * @returns {Promise<Array>} 任务列表
      */
     async getQueue() {
-        return await this.storage.get(this.queueKey) || [];
+        const queueData = await this.storage.get(this.queueKey);
+        if (!queueData) return [];
+        
+        try {
+            return JSON.parse(queueData);
+        } catch (error) {
+            console.error('Error parsing queue data:', error);
+            return [];
+        }
     }
 
     /**

@@ -1164,6 +1164,11 @@
         populateRoomSelects();
         switchTab('inspiration-management'); // Default to inspiration tab
 
+        // 预加载发布管理相关数据
+        fetchPublishStats();
+        fetchPublishResults();
+        fetchPublishQueueStatus();
+
         // Bind user management events
         loadUsersBtn.onclick = fetchUsers;
         addUserBtn.onclick = addUser;
