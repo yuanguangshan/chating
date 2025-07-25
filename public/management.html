@@ -462,6 +462,16 @@
         color: var(--warning);
         border: 1px solid var(--warning);
       }
+      .status-tag.processing {
+        background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+        color: var(--accent);
+        border: 1px solid var(--accent);
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
 
       /* ====== Inspiration/News Card Styles ====== */
       .inspiration-grid {
@@ -1440,9 +1450,16 @@
             data.tasks.forEach((task) => {
               const li = document.createElement("li");
               const taskText =
-                (task.text || task.content || "无内容").substring(0, 50) +
+                (task.text || task.data?.text || task.content || "无内容").substring(0, 50) +
                 "...";
-              li.innerHTML = `<strong>ID:</strong> ${task.id.substring(0, 8)}... <strong>内容:</strong> ${taskText}`;
+              const status = task.status || "pending";
+              const statusClass = 
+                status === "pending" ? "status-tag pending" :
+                status === "processing" ? "status-tag processing" :
+                status === "completed" ? "status-tag success" :
+                status === "failed" ? "status-tag error" : "status-tag";
+              
+              li.innerHTML = `<strong>ID:</strong> ${task.id.substring(0, 8)}... <strong>内容:</strong> ${taskText} <span class="${statusClass}">${status}</span>`;
               publishPendingTasksList.appendChild(li);
             });
           } else {
@@ -1459,8 +1476,8 @@
         try {
           const domain = `https://${apiDomain || "api.yuangs.cc"}`;
           await fetch(
-            `${domain}/api/toutiao/clearQueue?secret=${adminSecret}`,
-            { method: "POST" }
+            `${domain}/api/toutiao/queue?secret=${adminSecret}`,
+            { method: "DELETE" }
           );
           fetchPublishQueueStatus();
         } catch (e) {
@@ -1472,11 +1489,17 @@
         if (!confirm("确定要立即处理队列中的所有任务吗？")) return;
         try {
           const domain = `https://${apiDomain || "api.yuangs.cc"}`;
-          await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`, {
-            method: "DELETE",
+          const res = await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`, {
+            method: "POST",
           });
-          fetchPublishQueueStatus();
-          fetchPublishResults();
+          if (!res.ok) throw new Error(await res.text());
+          
+          alert("队列处理已启动，请稍后刷新查看结果");
+          setTimeout(() => {
+            fetchPublishQueueStatus();
+            fetchPublishResults();
+            fetchPublishStats();
+          }, 3000);
         } catch (e) {
           alert(`处理失败: ${e.message}`);
         }
@@ -1488,7 +1511,7 @@
         try {
           const domain = `https://${apiDomain || "api.yuangs.cc"}`;
           const res = await fetch(
-            `${domain}/api/toutiao/status/${taskId}?secret=${adminSecret}`
+            `${domain}/api/toutiao/results?id=${taskId}&secret=${adminSecret}`
           );
           const data = await res.json();
           publishTaskStatusDisplay.textContent = JSON.stringify(data, null, 2);
@@ -1536,12 +1559,13 @@
               const title = result.title || result.topic || "无标题";
               const isSuccess =
                 result.success ||
-                (result.publishResult && result.publishResult.success);
+                (result.publishResult && result.publishResult.success) ||
+                result.status === "success";
               const status = isSuccess
                 ? '<span class="status-tag success">成功</span>'
                 : '<span class="status-tag error">失败</span>';
-              const completedAt = result.completedAt
-                ? new Date(result.completedAt).toLocaleString()
+              const completedAt = result.createdAt || result.completedAt
+                ? new Date(result.createdAt || result.completedAt).toLocaleString()
                 : "N/A";
               li.innerHTML = `${status} <strong>${title}</strong> <small>(${completedAt})</small>`;
               publishResultsList.appendChild(li);

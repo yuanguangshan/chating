@@ -175,10 +175,8 @@ export class ToutiaoServiceDO2 extends DurableObject {
         });
       }
 
-      // 从队列中移除（延迟1秒，让前端有时间看到状态更新）
-      setTimeout(async () => {
-        await this.removeFromQueue(processorTask.id);
-      }, 1000);
+      // 立即从队列中移除，确保状态同步
+      await this.removeFromQueue(processorTask.id);
     }
   }
 
@@ -246,7 +244,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
         username: callbackInfo.username,
       });
     } finally {
-      // 从队列中移除
+      // 立即从队列中移除，确保状态同步
       await this.removeFromQueue(taskId);
     }
 
@@ -362,6 +360,84 @@ export class ToutiaoServiceDO2 extends DurableObject {
         } else if (method === "DELETE") {
           await this.clearTaskQueue();
           return new Response(JSON.stringify({ success: true }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        } else if (method === "POST") {
+          // 处理队列中的任务
+          await this.initialize();
+          if (!this.taskProcessor) {
+            return new Response(JSON.stringify({ error: "Task processor not initialized" }), {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          
+          const queue = await this.getTaskQueue();
+          if (queue.length === 0) {
+            return new Response(JSON.stringify({ message: "Queue is empty" }), {
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          
+          const results = [];
+          for (const task of queue) {
+            try {
+              await this.updateQueueStatus(task.id, "processing");
+              
+              const processorTask = {
+                id: task.id,
+                text: task.data?.text || task.text || "",
+                username: task.data?.username || task.username || "system",
+              };
+              
+              const result = await this.taskProcessor.processTask(processorTask);
+              
+              if (result.success) {
+                await this.saveTaskResult(task.id, {
+                  id: task.id,
+                  title: result.title,
+                  summary: result.summary,
+                  articleUrl: `https://www.toutiao.com/article/${result.publishResult.data.data.pgc_id}/`,
+                  status: "success",
+                  createdAt: new Date().toISOString(),
+                  type: task.source || "manual",
+                });
+                await this.updateQueueStatus(task.id, "completed", { title: result.title });
+              } else {
+                await this.saveTaskResult(task.id, {
+                  id: task.id,
+                  title: "处理失败",
+                  error: result.error,
+                  status: "failed",
+                  createdAt: new Date().toISOString(),
+                  type: task.source || "manual",
+                });
+                await this.updateQueueStatus(task.id, "failed", { error: result.error });
+              }
+              
+              results.push({ taskId: task.id, success: result.success });
+              
+              // 延迟1秒后移除任务
+              setTimeout(async () => {
+                await this.removeFromQueue(task.id);
+              }, 1000);
+              
+            } catch (error) {
+              console.error(`Error processing task ${task.id}:`, error);
+              await this.saveTaskResult(task.id, {
+                id: task.id,
+                title: "处理异常",
+                error: error.message,
+                status: "failed",
+                createdAt: new Date().toISOString(),
+                type: task.source || "manual",
+              });
+              await this.updateQueueStatus(task.id, "failed", { error: error.message });
+              results.push({ taskId: task.id, success: false, error: error.message });
+            }
+          }
+          
+          return new Response(JSON.stringify({ success: true, results }), {
             headers: { "Content-Type": "application/json" },
           });
         }
@@ -563,18 +639,18 @@ export class ToutiaoServiceDO2 extends DurableObject {
         : Object.values(results);
       const queueArray = Array.isArray(queue) ? queue : Object.values(queue);
 
-      // 统计信息
+      // 统计信息 - 确保pendingTasks只统计真正待处理的任务
+      const pendingTasks = queueArray.filter((t) => t && t.status === "pending").length;
+      const processingTasks = queueArray.filter((t) => t && t.status === "processing").length;
+      
       const stats = {
         totalTasks: resultsArray.length,
         successfulTasks: resultsArray.filter((r) => r && r.status === "success")
           .length,
         failedTasks: resultsArray.filter((r) => r && r.status === "failed")
           .length,
-        pendingTasks: queueArray.filter((t) => t && t.status === "pending")
-          .length,
-        processingTasks: queueArray.filter(
-          (t) => t && t.status === "processing"
-        ).length,
+        pendingTasks: pendingTasks, // 只统计队列中真正pending的任务
+        processingTasks: processingTasks,
         queueLength: queueArray.length,
         recentTasks: resultsArray.slice(-10).reverse(), // 最近10个任务
         todayTasks: resultsArray.filter((r) => {
