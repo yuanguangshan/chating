@@ -97,8 +97,8 @@ export class AIContentProcessor {
       };
     }
 
-    // 规则1: 查找第一个H1或H2标题
-    const headingMatch = content.match(/^(#|##)\s+(.+)/m);
+    // 规则1: 查找第一个H1-H6标题
+    const headingMatch = content.match(/^(#{1,6})\s+(.+)/m);
     if (headingMatch && headingMatch[2]) {
       title = headingMatch[2].trim();
       content = content.replace(headingMatch[0], "").trim();
