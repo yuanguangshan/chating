@@ -109,7 +109,20 @@ export class ToutiaoServiceDO2 extends DurableObject {
 
       let finalContent;
       if (result.success) {
-        const articleUrl = `https://www.toutiao.com/article/${result.publishResult.data.data.pgc_id}/`;
+        // 安全地获取pgc_id，处理可能的空值
+        let articleUrl = "#";
+        let pgcId = "unknown";
+        
+        if (result.publishResult && result.publishResult.data) {
+          if (result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
+            pgcId = result.publishResult.data.data.pgc_id;
+            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
+          } else if (result.publishResult.data.pgc_id) {
+            pgcId = result.publishResult.data.pgc_id;
+            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
+          }
+        }
+        
         finalContent =
           `✅ **[后台任务] 文章已发布**\n\n` +
           `### ${result.title}\n\n` +
@@ -121,6 +134,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
         await this.updateQueueStatus(processorTask.id, "completed", {
           title: result.title,
           url: articleUrl,
+          pgcId: pgcId
         });
       } else {
         finalContent = `> (❌ **[后台任务] 文章处理失败**: ${result.error || "未知错误"})`;
@@ -164,11 +178,26 @@ export class ToutiaoServiceDO2 extends DurableObject {
     } finally {
       // 仅在成功时保存任务结果
       if (result && result.success) {
+        // 安全地获取pgc_id和文章URL
+        let articleUrl = "#";
+        let pgcId = "unknown";
+        
+        if (result.publishResult && result.publishResult.data) {
+          if (result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
+            pgcId = result.publishResult.data.data.pgc_id;
+            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
+          } else if (result.publishResult.data.pgc_id) {
+            pgcId = result.publishResult.data.pgc_id;
+            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
+          }
+        }
+
         await this.saveTaskResult(processorTask.id, {
           id: processorTask.id,
           title: result.title,
           summary: result.summary,
-          articleUrl: `https://www.toutiao.com/article/${result.publishResult.data.data.pgc_id}/`,
+          articleUrl: articleUrl,
+          pgcId: pgcId,
           status: "success",
           createdAt: new Date().toISOString(),
           type: "inspiration",
@@ -202,7 +231,19 @@ export class ToutiaoServiceDO2 extends DurableObject {
       const result = await this.taskProcessor.processTask(processorTask);
 
       if (result.success) {
-        const articleUrl = `https://www.toutiao.com/article/${result.publishResult.data.data.pgc_id}/`;
+        // 安全地获取pgc_id和文章URL
+        let articleUrl = "#";
+        let pgcId = "unknown";
+        
+        if (result.publishResult && result.publishResult.data) {
+          if (result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
+            pgcId = result.publishResult.data.data.pgc_id;
+            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
+          } else if (result.publishResult.data.pgc_id) {
+            pgcId = result.publishResult.data.pgc_id;
+            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
+          }
+        }
         finalContent =
           `✅ **头条文章已发布**\n\n` +
           `### ${result.title}\n\n` +
@@ -393,16 +434,31 @@ export class ToutiaoServiceDO2 extends DurableObject {
               const result = await this.taskProcessor.processTask(processorTask);
               
               if (result.success) {
+                // 安全地获取pgc_id和文章URL
+                let articleUrl = "#";
+                let pgcId = "unknown";
+                
+                if (result.publishResult && result.publishResult.data) {
+                  if (result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
+                    pgcId = result.publishResult.data.data.pgc_id;
+                    articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
+                  } else if (result.publishResult.data.pgc_id) {
+                    pgcId = result.publishResult.data.pgc_id;
+                    articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
+                  }
+                }
+
                 await this.saveTaskResult(task.id, {
                   id: task.id,
                   title: result.title,
                   summary: result.summary,
-                  articleUrl: `https://www.toutiao.com/article/${result.publishResult.data.data.pgc_id}/`,
+                  articleUrl: articleUrl,
+                  pgcId: pgcId,
                   status: "success",
                   createdAt: new Date().toISOString(),
                   type: task.source || "manual",
                 });
-                await this.updateQueueStatus(task.id, "completed", { title: result.title });
+                await this.updateQueueStatus(task.id, "completed", { title: result.title, pgcId: pgcId });
               } else {
                 await this.saveTaskResult(task.id, {
                   id: task.id,
@@ -461,8 +517,21 @@ export class ToutiaoServiceDO2 extends DurableObject {
     const TASK_RESULTS_KEY = `toutiao_results`;
     try {
       const resultsData = await this.ctx.storage.get(TASK_RESULTS_KEY);
-      const results = resultsData ? JSON.parse(resultsData) : {};
-      return results[taskId] || null;
+      let results = resultsData ? JSON.parse(resultsData) : [];
+
+      // 确保是数组格式，处理可能的旧数据格式
+      let resultsArray = [];
+      if (Array.isArray(results)) {
+        resultsArray = results.filter(item => item != null);
+      } else if (results && typeof results === 'object') {
+        // 如果数据是对象格式，转换为数组
+        resultsArray = Object.values(results).filter(item => item != null);
+      } else {
+        resultsArray = [];
+      }
+
+      // 在数组中查找指定任务
+      return resultsArray.find(item => item && item.id === taskId) || null;
     } catch (error) {
       console.error("[ToutiaoDO] Error getting task result:", error);
       return null;
@@ -473,15 +542,25 @@ export class ToutiaoServiceDO2 extends DurableObject {
     const TASK_RESULTS_KEY = `toutiao_results`;
     try {
       const resultsData = await this.ctx.storage.get(TASK_RESULTS_KEY);
-      const results = resultsData ? JSON.parse(resultsData) : [];
+      let results = resultsData ? JSON.parse(resultsData) : [];
 
       // 确保是数组格式并排序（最新的在前面）
-      const resultsArray = Array.isArray(results) ? results : [];
+      // 处理可能的旧数据格式（对象格式转换为数组）
+      let resultsArray = [];
+      if (Array.isArray(results)) {
+        resultsArray = results.filter(item => item != null);
+      } else if (results && typeof results === 'object') {
+        // 如果数据是对象格式，转换为数组
+        resultsArray = Object.values(results).filter(item => item != null);
+      } else {
+        resultsArray = [];
+      }
+
       return resultsArray
         .sort(
           (a, b) =>
-            (b.createdAt || b.completedAt || 0) -
-            (a.createdAt || a.completedAt || 0)
+            new Date(b.createdAt || b.completedAt || 0).getTime() -
+            new Date(a.createdAt || a.completedAt || 0).getTime()
         )
         .slice(0, limit);
     } catch (error) {
@@ -579,10 +658,18 @@ export class ToutiaoServiceDO2 extends DurableObject {
     const TASK_RESULTS_KEY = `toutiao_results`;
     try {
       const existingData = await this.ctx.storage.get(TASK_RESULTS_KEY);
-      const results = existingData ? JSON.parse(existingData) : [];
+      let results = existingData ? JSON.parse(existingData) : [];
 
-      // 确保是数组格式
-      const resultsArray = Array.isArray(results) ? results : [];
+      // 确保是数组格式，处理可能的旧数据格式
+      let resultsArray = [];
+      if (Array.isArray(results)) {
+        resultsArray = results.filter(item => item != null);
+      } else if (results && typeof results === 'object') {
+        // 如果数据是对象格式，转换为数组
+        resultsArray = Object.values(results).filter(item => item != null);
+      } else {
+        resultsArray = [];
+      }
 
       // 添加新结果
       resultsArray.push(result);
