@@ -2739,7 +2739,7 @@
           showAppNotification("正在发布到头条...", 2000);
 
           const FLASK_PROXY_API_URL_TOUTIAO =
-            window.FLASK_API_URL || "https://your.domain.path/to/toutiaopost";
+            window.FLASK_API_URL || "https://api.yuangs.cc/api/toutiaopost";
 
           const response = await fetch(FLASK_PROXY_API_URL_TOUTIAO, {
             method: "POST",
