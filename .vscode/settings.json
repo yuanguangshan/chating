@@ -1,0 +1,64 @@
+{
+  // 核心设置：在保存时自动格式化
+  "editor.formatOnSave": true,
+
+  // 设置 Prettier 为默认的代码格式化器
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // 告诉 Prettier 扩展，即使没有找到 .prettierrc 配置，也要尝试格式化
+  // 这有助于解决之前日志中 "Require config set to true and no config present. Skipping file." 的问题
+  "prettier.requireConfig": false,
+
+  // 针对特定语言设置 Prettier 为默认格式化器
+  // 这样可以确保这些文件类型无论如何都由 Prettier 处理，避免与其他格式化器冲突
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    // 用于 .jsx 文件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    // 用于 .tsx 文件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    // 用于 .json 文件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    // 用于 .jsonc (带注释的 JSON) 文件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[html]": {
+    // 用于 .html 文件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[css]": {
+    // 用于 .css 文件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[scss]": {
+    // 用于 .scss 文件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[less]": {
+    // 用于 .less 文件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[vue]": {
+    // 用于 .vue 单文件组件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    // 用于 .md 文件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[yaml]": {
+    // 用于 .yaml 或 .yml 文件
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}
