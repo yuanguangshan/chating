@@ -4,7 +4,17 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover" />
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, minimal-ui" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="x5-orientation" content="portrait" />
+    <meta name="x5-fullscreen" content="true" />
+    <meta name="x5-page-mode" content="app" />
+    <meta name="browsermode" content="application" />
+    <meta name="nightmode" content="disable" />
+    <meta name="imagemode" content="force" />
+    <meta name="wap-font-scale" content="no" />
     <title>实时聊天室</title>
     <link
       rel="icon"
@@ -781,8 +791,10 @@
 
       /* --- INPUT AREA --- */
       #message-form {
-        position: sticky;
-        bottom: env(safe-area-inset-bottom, 0);
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
         display: flex;
         padding: 8px 12px;
         gap: 6px;
@@ -790,7 +802,9 @@
         border-top: 1px solid var(--border);
         background: var(--bg-panel);
         box-shadow: 0 -2px 15px var(--shadow);
-        z-index: 100;
+        z-index: 1000;
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
       }
       .icon-btn {
         background: none;
@@ -1435,6 +1449,63 @@
         }
         .message-image {
           max-width: 250px;
+        }
+      }
+
+      /* --- WECHAT COMPATIBILITY --- */
+      /* WeChat browser specific fixes for bottom toolbar visibility */
+      @media (max-width: 768px) {
+        /* WeChat browser detection and fixes */
+        @supports (-webkit-touch-callout: none) {
+          /* iOS Safari and WeChat */
+          #message-form {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            /* Ensure it's above the virtual keyboard */
+            z-index: 1000;
+          }
+        }
+
+        /* WeChat specific viewport handling */
+        body[data-wechat="true"] #message-form {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+          /* Additional padding for WeChat's bottom bar */
+          padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px) + 20px);
+        }
+
+        /* Force hardware acceleration for WeChat */
+        body[data-wechat="true"] .chat-container {
+          -webkit-transform: translateZ(0);
+          transform: translateZ(0);
+        }
+
+        /* Handle WeChat's address bar hiding */
+        body[data-wechat="true"] {
+          height: 100vh;
+          height: 100dvh;
+          height: -webkit-fill-available;
+        }
+
+        /* Ensure message form is always visible in WeChat */
+        @media screen and (max-width: 768px) and (-webkit-min-device-pixel-ratio: 0) {
+          #message-form {
+            /* WeChat specific positioning */
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            transform: translate3d(0, 0, 0);
+            -webkit-transform: translate3d(0, 0, 0);
+          }
         }
       }
       .header-users {
@@ -5152,6 +5223,19 @@
         }
       });
 
+      // WeChat browser detection and compatibility fixes
+      function detectWeChatBrowser() {
+        const ua = navigator.userAgent.toLowerCase();
+        const isWeChat = /micromessenger/i.test(ua);
+        if (isWeChat) {
+          document.body.setAttribute('data-wechat', 'true');
+          logDebug('WeChat browser detected, applying compatibility fixes', LOG_LEVELS.INFO);
+        }
+        return isWeChat;
+      }
+
+      // Initialize WeChat detection before chat initialization
+      detectWeChatBrowser();
       document.addEventListener("DOMContentLoaded", initializeChat);
     </script>
   </body>
