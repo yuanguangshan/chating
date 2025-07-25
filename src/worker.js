@@ -120,7 +120,7 @@ export default {
         return stub.fetch(request)
       }
 
-      // ✅ 路由 7: 处理【聊天室】API 请求 (例如历史消息)
+      // ✅ 路由 7: 处理【聊天室】API 请求 (用户管理、历史消息等)
       if (pathname.startsWith('/api/messages/history')) {
         console.log(`[Worker] Routing to ChatRoomDO for API: ${pathname}`)
         if (!env.CHAT_ROOM_DO)
@@ -147,7 +147,30 @@ export default {
         return stub.fetch(request)
       }
 
-      // ✅ 路由 8: 处理【聊天室】请求 (这是最后的、最通用的路由)
+      // ✅ 路由 8: 处理【用户管理】API 请求
+      if (pathname.startsWith('/api/users/') || pathname.startsWith('/api/room/')) {
+        console.log(`[Worker] Routing to ChatRoomDO for user management: ${pathname}`)
+        if (!env.CHAT_ROOM_DO)
+          throw new Error("Durable Object 'CHAT_ROOM_DO' is not bound.")
+        
+        // 从查询参数获取房间名（优先使用查询参数）
+        let roomName = url.searchParams.get('roomName')
+        if (!roomName) {
+          // 尝试从查询参数中获取roomName（兼容旧格式）
+          roomName = url.searchParams.get('room')
+        }
+        
+        // 如果仍然没有房间名，则使用默认值
+        if (!roomName) {
+          roomName = 'test'  // 默认房间名，与management.html中的配置保持一致
+        }
+        
+        const doId = env.CHAT_ROOM_DO.idFromName(roomName)
+        const stub = env.CHAT_ROOM_DO.get(doId)
+        return stub.fetch(request)
+      }
+
+      // ✅ 路由 9: 处理【聊天室】请求 (这是最后的、最通用的路由)
       // [修正] 使用更精确的正则表达式，避免误匹配 /management 等路径
       const roomNameMatch = pathname.match(/^\/([a-zA-Z0-9_-]+)$/)
       const roomName = roomNameMatch ? roomNameMatch[1] : null
