@@ -3963,17 +3963,17 @@
           //throttledUpdateActivityStats(); // 移除，因为 user_list_update 会处理
         },
         delete: (payload) => {
-          const { messageId } = payload;
-          if (messageId) {
+          const { id } = payload;
+          if (id) {
             logDebug(
-              `⬇️ 收到删除指令，准备移除消息: ${messageId}`,
+              `⬇️ 收到删除指令，准备移除消息: ${id}`,
               LOG_LEVELS.WARNING
             );
-            allMessages = allMessages.filter((m) => m.id !== messageId);
-            messageIdSet.delete(messageId);
+            allMessages = allMessages.filter((m) => m.id !== id);
+            messageIdSet.delete(id);
             // 直接从 DOM 移除对应的消息元素
             const msgElToDelete = chatWindowEl.querySelector(
-              `[data-id="${messageId}"]`
+              `[data-id="${id}"]`
             );
             if (msgElToDelete) {
               msgElToDelete.remove();
