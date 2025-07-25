@@ -143,8 +143,9 @@ export class HibernatingChating2 extends DurableObject {
 
   async loadMessages() {
     if (this.messages === null) {
-      this.messages = (await this.ctx.storage.get(MESSAGES_KEY)) || [];
-      this.debugLog(`📨 消息历史已加载: ${this.messages.length} 条`);
+      const storedMessages = await this.ctx.storage.get(MESSAGES_KEY);
+      this.messages = storedMessages || [];
+      this.debugLog(`📨 消息历史已加载: ${this.messages.length} 条. 存储内容: ${JSON.stringify(storedMessages ? storedMessages.slice(0, 5) : '无')}`);
     }
   }
 
