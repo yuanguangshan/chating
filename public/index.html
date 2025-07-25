@@ -1374,6 +1374,7 @@
           -webkit-overflow-scrolling: touch; /* 关键属性 */
           position: relative;
           z-index: 1; /* 确保滚动区域在顶部 */
+          padding-bottom: 80px; /* 为消息表单留出空间 */
         }
         .sidebar {
           position: fixed;
@@ -1505,6 +1506,8 @@
             z-index: 1000;
             transform: translate3d(0, 0, 0);
             -webkit-transform: translate3d(0, 0, 0);
+            /* Ensure proper spacing for last message visibility */
+            margin-bottom: env(safe-area-inset-bottom, 0px);
           }
         }
       }
