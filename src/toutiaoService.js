@@ -3,7 +3,7 @@
  * 负责处理头条内容生成和发布的所有逻辑
  */
 
-import { getGeminiChatAnswer } from "./ai.js";
+import { getGeminiChatAnswer } from './ai.js'
 
 // 头条文章模板配置
 const TOUTIAO_TEMPLATES = {
@@ -56,7 +56,7 @@ const TOUTIAO_TEMPLATES = {
 8. 文章长度适中，450-900字左右
 
 用户请求：{userInput}`,
-};
+}
 
 // 头条服务配置
 const TOUTIAO_CONFIG = {
@@ -64,7 +64,7 @@ const TOUTIAO_CONFIG = {
   DEFAULT_PROMPT_TEMPLATE: TOUTIAO_TEMPLATES.DEFAULT,
   PROCESSING_TIMEOUT: 300000, // 5分钟超时
   RETRY_ATTEMPTS: 3,
-};
+}
 
 /**
  * 内容处理器 - 负责处理AI生成的内容
@@ -77,83 +77,83 @@ export class AIContentProcessor {
    */
   processAIText(aiGeneratedText) {
     // 处理空或无效内容
-    if (!aiGeneratedText || typeof aiGeneratedText !== "string") {
+    if (!aiGeneratedText || typeof aiGeneratedText !== 'string') {
       return {
-        title: "内容生成异常",
-        content: "抱歉，AI内容生成出现异常，请稍后重试。",
-        summary: "内容生成异常，请重试...",
-      };
+        title: '内容生成异常',
+        content: '抱歉，AI内容生成出现异常，请稍后重试。',
+        summary: '内容生成异常，请重试...',
+      }
     }
 
-    let title = "精彩内容";
-    let content = aiGeneratedText.trim();
+    let title = '精彩内容'
+    let content = aiGeneratedText.trim()
 
     // 处理空内容
     if (!content) {
       return {
-        title: "空内容警告",
-        content: "AI返回了空内容，请检查输入或稍后重试。",
-        summary: "内容为空，请重试...",
-      };
+        title: '空内容警告',
+        content: 'AI返回了空内容，请检查输入或稍后重试。',
+        summary: '内容为空，请重试...',
+      }
     }
 
     // 规则1: 查找第一个H1-H6标题
-    const headingMatch = content.match(/^(#{1,6})\s+(.+)/m);
+    const headingMatch = content.match(/^(#{1,6})\s+(.+)/m)
     if (headingMatch && headingMatch[2]) {
-      title = headingMatch[2].trim();
-      content = content.replace(headingMatch[0], "").trim();
+      title = headingMatch[2].trim()
+      content = content.replace(headingMatch[0], '').trim()
     } else {
       // 规则2: 智能标题生成
-      const firstLine = content.split("\n")[0].trim();
+      const firstLine = content.split('\n')[0].trim()
 
       // 如果第一行合适作为标题
       if (
         firstLine.length > 0 &&
         firstLine.length <= TOUTIAO_CONFIG.MAX_TITLE_LENGTH
       ) {
-        title = firstLine;
-        const lines = content.split("\n");
-        lines.shift();
-        content = lines.join("\n").trim();
+        title = firstLine
+        const lines = content.split('\n')
+        lines.shift()
+        content = lines.join('\n').trim()
       } else {
         // 规则3: 从内容中提取关键短语作为标题
         const sentences = content
           .split(/[。！？\.\!\?]/)
-          .filter((s) => s.trim().length > 5);
+          .filter(s => s.trim().length > 5)
         if (sentences.length > 0) {
           const keyPhrase = sentences[0].substring(
             0,
-            TOUTIAO_CONFIG.MAX_TITLE_LENGTH
-          );
-          title = keyPhrase.length > 10 ? keyPhrase : "深度思考";
+            TOUTIAO_CONFIG.MAX_TITLE_LENGTH,
+          )
+          title = keyPhrase.length > 10 ? keyPhrase : '深度思考'
         } else {
           // 规则4: 从第一行截取合适长度
-          title = firstLine.substring(0, TOUTIAO_CONFIG.MAX_TITLE_LENGTH);
+          title = firstLine.substring(0, TOUTIAO_CONFIG.MAX_TITLE_LENGTH)
         }
       }
     }
 
     // 确保内容不为空
     if (!content.trim()) {
-      content = aiGeneratedText.trim();
+      content = aiGeneratedText.trim()
     }
 
     // 清理标题
     title = title
-      .replace(/^["'""]/, "")
-      .replace(/["'""]$/, "")
-      .trim();
+      .replace(/^["'""]/, '')
+      .replace(/["'""]$/, '')
+      .trim()
     if (title.length === 0) {
-      title = "思考感悟";
+      title = '思考感悟'
     }
 
     // 生成摘要
-    const cleanContent = content.replace(/^\s*[\r\n]+/gm, "");
+    const cleanContent = content.replace(/^\s*[\r\n]+/gm, '')
     const summary =
-      cleanContent.substring(0, 200).replace(/\s+/g, " ").trim() +
-      (cleanContent.length > 200 ? "..." : "");
+      cleanContent.substring(0, 200).replace(/\s+/g, ' ').trim() +
+      (cleanContent.length > 200 ? '...' : '')
 
-    return { title, content: cleanContent, summary };
+    return { title, content: cleanContent, summary }
   }
 
   /**
@@ -163,15 +163,15 @@ export class AIContentProcessor {
    */
   validateTitle(title) {
     if (!title || title.trim().length === 0) {
-      return { valid: false, reason: "标题不能为空" };
+      return { valid: false, reason: '标题不能为空' }
     }
     if (title.length > TOUTIAO_CONFIG.MAX_TITLE_LENGTH) {
       return {
         valid: false,
         reason: `标题长度超过${TOUTIAO_CONFIG.MAX_TITLE_LENGTH}字限制`,
-      };
+      }
     }
-    return { valid: true, reason: "" };
+    return { valid: true, reason: '' }
   }
 }
 
@@ -180,8 +180,8 @@ export class AIContentProcessor {
  */
 export class ToutiaoPublisher {
   constructor(env, logger = null) {
-    this.env = env;
-    this.logger = logger || console;
+    this.env = env
+    this.logger = logger || console
   }
 
   /**
@@ -192,63 +192,74 @@ export class ToutiaoPublisher {
    * @returns {Promise<Object>} 发布结果
    */
   async publish(title, content, options = {}) {
-    const flaskProxyUrl = `${this.env.FLASK_API || "https://api.yuangs.cc"}/api/toutiaopost`;
+    const flaskProxyUrl = `${this.env.FLASK_API || 'https://api.yuangs.cc'}/api/toutiaopost`
     if (!this.env.FLASK_API) {
-      console.warn("⚠️ 未配置FLASK_API环境变量，使用默认值");
+      console.warn('⚠️ 未配置FLASK_API环境变量，使用默认值')
     }
 
     this.logger.log(`🚀 准备通过代理 ${flaskProxyUrl} 发布到头条...`, {
       title,
-    });
+    })
 
     const payload = {
       title,
       content,
       ...options,
-    };
+    }
 
-    let lastError;
+    let lastError
     for (let attempt = 1; attempt <= TOUTIAO_CONFIG.RETRY_ATTEMPTS; attempt++) {
       try {
         const response = await fetch(flaskProxyUrl, {
-          method: "POST",
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
-            "User-Agent": "ToutiaoService/1.0",
+            'Content-Type': 'application/json',
+            'User-Agent': 'ToutiaoService/1.0',
           },
           body: JSON.stringify(payload),
-        });
+        })
 
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
+          const errorText = await response.text()
+          throw new Error(`HTTP ${response.status}: ${errorText}`)
         }
 
-        const data = await response.json();
-        this.logger.log("✅ 成功通过代理提交到头条", data);
+        const data = await response.json()
+
+        // ✅ [核心修正] 增加对代理返回的业务逻辑状态的检查
+        // 假设代理返回的JSON结构为 { success: boolean, data: object | null, message: string }
+        if (data.success === false || !data.data) {
+          // 如果业务逻辑失败或关键数据不存在，则抛出异常，触发重试机制
+          const errorMessage =
+            data.message || '代理返回了业务失败状态，但未提供错误信息。'
+          throw new Error(`代理报告失败: ${errorMessage}`)
+        }
+
+        this.logger.log('✅ 成功通过代理提交到头条', data)
 
         return {
           success: true,
-          data,
+          data, // 此时的 data 可以确信是成功的业务数据
           attempt,
           timestamp: new Date().toISOString(),
-        };
+        }
       } catch (error) {
-        lastError = error;
+        lastError = error
         this.logger.log(
           `💥 发布尝试 ${attempt} 失败: ${error.message}`,
-          "ERROR"
-        );
+          'ERROR',
+        )
 
         if (attempt < TOUTIAO_CONFIG.RETRY_ATTEMPTS) {
-          await this.delay(1000 * attempt); // 指数退避
+          await this.delay(1000 * attempt) // 指数退避
         }
       }
     }
 
+    // 所有重试失败后，抛出最终的错误
     throw new Error(
-      `发布失败，已尝试${TOUTIAO_CONFIG.RETRY_ATTEMPTS}次: ${lastError.message}`
-    );
+      `发布失败，已尝试${TOUTIAO_CONFIG.RETRY_ATTEMPTS}次: ${lastError.message}`,
+    )
   }
 
   /**
@@ -257,19 +268,18 @@ export class ToutiaoPublisher {
    * @returns {Promise}
    */
   delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms))
   }
 }
-
 /**
  * 头条任务处理器
  */
 export class ToutiaoTaskProcessor {
   constructor(env, logger = null) {
-    this.env = env;
-    this.logger = logger || console;
-    this.contentProcessor = new AIContentProcessor();
-    this.publisher = new ToutiaoPublisher(env, logger);
+    this.env = env
+    this.logger = logger || console
+    this.contentProcessor = new AIContentProcessor()
+    this.publisher = new ToutiaoPublisher(env, logger)
   }
 
   /**
@@ -280,98 +290,97 @@ export class ToutiaoTaskProcessor {
   determinePromptTemplate(userInput) {
     // 故事型特征词
     const storyKeywords = [
-      "故事",
-      "讲述",
-      "经历",
-      "回忆",
-      "发生",
-      "那一天",
-      "曾经",
-      "情节",
-      "童话",
-      "小说",
-      "传说",
-      "神话",
-      "人物",
-      "剧情",
-    ];
+      '故事',
+      '讲述',
+      '经历',
+      '回忆',
+      '发生',
+      '那一天',
+      '曾经',
+      '情节',
+      '童话',
+      '小说',
+      '传说',
+      '神话',
+      '人物',
+      '剧情',
+    ]
 
     // 科普型特征词
     const scienceKeywords = [
-      "科学",
-      "原理",
-      "研究",
-      "发现",
-      "技术",
-      "为什么",
-      "怎么回事",
-      "分析",
-      "解释",
-      "介绍",
-      "科普",
-      "知识",
-      "学习",
-      "探索",
-    ];
+      '科学',
+      '原理',
+      '研究',
+      '发现',
+      '技术',
+      '为什么',
+      '怎么回事',
+      '分析',
+      '解释',
+      '介绍',
+      '科普',
+      '知识',
+      '学习',
+      '探索',
+    ]
 
     // 知乎型特征词
     const zhihuKeywords = [
-      "思考",
-      "观点",
-      "看法",
-      "认为",
-      "分析",
-      "辩论",
-      "争议",
-      "角度",
-      "深度",
-      "本质",
-      "价值",
-      "意义",
-      "反思",
-      "批判",
-      "评价",
-    ];
+      '思考',
+      '观点',
+      '看法',
+      '认为',
+      '分析',
+      '辩论',
+      '争议',
+      '角度',
+      '深度',
+      '本质',
+      '价值',
+      '意义',
+      '反思',
+      '批判',
+      '评价',
+    ]
 
     // 计数各类型关键词出现次数
-    let storyCount = 0;
-    let scienceCount = 0;
-    let zhihuCount = 0;
+    let storyCount = 0
+    let scienceCount = 0
+    let zhihuCount = 0
 
     // 检查用户输入中的关键词
-    storyKeywords.forEach((keyword) => {
-      if (userInput.includes(keyword)) storyCount++;
-    });
+    storyKeywords.forEach(keyword => {
+      if (userInput.includes(keyword)) storyCount++
+    })
 
-    scienceKeywords.forEach((keyword) => {
-      if (userInput.includes(keyword)) scienceCount++;
-    });
+    scienceKeywords.forEach(keyword => {
+      if (userInput.includes(keyword)) scienceCount++
+    })
 
-    zhihuKeywords.forEach((keyword) => {
-      if (userInput.includes(keyword)) zhihuCount++;
-    });
+    zhihuKeywords.forEach(keyword => {
+      if (userInput.includes(keyword)) zhihuCount++
+    })
 
     // 检查输入长度和复杂度
-    const inputLength = userInput.length;
-    const containsQuestion =
-      userInput.includes("?") || userInput.includes("？");
+    const inputLength = userInput.length
+    const containsQuestion = userInput.includes('?') || userInput.includes('？')
 
     // 判断最适合的类型
     if (storyCount > scienceCount && storyCount > zhihuCount) {
-      this.logger.log(`📖 检测到故事型内容，使用故事模板`);
-      return TOUTIAO_TEMPLATES.STORY;
+      this.logger.log(`📖 检测到故事型内容，使用故事模板`)
+      return TOUTIAO_TEMPLATES.STORY
     } else if (scienceCount > storyCount && scienceCount > zhihuCount) {
-      this.logger.log(`🔬 检测到科普型内容，使用科普模板`);
-      return TOUTIAO_TEMPLATES.SCIENCE;
+      this.logger.log(`🔬 检测到科普型内容，使用科普模板`)
+      return TOUTIAO_TEMPLATES.SCIENCE
     } else if (
       (zhihuCount > storyCount && zhihuCount > scienceCount) ||
       (inputLength > 50 && containsQuestion)
     ) {
-      this.logger.log(`🤔 检测到知乎型内容，使用知乎风格模板`);
-      return TOUTIAO_TEMPLATES.ZHIHU;
+      this.logger.log(`🤔 检测到知乎型内容，使用知乎风格模板`)
+      return TOUTIAO_TEMPLATES.ZHIHU
     } else {
-      this.logger.log(`📝 使用默认通用模板`);
-      return TOUTIAO_TEMPLATES.DEFAULT;
+      this.logger.log(`📝 使用默认通用模板`)
+      return TOUTIAO_TEMPLATES.DEFAULT
     }
   }
 
@@ -385,41 +394,41 @@ export class ToutiaoTaskProcessor {
    * @returns {Promise<Object>} 处理结果
    */
   async processTask(task, options = {}) {
-    const { text, username, id } = task;
-    const startTime = Date.now();
+    const { text, username, id } = task
+    const startTime = Date.now()
 
     try {
-      this.logger.log(`📰 开始处理头条任务 [${id}]`, { username, text });
+      this.logger.log(`📰 开始处理头条任务 [${id}]`, { username, text })
 
       // 1. 自动判断适合的风格
-      const promptTemplate = this.determinePromptTemplate(text);
+      const promptTemplate = this.determinePromptTemplate(text)
 
       // 2. 生成AI内容
-      const prompt = promptTemplate.replace("{userInput}", text);
-      const generatedText = await getGeminiChatAnswer(prompt, [], this.env);
+      const prompt = promptTemplate.replace('{userInput}', text)
+      const generatedText = await getGeminiChatAnswer(prompt, [], this.env)
 
       this.logger.log(
-        `🤖 AI原始返回内容: ${generatedText ? generatedText.substring(0, 200) + "..." : "空内容"}`
-      );
+        `🤖 AI原始返回内容: ${generatedText ? generatedText.substring(0, 200) + '...' : '空内容'}`,
+      )
 
       // 3. 处理内容
       const { title, content, summary } =
-        this.contentProcessor.processAIText(generatedText);
+        this.contentProcessor.processAIText(generatedText)
 
       // 4. 验证标题
-      const titleValidation = this.contentProcessor.validateTitle(title);
+      const titleValidation = this.contentProcessor.validateTitle(title)
       if (!titleValidation.valid) {
-        throw new Error(`标题验证失败: ${titleValidation.reason}`);
+        throw new Error(`标题验证失败: ${titleValidation.reason}`)
       }
 
       // 5. 发布到头条
       const publishResult = await this.publisher.publish(
         title,
         content,
-        options
-      );
+        options,
+      )
 
-      const processingTime = Date.now() - startTime;
+      const processingTime = Date.now() - startTime
 
       return {
         success: true,
@@ -432,20 +441,20 @@ export class ToutiaoTaskProcessor {
         username,
         templateUsed:
           promptTemplate === TOUTIAO_TEMPLATES.DEFAULT
-            ? "default"
+            ? 'default'
             : promptTemplate === TOUTIAO_TEMPLATES.STORY
-              ? "story"
+              ? 'story'
               : promptTemplate === TOUTIAO_TEMPLATES.SCIENCE
-                ? "science"
-                : "zhihu",
-      };
+                ? 'science'
+                : 'zhihu',
+      }
     } catch (error) {
-      const processingTime = Date.now() - startTime;
+      const processingTime = Date.now() - startTime
       this.logger.log(
         `❌ 头条任务处理失败 [${id}]: ${error.message}`,
-        "ERROR",
-        error
-      );
+        'ERROR',
+        error,
+      )
 
       return {
         success: false,
@@ -453,7 +462,7 @@ export class ToutiaoTaskProcessor {
         error: error.message,
         processingTime,
         username,
-      };
+      }
     }
   }
 
@@ -464,23 +473,23 @@ export class ToutiaoTaskProcessor {
    * @returns {Promise<Array>} 处理结果列表
    */
   async processTaskQueue(tasks, options = {}) {
-    const results = [];
+    const results = []
 
     for (const task of tasks) {
       try {
-        const result = await this.processTask(task, options);
-        results.push(result);
+        const result = await this.processTask(task, options)
+        results.push(result)
       } catch (error) {
         results.push({
           success: false,
           taskId: task.id,
           error: error.message,
           username: task.username,
-        });
+        })
       }
     }
 
-    return results;
+    return results
   }
 }
 
@@ -489,9 +498,9 @@ export class ToutiaoTaskProcessor {
  */
 export class ToutiaoQueueManager {
   constructor(storage, logger = null) {
-    this.storage = storage;
-    this.logger = logger || console;
-    this.queueKey = "toutiao_task_queue";
+    this.storage = storage
+    this.logger = logger || console
+    this.queueKey = 'toutiao_task_queue'
   }
 
   /**
@@ -500,15 +509,15 @@ export class ToutiaoQueueManager {
    * @returns {Promise<number>} 当前队列长度
    */
   async addTask(task) {
-    return await this.storage.transaction(async (txn) => {
-      let queue = (await txn.get(this.queueKey)) || [];
+    return await this.storage.transaction(async txn => {
+      let queue = (await txn.get(this.queueKey)) || []
       queue.push({
         ...task,
         enqueuedAt: new Date().toISOString(),
-      });
-      await txn.put(this.queueKey, queue);
-      return queue.length;
-    });
+      })
+      await txn.put(this.queueKey, queue)
+      return queue.length
+    })
   }
 
   /**
@@ -516,14 +525,14 @@ export class ToutiaoQueueManager {
    * @returns {Promise<Array>} 任务列表
    */
   async getQueue() {
-    const queueData = await this.storage.get(this.queueKey);
-    if (!queueData) return [];
+    const queueData = await this.storage.get(this.queueKey)
+    if (!queueData) return []
 
     try {
-      return JSON.parse(queueData);
+      return JSON.parse(queueData)
     } catch (error) {
-      console.error("Error parsing queue data:", error);
-      return [];
+      console.error('Error parsing queue data:', error)
+      return []
     }
   }
 
@@ -532,9 +541,9 @@ export class ToutiaoQueueManager {
    * @returns {Promise<void>}
    */
   async clearQueue() {
-    await this.storage.delete(this.queueKey);
-    await this.updateStats(); // 清空后更新统计
-    this.logger.log("Task queue has been cleared via API.");
+    await this.storage.delete(this.queueKey)
+    await this.updateStats() // 清空后更新统计
+    this.logger.log('Task queue has been cleared via API.')
   }
 
   /**
@@ -542,7 +551,7 @@ export class ToutiaoQueueManager {
    * @returns {Promise<Array>}
    */
   async getResults() {
-    return (await this.storage.get("toutiao_history")) || [];
+    return (await this.storage.get('toutiao_history')) || []
   }
 
   /**
@@ -550,16 +559,16 @@ export class ToutiaoQueueManager {
    * @returns {Promise<Object>}
    */
   async getStats() {
-    const queue = await this.getQueue();
-    const history = await this.getResults();
-    const failedCount = history.filter((r) => !r.success).length;
+    const queue = await this.getQueue()
+    const history = await this.getResults()
+    const failedCount = history.filter(r => !r.success).length
 
     const stats = {
       pending: queue.length,
-      completed: history.filter((r) => r.success).length,
+      completed: history.filter(r => r.success).length,
       failed: failedCount,
-    };
-    return { success: true, stats: stats };
+    }
+    return { success: true, stats: stats }
   }
 
   /**
@@ -568,56 +577,53 @@ export class ToutiaoQueueManager {
    * @returns {Promise<Array>} 处理结果
    */
   async processQueue(processor) {
-    this.logger.log("Starting manual queue processing...");
+    this.logger.log('Starting manual queue processing...')
 
-    const queue = await this.getQueue();
+    const queue = await this.getQueue()
     if (queue.length === 0) {
-      this.logger.log("Queue is empty, nothing to process.");
-      return [];
+      this.logger.log('Queue is empty, nothing to process.')
+      return []
     }
 
-    const results = [];
+    const results = []
     // 注意：这里我们串行处理任务，以避免瞬间产生大量并发
     for (const task of queue) {
       // 从队列中移除当前任务
       // 这里不直接清空队列，而是逐个处理并移除，确保即使处理中断，未处理的任务仍在队列中
-      let currentQueue = await this.getQueue();
-      currentQueue = currentQueue.filter((t) => t.id !== task.id);
-      await this.storage.put(this.queueKey, currentQueue);
+      let currentQueue = await this.getQueue()
+      currentQueue = currentQueue.filter(t => t.id !== task.id)
+      await this.storage.put(this.queueKey, currentQueue)
 
       // 根据任务类型调用不同的处理逻辑
-      if (task.command === "toutiao_article" || !task.command) {
+      if (task.command === 'toutiao_article' || !task.command) {
         // 兼容旧任务没有command字段的情况
         // 这是来自管理面板或旧系统的任务
         const processorTask = {
           id: task.id,
           text: task.inspiration.contentPrompt || task.inspiration.title,
           username: task.username,
-        };
+        }
         // 调用您已有的 processAndNotify 逻辑
-        const result = await processor.processTask(
-          processorTask,
-          task.roomName
-        ); // 使用传入的processor实例
-        results.push(result);
+        const result = await processor.processTask(processorTask, task.roomName) // 使用传入的processor实例
+        results.push(result)
       } else {
         // 这里可以处理其他类型的任务
         this.logger.log(
           `Skipping unknown task type in queue: ${task.command}`,
-          "WARN"
-        );
+          'WARN',
+        )
         results.push({
           success: false,
           taskId: task.id,
           error: `Unknown task type: ${task.command}`,
-        });
+        })
       }
 
       // 更新统计数据
-      await this.updateStats();
+      await this.updateStats()
     }
-    this.logger.log("Manual queue processing finished.");
-    return results;
+    this.logger.log('Manual queue processing finished.')
+    return results
   }
 
   /**
@@ -625,18 +631,18 @@ export class ToutiaoQueueManager {
    * @returns {Promise<void>}
    */
   async updateStats() {
-    const queue = await this.getQueue();
-    const results = await this.getResults();
-    const failedCount = results.filter((r) => !r.success).length;
+    const queue = await this.getQueue()
+    const results = await this.getResults()
+    const failedCount = results.filter(r => !r.success).length
 
     const stats = {
       pending: queue.length,
-      completed: results.filter((r) => r.success).length,
+      completed: results.filter(r => r.success).length,
       failed: failedCount,
-    };
+    }
 
-    await this.storage.put("stats", stats);
-    this.logger.log("Stats updated", "DEBUG", stats);
+    await this.storage.put('stats', stats)
+    this.logger.log('Stats updated', 'DEBUG', stats)
   }
 
   /**
@@ -645,36 +651,36 @@ export class ToutiaoQueueManager {
    * @returns {Promise<Object>} 任务状态
    */
   async getTaskStatus(taskId) {
-    const queue = await this.getQueue();
-    const taskInQueue = queue.find((t) => t.id === taskId);
+    const queue = await this.getQueue()
+    const taskInQueue = queue.find(t => t.id === taskId)
 
     if (taskInQueue) {
       return {
         found: true,
         task: taskInQueue,
-        status: taskInQueue.status || "pending",
+        status: taskInQueue.status || 'pending',
         position: queue.indexOf(taskInQueue) + 1,
         queueLength: queue.length,
         inQueue: true,
-      };
+      }
     }
 
-    const history = await this.getResults();
-    const historicalTask = history.find((t) => t.id === taskId);
+    const history = await this.getResults()
+    const historicalTask = history.find(t => t.id === taskId)
 
     if (historicalTask) {
       return {
         found: true,
         task: historicalTask,
-        status: historicalTask.status || "completed",
+        status: historicalTask.status || 'completed',
         inQueue: false,
-      };
+      }
     }
 
     return {
       found: false,
-      error: "任务未找到",
-    };
+      error: '任务未找到',
+    }
   }
 
   /**
@@ -682,37 +688,37 @@ export class ToutiaoQueueManager {
    * @returns {Promise<Object>} 队列状态
    */
   async getQueueStatus() {
-    const stats = await this.getStats();
-    const queue = await this.getQueue();
-    const history = await this.getResults();
+    const stats = await this.getStats()
+    const queue = await this.getQueue()
+    const history = await this.getResults()
 
-    const completedTasks = history.filter((t) => t.success).slice(-10); // 最近10个成功任务
+    const completedTasks = history.filter(t => t.success).slice(-10) // 最近10个成功任务
 
     return {
       totalInQueue: stats.stats.pending,
       pending: stats.stats.pending,
       completed: stats.stats.completed,
       failed: stats.stats.failed,
-      completedToday: history.filter((t) => {
-        const taskDate = new Date(t.createdAt);
-        const today = new Date();
-        return taskDate.toDateString() === today.toDateString();
+      completedToday: history.filter(t => {
+        const taskDate = new Date(t.createdAt)
+        const today = new Date()
+        return taskDate.toDateString() === today.toDateString()
       }).length,
-      recentCompleted: completedTasks.map((t) => ({
+      recentCompleted: completedTasks.map(t => ({
         id: t.taskId,
         title: t.title,
-        status: "completed",
+        status: 'completed',
         createdAt: t.timestamp || new Date().toISOString(), // 假设有时间戳
       })),
-      queue: queue.map((t) => ({
+      queue: queue.map(t => ({
         id: t.id,
-        topic: t.topic || "未知",
-        status: t.status || "pending",
+        topic: t.topic || '未知',
+        status: t.status || 'pending',
         createdAt: t.enqueuedAt || new Date().toISOString(),
       })),
-    };
+    }
   }
 }
 
 // 默认导出主要服务类
-export { ToutiaoTaskProcessor as default };
+export { ToutiaoTaskProcessor as default }
