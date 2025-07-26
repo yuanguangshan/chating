@@ -717,7 +717,7 @@
         </button>
       </div>
 
-      <!-- Tabs 区域 -->
+          <!-- Tabs 区域 -->
       <div class="tabs">
         <button
           class="tab-button active"
@@ -736,7 +736,7 @@
         </button>
       </div>
 
-      <!-- 灵感管理 Tab -->
+      <!-- 灵感管理 Tab (知乎) -->
       <div id="inspiration-management" class="tab-content active">
         <!-- 新增：自定义发布模块 -->
         <div class="section-box highlighted">
@@ -826,7 +826,7 @@
         </div>
       </div>
 
-      <!-- 新闻管理 Tab -->
+      <!-- 新闻管理 Tab (热点) -->
       <div id="news-management" class="tab-content">
         <div class="section-box">
           <h2>📰 全网新闻</h2>
@@ -869,8 +869,9 @@
         </div>
       </div>
 
-      <!-- 发布管理 Tab -->
+      <!-- 发布管理 Tab (头条) -->
       <div id="publish-management" class="tab-content">
+        <!-- 最新发布结果 -->
         <div
           id="latest-result-container"
           class="section-box latest-result"
@@ -893,8 +894,9 @@
           <div id="latest-result-content"></div>
         </div>
 
-        </div>
+        <!-- 修正：将原本错误放置的 </div> 移到此处，以包含所有“发布管理”的内容 -->
         <div class="section-container">
+          <!-- 历史发布结果 -->
           <div class="section-box highlighted">
             <div
               style="
@@ -917,6 +919,7 @@
               <li>加载中...</li>
             </ul>
           </div>
+          <!-- 任务队列 -->
           <div class="section-box">
             <h2>🕒 任务队列</h2>
             <p>
@@ -939,6 +942,7 @@
               <li>队列为空</li>
             </ul>
           </div>
+          <!-- 任务状态查询 -->
           <div class="section-box">
             <h2>🔍 任务状态查询</h2>
             <div class="form-group">
@@ -952,13 +956,14 @@
             <h3>任务详情:</h3>
             <pre id="publish-task-status-display">无任务信息</pre>
           </div>
+          <!-- 服务统计 -->
           <div class="section-box">
             <h2>📊 服务统计</h2>
             <button onclick="fetchPublishStats()">刷新统计</button>
             <pre id="publish-stats-display">加载中...</pre>
           </div>
         </div>
-      </div>
+      </div> <!-- <--- 这是 "publish-management" 正确的结束标签位置 -->
 
       <!-- 用户管理 Tab -->
       <div id="user-management" class="tab-content">
@@ -1020,7 +1025,6 @@
           </div>
         </div>
       </div>
-    </div>
 
     <script>
       // =================================================================
