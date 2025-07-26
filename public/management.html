@@ -167,6 +167,9 @@
         border-bottom: 1px solid var(--border);
         padding-bottom: 8px;
         margin-bottom: 12px;
+        /* 确保标题在小屏幕上换行 */
+        word-break: break-word;
+        overflow-wrap: break-word;
       }
       .section-box h3 {
         font-size: 1em;
@@ -179,6 +182,8 @@
         color: var(--text-sub);
         margin-bottom: 8px;
         font-size: 0.9em;
+        word-break: break-word; /* 确保段落文本换行 */
+        overflow-wrap: break-word;
       }
       .section-box ul {
         list-style: none;
@@ -195,7 +200,8 @@
         border-bottom: 1px solid var(--border);
         color: var(--text);
         font-size: 0.9em;
-        word-break: break-word;
+        word-break: break-word; /* 确保列表项文本换行 */
+        overflow-wrap: break-word;
       }
       .section-box li:last-child {
         border-bottom: none;
@@ -212,6 +218,8 @@
         overflow-y: auto;
         color: var(--text-sub);
         border: 1px solid var(--border);
+        word-break: break-word; /* 确保预格式文本换行 */
+        overflow-wrap: break-word;
       }
       .section-box textarea {
         min-height: 80px;
@@ -237,7 +245,8 @@
       }
       .input-with-clear {
         position: relative;
-        display: block;
+        display: block; /* Ensures it takes full width when inside a flex column */
+        width: 100%; /* Explicitly set width for robustness */
       }
       .input-with-clear textarea {
         padding-right: 35px;
@@ -511,6 +520,8 @@
         padding-right: 40px;
         line-height: 1.3;
         border: none;
+        word-break: break-word; /* Ensure card titles wrap */
+        overflow-wrap: break-word;
       }
       .inspiration-card-description {
         font-size: 0.8em;
@@ -524,6 +535,8 @@
         -webkit-box-orient: vertical;
         line-height: 1.3;
         flex-grow: 1;
+        word-break: break-word; /* Ensure description wraps */
+        overflow-wrap: break-word;
       }
       .inspiration-card-actions {
         display: flex;
@@ -567,6 +580,12 @@
         box-shadow: 0 6px 20px
           color-mix(in srgb, var(--error) 20%, var(--shadow));
       }
+      /* Ensure content inside latest-result-content wraps */
+      #latest-result-content div {
+        word-break: break-word;
+        overflow-wrap: break-word;
+      }
+
       @keyframes glow {
         from {
           box-shadow: 0 6px 20px
@@ -616,43 +635,71 @@
         }
         .section-container,
         .inspiration-grid {
-          grid-template-columns: 1fr;
+          grid-template-columns: 1fr; /* Force single column layout */
         }
         .tabs {
           flex-wrap: wrap;
+          justify-content: flex-start; /* Align tabs to start, allows wrapping */
         }
         .tab-button {
-          flex: 1 0 auto;
+          flex: 1 0 auto; /* Allow buttons to grow/shrink based on content, wrap if needed */
           font-size: 0.9em;
           padding: 8px 12px;
+          min-width: unset; /* Remove explicit min-width */
+          max-width: 100%; /* Ensure it doesn't try to be too wide */
         }
 
-        /* 修复移动端按钮布局 */
+        /* FIX FOR MOBILE OVERFLOW AND LAYOUT:
+     * Force inputs, selects, and buttons to stack vertically and take full width
+     * within their respective form-group/controls containers.
+     */
+        .controls,
         .form-group {
-          flex-wrap: wrap;
-          gap: 8px;
+          flex-direction: column; /* Stack items vertically */
+          gap: 8px; /* Consistent spacing between stacked items */
+          align-items: stretch; /* Make children fill the width */
+          margin-bottom: 12px; /* Maintain spacing with other sections */
+          width: 100%; /* Ensure the flex container itself takes full width */
         }
-        .form-group input[type='text'] {
-          min-width: 100%;
-          margin-bottom: 8px;
+
+        /* Ensure inputs and selects always take full width */
+        input[type='text'],
+        select {
+          width: 100%; /* Explicitly set width to 100% */
+          min-width: 0; /* Allow shrinking if parent has constraints */
+          flex-shrink: 1; /* Allow to shrink */
+          flex-grow: 1; /* Allow to grow */
+          margin-bottom: 0; /* Let gap handle spacing */
         }
-        .form-group button {
-          flex: 1 1 auto;
+
+        /* Ensure textarea also takes full width */
+        .section-box textarea {
+          width: 100%;
           min-width: 0;
-          padding: 10px 12px;
-          font-size: 0.85em;
         }
+
+        /* Ensure the input-with-clear wrapper takes full width */
+        .input-with-clear {
+          width: 100%; /* Force full width */
+          flex: 1 1 auto; /* Be flexible within its parent, allows shrinking */
+          min-width: 0; /* Prevent overflow */
+        }
+
+        /* Ensure buttons also take full width when stacked vertically */
+        .form-group button,
+        .controls button {
+          width: 100%; /* Explicitly set button width to 100% */
+          flex-shrink: 1; /* Allow to shrink */
+          flex-grow: 1; /* Allow to grow */
+          min-width: 0; /* Prevent overflow */
+          padding: 12px 18px; /* Restore original padding for full-width buttons */
+        }
+
+        /* Labels should take full width and stack above their inputs */
         .form-group label {
-          flex-basis: 100%;
-          margin-bottom: 4px;
-        }
-        .form-group select {
-          flex: 1;
-          min-width: 0;
-        }
-        .form-group button {
-          flex: 1;
-          min-width: 0;
+          width: 100%; /* Make label take full width */
+          margin-bottom: 4px; /* Maintain spacing below label */
+          text-align: left; /* Align label text to left for readability */
         }
       }
     </style>
@@ -824,24 +871,28 @@
 
       <!-- 发布管理 Tab -->
       <div id="publish-management" class="tab-content">
-        <div id="latest-result-container" style="display: none">
-          <div id="latest-result" class="latest-result">
-            <div
-              style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 10px;
-              "
-            >
-              <h2 style="margin: 0; border: none; padding: 0">最新发布结果</h2>
-              <span
-                id="latest-result-time"
-                style="font-size: 0.85em; color: var(--text-sub)"
-              ></span>
-            </div>
-            <div id="latest-result-content"></div>
+        <div
+          id="latest-result-container"
+          class="section-box latest-result"
+          style="display: none"
+        >
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 10px;
+            "
+          >
+            <h2 style="margin: 0; border: none; padding: 0">最新发布结果</h2>
+            <span
+              id="latest-result-time"
+              style="font-size: 0.85em; color: var(--text-sub)"
+            ></span>
           </div>
+          <div id="latest-result-content"></div>
+        </div>
+
         </div>
         <div class="section-container">
           <div class="section-box highlighted">
@@ -1050,7 +1101,6 @@
       const latestResultContainer = document.getElementById(
         'latest-result-container',
       )
-      const latestResult = document.getElementById('latest-result')
       const latestResultContent = document.getElementById(
         'latest-result-content',
       )
@@ -1620,31 +1670,49 @@
       }
 
       function showLatestResult(result) {
+        // 如果没有结果，则隐藏容器并返回
         if (!result) {
-          latestResultContainer.style.display = 'none'
-          return
+          latestResultContainer.style.display = 'none';
+          return;
         }
-        latestResultContainer.style.display = 'block'
-        const isSuccess =
-          result.success ||
-          (result.publishResult && result.publishResult.success)
-        latestResult.className = isSuccess
-          ? 'latest-result'
-          : 'latest-result error'
-        latestResultTime.textContent = result.completedAt
-          ? new Date(result.completedAt).toLocaleString()
-          : 'N/A'
-        const title = result.title || result.topic || '无标题'
-        const status = isSuccess
-          ? '<span class="status-tag success">发布成功</span>'
-          : '<span class="status-tag error">发布失败</span>'
-        const errorMsg =
-          result.publishResult && result.publishResult.error
-            ? `<div style="color: var(--error); margin-top: 4px;">错误: ${result.publishResult.error}</div>`
-            : ''
-        latestResultContent.innerHTML = `<div style="font-weight: bold; font-size: 1.1em;">${title}</div><div><strong>状态:</strong> ${status}</div>${errorMsg}`
-      }
 
+        // 确保容器可见
+        latestResultContainer.style.display = 'block';
+
+        // 判断任务是否成功，优先使用 result.status
+        const isSuccess = result.status === 'success';
+
+        // 根据成功或失败状态更新容器的类，从而改变样式（例如边框颜色）
+        latestResultContainer.className = isSuccess
+          ? 'section-box latest-result' // 成功时保留原有样式
+          : 'section-box latest-result error'; // 失败时添加 error 样式
+
+        // 显示时间，使用 createdAt 字段
+        latestResultTime.textContent = result.createdAt
+          ? new Date(result.createdAt).toLocaleString()
+          : 'N/A';
+
+        // 获取标题，防止为空
+        const title = result.title || result.topic || '无标题';
+
+        // 根据成功或失败状态生成对应的状态标签HTML
+        const statusTagHtml = isSuccess
+          ? '<span class="status-tag success">发布成功</span>'
+          : '<span class="status-tag error">发布失败</span>';
+
+        // 获取错误信息，优先使用顶层 error 字段，其次是 errorDetails.message
+        const errorMsgContent = result.error || result.errorDetails?.message;
+        const errorMsgHtml = errorMsgContent
+          ? `<div style="color: var(--error); margin-top: 4px;">错误: ${errorMsgContent}</div>`
+          : '';
+
+        // 填充内容区域，确保文本换行
+        latestResultContent.innerHTML = `
+            <div style="font-weight: bold; font-size: 1.1em; word-break: break-word; overflow-wrap: break-word;">${title}</div>
+            <div><strong>状态:</strong> ${statusTagHtml}</div>
+            ${errorMsgHtml}
+        `;
+      }
       // =================================================================
       //  User Management Functions
       // =================================================================
