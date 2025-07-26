@@ -770,9 +770,13 @@
       <div id="inspiration-management" class="tab-content active">
         <!-- 新增：自定义发布模块 -->
         <div class="section-box highlighted">
-          <h2>✨ 自定义发布</h2>
-          <p>在这里输入任何主题、大纲或完整内容，AI 将为您生成文章并发布。</p>
-          <div class="input-with-clear">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h2 style="margin: 0; border: none; display: flex; align-items: center; gap: 8px;">
+              ✨ 文思泉涌
+            </h2>
+          </div>
+          <p style="margin-top: 0; margin-bottom: 12px;">在这里输入任何主题、大纲或完整内容，AI 将为您生成文章并发布。</p>
+          <div class="input-with-clear" style="margin-bottom: 12px;">
             <textarea
               id="custom-inspiration-text"
               placeholder="例如：写一篇关于“AI在量化交易中的应用”的文章，侧重于风险控制。"
@@ -786,12 +790,23 @@
               ×
             </button>
           </div>
+          <details style="margin-bottom: 12px;">
+            <summary style="cursor: pointer; color: var(--text-sub); font-size: 0.9em; margin-bottom: 8px;">发布选项</summary>
+            <div class="form-group" style="margin-top: 8px;">
+              <label
+                for="custom-inspiration-room-select"
+                style="white-space: nowrap; align-self: center; font-weight: 500; min-width: 60px;"
+                >发布到:</label
+              >
+              <select id="custom-inspiration-room-select" style="flex: 1;"></select>
+            </div>
+          </details>
           <div class="form-group">
-            <select id="custom-inspiration-room-select"></select>
             <button
               id="submit-custom-inspiration-btn"
               onclick="submitCustomInspiration()"
               class="submit-button"
+              style="flex: 1;"
             >
               ✍️ 生成并发布
             </button>
@@ -799,7 +814,7 @@
           <div
             id="custom-inspiration-status"
             class="status-display"
-            style="display: none"
+            style="display: none; margin-top: 10px;"
           ></div>
         </div>
 
