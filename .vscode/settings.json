@@ -16,5 +16,16 @@
   "[less]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
   "[vue]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
   "[markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
-  "[yaml]": { "editor.defaultFormatter": "esbenp.prettier-vscode" }
+  "[yaml]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+
+  "[python]": {
+    // 指定 ruff 扩展作为 Python 文件的默认格式化工具
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    // 可以在这里也启用保存时格式化，确保 Python 文件也遵循此规则
+    "editor.formatOnSave": true
+  },
+  // 添加 ruff 的特定设置，告诉它在格式化时也要修复一些代码问题
+  "editor.codeActionsOnSave": {
+    "source.fixAll.ruff": "explicit"
+  }
 }

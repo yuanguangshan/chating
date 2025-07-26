@@ -1276,6 +1276,7 @@
         roomName,
         buttonElement,
         statusUpdater,
+        targets = ["toutiao","blog"], // 默认只发布到头条
       ) {
         if (!inspirationItem || !roomName) {
           statusUpdater('未能找到话题的详细信息或目标房间', 'error', true)
@@ -1296,6 +1297,7 @@
               inspiration: inspirationItem,
               roomName: roomName,
               secret: adminSecret,
+              targets: targets, // 添加targets参数
             }),
           })
 
@@ -1345,6 +1347,7 @@
           button,
           (msg, type, show) =>
             updateStatus(customInspirationStatus, msg, type, show),
+          ["blog", "toutiao"], // 同时发布到博客和头条
         )
       }
 
@@ -1598,6 +1601,7 @@
               selectedRoom,
               generateBtn,
               statusUpdater,
+              ["blog", "toutiao"], // 同时发布到博客和头条
             )
           }
 

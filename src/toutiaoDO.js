@@ -56,7 +56,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
       await this.initialize()
 
       const body = await request.json()
-      const { inspiration, roomName, secret } = body
+      const { inspiration, roomName, secret, targets } = body
 
       if (secret !== this.env.ADMIN_SECRET) {
         return new Response(
@@ -78,6 +78,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
       this._log(`收到管理面板生成请求`, 'INFO', {
         title: inspiration.title,
         room: roomName,
+        targets: targets,
       })
 
       const taskContent = inspiration.contentPrompt || inspiration.title
@@ -88,7 +89,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
         username: 'admin_panel',
       }
 
-      this.ctx.waitUntil(this.processAndNotify(processorTask, roomName))
+      this.ctx.waitUntil(this.processAndNotify(processorTask, roomName, targets))
 
       return new Response(
         JSON.stringify({
@@ -109,7 +110,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
     }
   }
 
-  async processAndNotify(processorTask, roomName) {
+  async processAndNotify(processorTask, roomName, targets) {
     await this.addToQueue(processorTask.id, processorTask, 'admin')
 
     let result = null // ✅ [修正] 将 result 声明在 try 外部
@@ -117,7 +118,9 @@ export class ToutiaoServiceDO2 extends DurableObject {
     try {
       await this.updateQueueStatus(processorTask.id, 'processing')
 
-      result = await this.taskProcessor.processTask(processorTask) // ✅ [修正] 赋值给外部的 result
+      // 将targets参数传递给taskProcessor
+      const processOptions = targets ? { targets } : {};
+      result = await this.taskProcessor.processTask(processorTask, processOptions) // ✅ [修正] 赋值给外部的 result
 
       let finalContent
       if (result.success) {
