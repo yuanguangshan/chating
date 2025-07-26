@@ -96,3 +96,13 @@ if __name__ == "__main__":
     #     content_md="# 头条真不错，强烈向大家推荐,一个非常好的平台Python测试工具：发布到所有平台 (默认)\n\n这是Python测试工具发送的，发布到所有平台的内容，不指定targets参数。",
     #     tags="python,test,default",
     # )
+    
+    # 5. 测试：发布到所有平台 (明确指定targets=["blog", "toutiao"])
+    print("\n\n========== 测试场景 5: 发布到所有平台 (明确指定targets) ==========")
+    send_publish_request(
+        title=f"头条和博客同步发布测试{int(time.time())}",
+        content="这是一个同时发布到头条和博客的测试文章。",
+        content_md="# 头条和博客同步发布测试\n\n这是一个同时发布到头条和博客的测试文章。",
+        tags="python,test,both-platforms",
+        targets=["blog", "toutiao"]
+    )

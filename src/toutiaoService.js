@@ -205,6 +205,11 @@ export class ToutiaoPublisher {
       title,
       content,
       ...options,
+    };
+
+    // 特别处理targets参数，确保它被正确包含在payload中
+    if (options.targets) {
+      payload.targets = options.targets;
     }
 
     let lastError
@@ -394,6 +399,8 @@ export class ToutiaoTaskProcessor {
    * @returns {Promise<Object>} 处理结果
    */
   async processTask(task, options = {}) {
+    // 从options中提取targets参数
+    const { targets } = options;
     const { text, username, id } = task
     const startTime = Date.now()
 
@@ -422,10 +429,15 @@ export class ToutiaoTaskProcessor {
       }
 
       // 5. 发布到头条
+      const publishOptions = { ...options };
+      if (targets) {
+        publishOptions.targets = targets;
+      }
+      
       const publishResult = await this.publisher.publish(
         title,
         content,
-        options,
+        publishOptions,
       )
 
       const processingTime = Date.now() - startTime
