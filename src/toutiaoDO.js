@@ -1,450 +1,413 @@
 // 文件: src/toutiaoDO.js (最终修正版)
 
-import { DurableObject } from "cloudflare:workers";
-// ✅ [核心] 导入任务处理器，它包含了所有业务逻辑
-import { ToutiaoTaskProcessor } from "./toutiaoService.js";
+import { DurableObject } from 'cloudflare:workers'
+import { ToutiaoTaskProcessor } from './toutiaoService.js'
 
 export class ToutiaoServiceDO2 extends DurableObject {
   constructor(ctx, env) {
-    super(ctx, env);
-    this.ctx = ctx;
-    this.env = env;
-    this.taskProcessor = null;
-    this.initialized = false;
+    super(ctx, env)
+    this.ctx = ctx
+    this.env = env
+    this.taskProcessor = null
+    this.initialized = false
   }
 
-  static TASK_RESULTS_KEY = "toutiao_results";
-  static TASK_QUEUE_KEY = "toutiao_queue";
+  static TASK_RESULTS_KEY = 'toutiao_results'
+  static TASK_QUEUE_KEY = 'toutiao_queue'
 
   async initialize() {
-    if (this.initialized) return;
-    this._log("正在初始化头条任务处理器...");
-    this.taskProcessor = new ToutiaoTaskProcessor(this.env, console);
-    this.initialized = true;
-    this._log("头条任务处理器已初始化");
+    if (this.initialized) return
+    this._log('正在初始化头条任务处理器...')
+    this.taskProcessor = new ToutiaoTaskProcessor(this.env, console)
+    this.initialized = true
+    this._log('头条任务处理器已初始化')
   }
 
-  _log(message, level = "INFO", data = null) {
-    const logData = data ? JSON.stringify(data) : "";
+  _log(message, level = 'INFO', data = null) {
+    const logData = data ? JSON.stringify(data) : ''
     console.log(
-      `[ToutiaoDO] [${new Date().toISOString()}] [${level}] ${message} ${logData}`
-    );
+      `[ToutiaoDO] [${new Date().toISOString()}] [${level}] ${message} ${logData}`,
+    )
   }
 
-  // ✅ [新增方法] 专门处理来自管理面板的生成请求
+  // ✅ [新增] 提取一个安全的辅助函数来获取发布结果，避免重复代码和错误
+  _getSafePublishDetails(result) {
+    let articleUrl = '#'
+    let pgcId = 'unknown'
+
+    if (result && result.publishResult && result.publishResult.data) {
+      const publishData = result.publishResult.data
+      // 检查两种可能的返回结构
+      if (publishData.data && publishData.data.pgc_id) {
+        pgcId = publishData.data.pgc_id
+      } else if (publishData.pgc_id) {
+        pgcId = publishData.pgc_id
+      }
+      // 如果成功获取 pgcId，则构建 URL
+      if (pgcId && pgcId !== 'unknown') {
+        articleUrl = `https://www.toutiao.com/article/${pgcId}/`
+      }
+    }
+    return { articleUrl, pgcId }
+  }
+
   async handleGenerateFromInspiration(request) {
     try {
-      await this.initialize(); // 确保处理器已初始化
+      await this.initialize()
 
-      const body = await request.json();
-      const { inspiration, roomName, secret } = body;
+      const body = await request.json()
+      const { inspiration, roomName, secret } = body
 
-      // 1. 验证密钥
       if (secret !== this.env.ADMIN_SECRET) {
         return new Response(
-          JSON.stringify({ success: false, message: "Unauthorized" }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
-        );
+          JSON.stringify({ success: false, message: 'Unauthorized' }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } },
+        )
       }
 
-      // 2. 验证输入
       if (!inspiration || !roomName) {
         return new Response(
           JSON.stringify({
             success: false,
-            message: "Missing inspiration data or room name",
+            message: 'Missing inspiration data or room name',
           }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
-        );
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        )
       }
 
-      this._log(`收到管理面板生成请求`, "INFO", {
+      this._log(`收到管理面板生成请求`, 'INFO', {
         title: inspiration.title,
         room: roomName,
-      });
+      })
 
-      // 3. 创建一个符合 taskProcessor 要求的任务对象
-      const taskContent = inspiration.contentPrompt || inspiration.title;
-      const taskId = `admin-${crypto.randomUUID()}`; // 为管理任务生成唯一ID
+      const taskContent = inspiration.contentPrompt || inspiration.title
+      const taskId = `admin-${crypto.randomUUID()}`
       const processorTask = {
         id: taskId,
         text: taskContent,
-        username: "admin_panel", // 标记来源
-      };
+        username: 'admin_panel',
+      }
 
-      // 4. 异步处理任务，不阻塞响应
-      this.ctx.waitUntil(this.processAndNotify(processorTask, roomName));
+      this.ctx.waitUntil(this.processAndNotify(processorTask, roomName))
 
-      // 5. 立即返回成功响应，告知前端任务已接受
       return new Response(
         JSON.stringify({
           success: true,
           taskId: taskId,
-          message: "任务已创建，正在后台处理...",
+          message: '任务已创建，正在后台处理...',
         }),
-        { status: 202, headers: { "Content-Type": "application/json" } }
-      );
+        { status: 202, headers: { 'Content-Type': 'application/json' } },
+      )
     } catch (error) {
-      this._log(`处理管理面板生成请求时发生错误`, "ERROR", {
+      this._log(`处理管理面板生成请求时发生错误`, 'ERROR', {
         message: error.message,
-      });
+      })
       return new Response(
         JSON.stringify({ success: false, message: error.message }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+        { status: 500, headers: { 'Content-Type': 'application/json' } },
+      )
     }
   }
 
-  // ✅ [新增方法] 封装后台处理和结果通知的完整流程
   async processAndNotify(processorTask, roomName) {
-    // 添加到队列
-    await this.addToQueue(processorTask.id, processorTask, "admin");
+    await this.addToQueue(processorTask.id, processorTask, 'admin')
+
+    let result = null // ✅ [修正] 将 result 声明在 try 外部
 
     try {
-      // 更新队列状态为处理中
-      await this.updateQueueStatus(processorTask.id, "processing");
+      await this.updateQueueStatus(processorTask.id, 'processing')
 
-      // 调用核心处理器执行任务
-      const result = await this.taskProcessor.processTask(processorTask);
+      result = await this.taskProcessor.processTask(processorTask) // ✅ [修正] 赋值给外部的 result
 
-      let finalContent;
+      let finalContent
       if (result.success) {
-        // 安全地获取pgc_id，处理可能的空值
-        let articleUrl = "#";
-        let pgcId = "unknown";
-        
-        if (result.publishResult && result.publishResult.data) {
-          if (result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
-            pgcId = result.publishResult.data.data.pgc_id;
-            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
-          } else if (result.publishResult.data.pgc_id) {
-            pgcId = result.publishResult.data.pgc_id;
-            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
-          }
-        }
-        
+        const { articleUrl, pgcId } = this._getSafePublishDetails(result)
+
         finalContent =
           `✅ **[后台任务] 文章已发布**\n\n` +
           `### ${result.title}\n\n` +
           `> ${result.summary}\n\n` +
-          `[🔗 点击查看文章](${articleUrl})`;
-        this._log(`后台任务 ${processorTask.id} 处理成功`, "INFO", result);
+          `[🔗 点击查看文章](${articleUrl})`
+        this._log(`后台任务 ${processorTask.id} 处理成功`, 'INFO', result)
 
-        // 更新队列状态为已完成
-        await this.updateQueueStatus(processorTask.id, "completed", {
+        await this.updateQueueStatus(processorTask.id, 'completed', {
           title: result.title,
           url: articleUrl,
-          pgcId: pgcId
-        });
+          pgcId: pgcId,
+        })
       } else {
-        finalContent = `> (❌ **[后台任务] 文章处理失败**: ${result.error || "未知错误"})`;
-        this._log(`后台任务 ${processorTask.id} 处理失败`, "ERROR", result);
+        finalContent = `> (❌ **[后台任务] 文章处理失败**: ${result.error || '未知错误'})`
+        this._log(`后台任务 ${processorTask.id} 处理失败`, 'ERROR', result)
 
-        // 更新队列状态为失败
-        await this.updateQueueStatus(processorTask.id, "failed", {
-          error: result.error || "未知错误",
-        });
+        await this.updateQueueStatus(processorTask.id, 'failed', {
+          error: result.error || '未知错误',
+        })
       }
 
-      // 将结果发送到指定的房间
       const callbackInfo = {
         roomName: roomName,
-        // 对于后台任务，我们没有原始消息ID，所以创建一个新的
         messageId: `notification-${processorTask.id}`,
-      };
-      await this.performCallback(callbackInfo, finalContent, true); // true表示这是一个新消息
+      }
+      await this.performCallback(callbackInfo, finalContent, true)
     } catch (error) {
-      this._log(`后台任务 ${processorTask.id} 发生异常`, "ERROR", {
+      this._log(`后台任务 ${processorTask.id} 发生异常`, 'ERROR', {
         message: error.message,
         stack: error.stack,
-      });
+      })
 
-      // 保存失败任务结果
       await this.saveTaskResult(processorTask.id, {
         id: processorTask.id,
-        title: processorTask.text.substring(0, 50) + "...",
+        title: processorTask.text.substring(0, 50) + '...',
         text: processorTask.text,
         error: error.message,
-        status: "failed",
+        status: 'failed',
         createdAt: new Date().toISOString(),
-        type: "inspiration",
+        type: 'inspiration',
         username: processorTask.username,
-      });
+      })
 
-      // 更新队列状态为失败
-      await this.updateQueueStatus(processorTask.id, "failed", {
+      await this.updateQueueStatus(processorTask.id, 'failed', {
         error: error.message,
-      });
+      })
     } finally {
-      // 仅在成功时保存任务结果
+      // ✅ [修正] 使用提升作用域后的 result 变量
       if (result && result.success) {
-        // 安全地获取pgc_id和文章URL
-        let articleUrl = "#";
-        let pgcId = "unknown";
-        
-        if (result.publishResult && result.publishResult.data) {
-          if (result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
-            pgcId = result.publishResult.data.data.pgc_id;
-            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
-          } else if (result.publishResult.data.pgc_id) {
-            pgcId = result.publishResult.data.pgc_id;
-            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
-          }
-        }
-
+        const { articleUrl, pgcId } = this._getSafePublishDetails(result)
         await this.saveTaskResult(processorTask.id, {
           id: processorTask.id,
           title: result.title,
           summary: result.summary,
           articleUrl: articleUrl,
           pgcId: pgcId,
-          status: "success",
+          status: 'success',
           createdAt: new Date().toISOString(),
-          type: "inspiration",
-        });
+          type: 'inspiration',
+        })
       }
 
-      // 立即从队列中移除，确保状态同步
-      await this.removeFromQueue(processorTask.id);
+      await this.removeFromQueue(processorTask.id)
     }
   }
 
-  // [现有方法] 处理来自聊天室的实时任务
   async processAndCallback(task) {
-    const { command, payload, callbackInfo } = task;
-    this._log(`收到实时任务: ${command}`, "INFO", { payload, callbackInfo });
+    const { command, payload, callbackInfo } = task
+    this._log(`收到实时任务: ${command}`, 'INFO', { payload, callbackInfo })
 
-    // 添加到队列
-    const taskId = callbackInfo.messageId;
-    await this.addToQueue(taskId, { command, payload, callbackInfo }, "chat");
+    const taskId = callbackInfo.messageId
+    await this.addToQueue(taskId, { command, payload, callbackInfo }, 'chat')
 
-    let finalContent;
+    let finalContent
     try {
-      await this.initialize();
+      await this.initialize()
 
       const processorTask = {
         id: callbackInfo.messageId,
         text: payload.content,
         username: callbackInfo.username,
-      };
+      }
 
-      const result = await this.taskProcessor.processTask(processorTask);
+      const result = await this.taskProcessor.processTask(processorTask)
 
       if (result.success) {
-        // 安全地获取pgc_id和文章URL
-        let articleUrl = "#";
-        let pgcId = "unknown";
-        
-        if (result.publishResult && result.publishResult.data) {
-          if (result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
-            pgcId = result.publishResult.data.data.pgc_id;
-            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
-          } else if (result.publishResult.data.pgc_id) {
-            pgcId = result.publishResult.data.pgc_id;
-            articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
-          }
-        }
+        const { articleUrl } = this._getSafePublishDetails(result)
         finalContent =
           `✅ **头条文章已发布**\n\n` +
           `### ${result.title}\n\n` +
           `> ${result.summary}\n\n` +
-          `[🔗 点击查看文章](${articleUrl})`;
-        this._log(`任务 ${callbackInfo.messageId} 处理成功`, "INFO", result);
+          `[🔗 点击查看文章](${articleUrl})`
+        this._log(`任务 ${callbackInfo.messageId} 处理成功`, 'INFO', result)
 
-        // 保存成功任务结果
         await this.saveTaskResult(taskId, {
           id: taskId,
           title: result.title,
           summary: result.summary,
           articleUrl: articleUrl,
-          status: "success",
+          status: 'success',
           createdAt: new Date().toISOString(),
-          type: "chat",
+          type: 'chat',
           roomName: callbackInfo.roomName,
           username: callbackInfo.username,
-        });
+        })
       } else {
-        throw new Error(result.error || "未知处理错误");
+        throw new Error(result.error || '未知处理错误')
       }
     } catch (error) {
-      this._log(`处理头条任务 ${command} 时发生错误`, "ERROR", {
+      this._log(`处理头条任务 ${command} 时发生错误`, 'ERROR', {
         message: error.message,
         stack: error.stack,
-      });
-      finalContent = `> (❌ **头条任务处理失败**: ${error.message})`;
+      })
+      finalContent = `> (❌ **头条任务处理失败**: ${error.message})`
 
-      // 保存失败任务结果
       await this.saveTaskResult(taskId, {
         id: taskId,
         title: command,
         error: error.message,
-        status: "failed",
+        status: 'failed',
         createdAt: new Date().toISOString(),
-        type: "chat",
+        type: 'chat',
         roomName: callbackInfo.roomName,
         username: callbackInfo.username,
-      });
+      })
     } finally {
-      // 立即从队列中移除，确保状态同步
-      await this.removeFromQueue(taskId);
+      await this.removeFromQueue(taskId)
     }
 
-    await this.performCallback(callbackInfo, finalContent);
+    await this.performCallback(callbackInfo, finalContent)
   }
 
-  // ✅ [修改] 增强回调函数，使其能处理新消息和更新旧消息
   async performCallback(callbackInfo, finalContent, isNewMessage = false) {
     try {
       if (!this.env.CHAT_ROOM_DO) {
-        throw new Error("CHAT_ROOM_DO is not bound. Cannot perform callback.");
+        throw new Error('CHAT_ROOM_DO is not bound. Cannot perform callback.')
       }
-      const chatroomId = this.env.CHAT_ROOM_DO.idFromName(
-        callbackInfo.roomName
-      );
-      const chatroomStub = this.env.CHAT_ROOM_DO.get(chatroomId);
+      const chatroomId = this.env.CHAT_ROOM_DO.idFromName(callbackInfo.roomName)
+      const chatroomStub = this.env.CHAT_ROOM_DO.get(chatroomId)
 
-      // 根据 isNewMessage 判断是更新消息还是发送新消息
       const callbackUrl = isNewMessage
-        ? "https://do-internal/api/post-system-message"
-        : "https://do-internal/api/callback";
+        ? 'https://do-internal/api/post-system-message'
+        : 'https://do-internal/api/callback'
       const payload = isNewMessage
         ? { content: finalContent }
         : {
             messageId: callbackInfo.messageId,
             newContent: finalContent,
-            status: "success",
-          };
+            status: 'success',
+          }
 
       const response = await chatroomStub.fetch(callbackUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      });
+      })
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = await response.text()
         throw new Error(
-          `Callback failed with status ${response.status}: ${errorText}`
-        );
+          `Callback failed with status ${response.status}: ${errorText}`,
+        )
       }
-      this._log(`✅ 成功回调到房间 ${callbackInfo.roomName}`, "INFO", {
+      this._log(`✅ 成功回调到房间 ${callbackInfo.roomName}`, 'INFO', {
         messageId: callbackInfo.messageId,
         isNew: isNewMessage,
-      });
+      })
     } catch (callbackError) {
-      this._log(
-        `FATAL: 回调到房间 ${callbackInfo.roomName} 失败!`,
-        "FATAL",
-        callbackError
-      );
+      // ✅ [修正] 将 this.logFatal 改为 this._log
+      this._log(`FATAL: 回调到房间 ${callbackInfo.roomName} 失败!`, 'FATAL', {
+        message: callbackError.message,
+        stack: callbackError.stack,
+      })
     }
   }
-
   // ✅ [修改] 更新 fetch 方法以包含新路由
   async fetch(request) {
-    await this.initialize(); // 确保每次请求时都已初始化
-    const url = new URL(request.url);
-    const method = request.method;
-    const pathname = url.pathname;
+    await this.initialize() // 确保每次请求时都已初始化
+    const url = new URL(request.url)
+    const method = request.method
+    const pathname = url.pathname
 
     // 路由1: 处理来自聊天室的实时任务
-    if (method === "POST" && pathname === "/internal-task") {
-      const task = await request.json();
-      this._log("收到内部任务: " + task.command, "INFO", task);
-      this.ctx.waitUntil(this.processAndCallback(task));
-      return new Response("Task accepted by ToutiaoDO", { status: 202 });
+    if (method === 'POST' && pathname === '/internal-task') {
+      const task = await request.json()
+      this._log('收到内部任务: ' + task.command, 'INFO', task)
+      this.ctx.waitUntil(this.processAndCallback(task))
+      return new Response('Task accepted by ToutiaoDO', { status: 202 })
     }
 
     // 路由2: 处理来自管理面板的生成请求
-    if (method === "POST" && pathname === "/api/inspirations/generate") {
-      return this.handleGenerateFromInspiration(request);
+    if (method === 'POST' && pathname === '/api/inspirations/generate') {
+      return this.handleGenerateFromInspiration(request)
     }
 
     // 路由3: 其他API端点
     switch (pathname) {
-      case "/api/toutiao/status":
+      case '/api/toutiao/status':
         return new Response(
-          JSON.stringify({ status: "ok", initialized: this.initialized }),
+          JSON.stringify({ status: 'ok', initialized: this.initialized }),
           {
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-      case "/api/toutiao/results":
-        if (method === "GET") {
-          const taskId = url.searchParams.get("id");
+            headers: { 'Content-Type': 'application/json' },
+          },
+        )
+      case '/api/toutiao/results':
+        if (method === 'GET') {
+          const taskId = url.searchParams.get('id')
           if (taskId) {
-            const result = await this.getTaskResult(taskId);
+            const result = await this.getTaskResult(taskId)
             return new Response(JSON.stringify(result || null), {
-              headers: { "Content-Type": "application/json" },
-            });
+              headers: { 'Content-Type': 'application/json' },
+            })
           } else {
-            const limit = parseInt(url.searchParams.get("limit")) || 50;
-            const results = await this.getAllTaskResults(limit);
+            const limit = parseInt(url.searchParams.get('limit')) || 50
+            const results = await this.getAllTaskResults(limit)
             return new Response(JSON.stringify(results), {
-              headers: { "Content-Type": "application/json" },
-            });
+              headers: { 'Content-Type': 'application/json' },
+            })
           }
         }
-        return new Response("Method Not Allowed", { status: 405 });
-      case "/api/toutiao/queue":
-        if (method === "GET") {
-          const queue = await this.getTaskQueue();
+        return new Response('Method Not Allowed', { status: 405 })
+      case '/api/toutiao/queue':
+        if (method === 'GET') {
+          const queue = await this.getTaskQueue()
           return new Response(
             JSON.stringify({
               length: queue.length,
               tasks: queue,
             }),
             {
-              headers: { "Content-Type": "application/json" },
-            }
-          );
-        } else if (method === "DELETE") {
-          await this.clearTaskQueue();
+              headers: { 'Content-Type': 'application/json' },
+            },
+          )
+        } else if (method === 'DELETE') {
+          await this.clearTaskQueue()
           return new Response(JSON.stringify({ success: true }), {
-            headers: { "Content-Type": "application/json" },
-          });
-        } else if (method === "POST") {
+            headers: { 'Content-Type': 'application/json' },
+          })
+        } else if (method === 'POST') {
           // 处理队列中的任务
-          await this.initialize();
+          await this.initialize()
           if (!this.taskProcessor) {
-            return new Response(JSON.stringify({ error: "Task processor not initialized" }), {
-              status: 500,
-              headers: { "Content-Type": "application/json" },
-            });
+            return new Response(
+              JSON.stringify({ error: 'Task processor not initialized' }),
+              {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            )
           }
-          
-          const queue = await this.getTaskQueue();
+
+          const queue = await this.getTaskQueue()
           if (queue.length === 0) {
-            return new Response(JSON.stringify({ message: "Queue is empty" }), {
-              headers: { "Content-Type": "application/json" },
-            });
+            return new Response(JSON.stringify({ message: 'Queue is empty' }), {
+              headers: { 'Content-Type': 'application/json' },
+            })
           }
-          
-          const results = [];
+
+          const results = []
           for (const task of queue) {
             try {
-              await this.updateQueueStatus(task.id, "processing");
-              
+              await this.updateQueueStatus(task.id, 'processing')
+
               const processorTask = {
                 id: task.id,
-                text: task.data?.text || task.text || "",
-                username: task.data?.username || task.username || "system",
-              };
-              
-              const result = await this.taskProcessor.processTask(processorTask);
-              
+                text: task.data?.text || task.text || '',
+                username: task.data?.username || task.username || 'system',
+              }
+
+              const result = await this.taskProcessor.processTask(processorTask)
+
               if (result.success) {
                 // 安全地获取pgc_id和文章URL
-                let articleUrl = "#";
-                let pgcId = "unknown";
-                
-                if (result.publishResult && result.publishResult.data) {
-                  if (result.publishResult.data.data && result.publishResult.data.data.pgc_id) {
-                    pgcId = result.publishResult.data.data.pgc_id;
-                    articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
-                  } else if (result.publishResult.data.pgc_id) {
-                    pgcId = result.publishResult.data.pgc_id;
-                    articleUrl = `https://www.toutiao.com/article/${pgcId}/`;
+                let articleUrl = '#'
+                let pgcId = 'unknown'
+
+                // 改进的 pgc_id 和 articleUrl 获取逻辑
+                if (result.publishResult?.data) {
+                  const publishData = result.publishResult.data
+                  if (publishData.data?.pgc_id) {
+                    pgcId = publishData.data.pgc_id
+                    articleUrl = `https://www.toutiao.com/article/${pgcId}/`
+                  } else if (publishData.pgc_id) {
+                    pgcId = publishData.pgc_id
+                    articleUrl = `https://www.toutiao.com/article/${pgcId}/`
                   }
                 }
 
@@ -454,250 +417,260 @@ export class ToutiaoServiceDO2 extends DurableObject {
                   summary: result.summary,
                   articleUrl: articleUrl,
                   pgcId: pgcId,
-                  status: "success",
+                  status: 'success',
                   createdAt: new Date().toISOString(),
-                  type: task.source || "manual",
-                });
-                await this.updateQueueStatus(task.id, "completed", { title: result.title, pgcId: pgcId });
+                  type: task.source || 'manual',
+                })
+                await this.updateQueueStatus(task.id, 'completed', {
+                  title: result.title,
+                  pgcId: pgcId,
+                })
               } else {
                 await this.saveTaskResult(task.id, {
                   id: task.id,
-                  title: "处理失败",
+                  title: '处理失败',
                   error: result.error,
-                  status: "failed",
+                  status: 'failed',
                   createdAt: new Date().toISOString(),
-                  type: task.source || "manual",
-                });
-                await this.updateQueueStatus(task.id, "failed", { error: result.error });
+                  type: task.source || 'manual',
+                })
+                await this.updateQueueStatus(task.id, 'failed', {
+                  error: result.error,
+                })
               }
-              
-              results.push({ taskId: task.id, success: result.success });
-              
+
+              results.push({ taskId: task.id, success: result.success })
+
               // 延迟1秒后移除任务
               setTimeout(async () => {
-                await this.removeFromQueue(task.id);
-              }, 1000);
-              
+                await this.removeFromQueue(task.id)
+              }, 1000)
             } catch (error) {
-              console.error(`Error processing task ${task.id}:`, error);
+              console.error(`Error processing task ${task.id}:`, error)
               await this.saveTaskResult(task.id, {
                 id: task.id,
-                title: "处理异常",
+                title: '处理异常',
                 error: error.message,
-                status: "failed",
+                status: 'failed',
                 createdAt: new Date().toISOString(),
-                type: task.source || "manual",
-              });
-              await this.updateQueueStatus(task.id, "failed", { error: error.message });
-              results.push({ taskId: task.id, success: false, error: error.message });
+                type: task.source || 'manual',
+              })
+              await this.updateQueueStatus(task.id, 'failed', {
+                error: error.message,
+              })
+              results.push({
+                taskId: task.id,
+                success: false,
+                error: error.message,
+              })
             }
           }
-          
+
           return new Response(JSON.stringify({ success: true, results }), {
-            headers: { "Content-Type": "application/json" },
-          });
+            headers: { 'Content-Type': 'application/json' },
+          })
         }
-        return new Response("Method Not Allowed", { status: 405 });
-      case "/api/toutiao/stats":
-        if (method === "GET") {
-          const stats = await this.getStats();
+        return new Response('Method Not Allowed', { status: 405 })
+      case '/api/toutiao/stats':
+        if (method === 'GET') {
+          const stats = await this.getStats()
           return new Response(JSON.stringify(stats), {
-            headers: { "Content-Type": "application/json" },
-          });
+            headers: { 'Content-Type': 'application/json' },
+          })
         }
-        return new Response("Method Not Allowed", { status: 405 });
+        return new Response('Method Not Allowed', { status: 405 })
       default:
-        return new Response("API Endpoint Not Found in ToutiaoDO", {
+        return new Response('API Endpoint Not Found in ToutiaoDO', {
           status: 404,
-        });
+        })
     }
   }
 
   async getTaskResult(taskId) {
-    const TASK_RESULTS_KEY = `toutiao_results`;
+    const TASK_RESULTS_KEY = `toutiao_results`
     try {
-      const resultsData = await this.ctx.storage.get(TASK_RESULTS_KEY);
-      let results = resultsData ? JSON.parse(resultsData) : [];
+      const resultsData = await this.ctx.storage.get(TASK_RESULTS_KEY)
+      let results = resultsData ? JSON.parse(resultsData) : []
 
       // 确保是数组格式，处理可能的旧数据格式
-      let resultsArray = [];
+      let resultsArray = []
       if (Array.isArray(results)) {
-        resultsArray = results.filter(item => item != null);
+        resultsArray = results.filter(item => item != null)
       } else if (results && typeof results === 'object') {
         // 如果数据是对象格式，转换为数组
-        resultsArray = Object.values(results).filter(item => item != null);
+        resultsArray = Object.values(results).filter(item => item != null)
       } else {
-        resultsArray = [];
+        resultsArray = []
       }
 
       // 在数组中查找指定任务
-      return resultsArray.find(item => item && item.id === taskId) || null;
+      return resultsArray.find(item => item && item.id === taskId) || null
     } catch (error) {
-      console.error("[ToutiaoDO] Error getting task result:", error);
-      return null;
+      console.error('[ToutiaoDO] Error getting task result:', error)
+      return null
     }
   }
 
   async getAllTaskResults(limit = 50) {
-    const TASK_RESULTS_KEY = `toutiao_results`;
+    const TASK_RESULTS_KEY = `toutiao_results`
     try {
-      const resultsData = await this.ctx.storage.get(TASK_RESULTS_KEY);
-      let results = resultsData ? JSON.parse(resultsData) : [];
+      const resultsData = await this.ctx.storage.get(TASK_RESULTS_KEY)
+      let results = resultsData ? JSON.parse(resultsData) : []
 
       // 确保是数组格式并排序（最新的在前面）
       // 处理可能的旧数据格式（对象格式转换为数组）
-      let resultsArray = [];
+      let resultsArray = []
       if (Array.isArray(results)) {
-        resultsArray = results.filter(item => item != null);
+        resultsArray = results.filter(item => item != null)
       } else if (results && typeof results === 'object') {
         // 如果数据是对象格式，转换为数组
-        resultsArray = Object.values(results).filter(item => item != null);
+        resultsArray = Object.values(results).filter(item => item != null)
       } else {
-        resultsArray = [];
+        resultsArray = []
       }
 
       return resultsArray
         .sort(
           (a, b) =>
             new Date(b.createdAt || b.completedAt || 0).getTime() -
-            new Date(a.createdAt || a.completedAt || 0).getTime()
+            new Date(a.createdAt || a.completedAt || 0).getTime(),
         )
-        .slice(0, limit);
+        .slice(0, limit)
     } catch (error) {
-      console.error("[ToutiaoDO] Error getting all task results:", error);
-      return [];
+      console.error('[ToutiaoDO] Error getting all task results:', error)
+      return []
     }
   }
 
   async getTaskQueue() {
-    const TASK_QUEUE_KEY = `toutiao_task_queue`;
+    const TASK_QUEUE_KEY = `toutiao_task_queue`
     try {
-      const queueData = await this.ctx.storage.get(TASK_QUEUE_KEY);
-      return queueData ? JSON.parse(queueData) : [];
+      const queueData = await this.ctx.storage.get(TASK_QUEUE_KEY)
+      return queueData ? JSON.parse(queueData) : []
     } catch (error) {
-      console.error("[ToutiaoDO] Error getting task queue:", error);
-      return [];
+      console.error('[ToutiaoDO] Error getting task queue:', error)
+      return []
     }
   }
 
   async clearTaskQueue() {
-    const TASK_QUEUE_KEY = `toutiao_task_queue`;
+    const TASK_QUEUE_KEY = `toutiao_task_queue`
     try {
-      await this.ctx.storage.put(TASK_QUEUE_KEY, JSON.stringify([]));
-      console.log("[ToutiaoDO] Task queue cleared");
+      await this.ctx.storage.put(TASK_QUEUE_KEY, JSON.stringify([]))
+      console.log('[ToutiaoDO] Task queue cleared')
     } catch (error) {
-      console.error("[ToutiaoDO] Error clearing task queue:", error);
+      console.error('[ToutiaoDO] Error clearing task queue:', error)
     }
   }
 
   async addToQueue(taskId, taskData, source) {
-    const TASK_QUEUE_KEY = ToutiaoServiceDO2.TASK_QUEUE_KEY;
+    const TASK_QUEUE_KEY = ToutiaoServiceDO2.TASK_QUEUE_KEY
     try {
-      const queueData = await this.ctx.storage.get(TASK_QUEUE_KEY);
-      const queue = queueData ? JSON.parse(queueData) : [];
+      const queueData = await this.ctx.storage.get(TASK_QUEUE_KEY)
+      const queue = queueData ? JSON.parse(queueData) : []
 
       const taskItem = {
         id: taskId,
         source: source, // 'admin' 或 'chat'
         data: taskData,
-        status: "pending",
+        status: 'pending',
         createdAt: new Date().toISOString(),
-      };
+      }
 
-      queue.push(taskItem);
-      await this.ctx.storage.put(TASK_QUEUE_KEY, JSON.stringify(queue));
-      this._log(`任务 ${taskId} 已添加到队列`, "INFO", {
+      queue.push(taskItem)
+      await this.ctx.storage.put(TASK_QUEUE_KEY, JSON.stringify(queue))
+      this._log(`任务 ${taskId} 已添加到队列`, 'INFO', {
         queueLength: queue.length,
-      });
+      })
     } catch (error) {
-      console.error("[ToutiaoDO] Error adding to queue:", error);
+      console.error('[ToutiaoDO] Error adding to queue:', error)
     }
   }
 
   async removeFromQueue(taskId) {
-    const TASK_QUEUE_KEY = `toutiao_task_queue`;
+    const TASK_QUEUE_KEY = `toutiao_task_queue`
     try {
-      const queueData = await this.ctx.storage.get(TASK_QUEUE_KEY);
-      if (!queueData) return;
+      const queueData = await this.ctx.storage.get(TASK_QUEUE_KEY)
+      if (!queueData) return
 
-      const queue = JSON.parse(queueData);
-      const updatedQueue = queue.filter((task) => task.id !== taskId);
+      const queue = JSON.parse(queueData)
+      const updatedQueue = queue.filter(task => task.id !== taskId)
 
-      await this.ctx.storage.put(TASK_QUEUE_KEY, JSON.stringify(updatedQueue));
-      this._log(`任务 ${taskId} 已从队列移除`, "INFO", {
+      await this.ctx.storage.put(TASK_QUEUE_KEY, JSON.stringify(updatedQueue))
+      this._log(`任务 ${taskId} 已从队列移除`, 'INFO', {
         queueLength: updatedQueue.length,
-      });
+      })
     } catch (error) {
-      console.error("[ToutiaoDO] Error removing from queue:", error);
+      console.error('[ToutiaoDO] Error removing from queue:', error)
     }
   }
 
   async updateQueueStatus(taskId, status, result = null) {
-    const TASK_QUEUE_KEY = `toutiao_task_queue`;
+    const TASK_QUEUE_KEY = `toutiao_task_queue`
     try {
-      const queueData = await this.ctx.storage.get(TASK_QUEUE_KEY);
-      if (!queueData) return;
+      const queueData = await this.ctx.storage.get(TASK_QUEUE_KEY)
+      if (!queueData) return
 
-      const queue = JSON.parse(queueData);
-      const taskIndex = queue.findIndex((task) => task.id === taskId);
+      const queue = JSON.parse(queueData)
+      const taskIndex = queue.findIndex(task => task.id === taskId)
 
       if (taskIndex !== -1) {
-        queue[taskIndex].status = status;
-        queue[taskIndex].updatedAt = new Date().toISOString();
+        queue[taskIndex].status = status
+        queue[taskIndex].updatedAt = new Date().toISOString()
         if (result) {
-          queue[taskIndex].result = result;
+          queue[taskIndex].result = result
         }
-        await this.ctx.storage.put(TASK_QUEUE_KEY, JSON.stringify(queue));
+        await this.ctx.storage.put(TASK_QUEUE_KEY, JSON.stringify(queue))
       }
     } catch (error) {
-      console.error("[ToutiaoDO] Error updating queue status:", error);
+      console.error('[ToutiaoDO] Error updating queue status:', error)
     }
   }
 
   async saveTaskResult(taskId, result) {
-    const TASK_RESULTS_KEY = `toutiao_results`;
+    const TASK_RESULTS_KEY = `toutiao_results`
     try {
-      const existingData = await this.ctx.storage.get(TASK_RESULTS_KEY);
-      let results = existingData ? JSON.parse(existingData) : [];
+      const existingData = await this.ctx.storage.get(TASK_RESULTS_KEY)
+      let results = existingData ? JSON.parse(existingData) : []
 
       // 确保是数组格式，处理可能的旧数据格式
-      let resultsArray = [];
+      let resultsArray = []
       if (Array.isArray(results)) {
-        resultsArray = results.filter(item => item != null);
+        resultsArray = results.filter(item => item != null)
       } else if (results && typeof results === 'object') {
         // 如果数据是对象格式，转换为数组
-        resultsArray = Object.values(results).filter(item => item != null);
+        resultsArray = Object.values(results).filter(item => item != null)
       } else {
-        resultsArray = [];
+        resultsArray = []
       }
 
       // 添加新结果
-      resultsArray.push(result);
+      resultsArray.push(result)
 
       // 保存回存储（限制最多保存1000条记录）
-      const limitedResults = resultsArray.slice(-1000);
+      const limitedResults = resultsArray.slice(-1000)
       await this.ctx.storage.put(
         TASK_RESULTS_KEY,
-        JSON.stringify(limitedResults)
-      );
+        JSON.stringify(limitedResults),
+      )
 
-      this._log(`任务结果已保存: ${taskId}`, "INFO", {
+      this._log(`任务结果已保存: ${taskId}`, 'INFO', {
         taskId,
         status: result.status,
-      });
+      })
     } catch (error) {
-      console.error("[ToutiaoDO] Error saving task result:", error);
+      console.error('[ToutiaoDO] Error saving task result:', error)
     }
   }
 
   async getStats() {
     try {
-      const TASK_RESULTS_KEY = ToutiaoServiceDO2.TASK_RESULTS_KEY;
-      const TASK_QUEUE_KEY = ToutiaoServiceDO2.TASK_QUEUE_KEY;
+      const TASK_RESULTS_KEY = ToutiaoServiceDO2.TASK_RESULTS_KEY
+      const TASK_QUEUE_KEY = ToutiaoServiceDO2.TASK_QUEUE_KEY
 
       // 确保存储上下文可用
       if (!this.ctx || !this.ctx.storage) {
-        console.error("[ToutiaoDO] Storage context not available");
+        console.error('[ToutiaoDO] Storage context not available')
         return {
           totalTasks: 0,
           successfulTasks: 0,
@@ -708,50 +681,54 @@ export class ToutiaoServiceDO2 extends DurableObject {
           recentTasks: [],
           todayTasks: 0,
           lastUpdated: new Date().toISOString(),
-          error: "Storage context not available",
-        };
+          error: 'Storage context not available',
+        }
       }
 
       // 获取所有结果
-      const resultsData = await this.ctx.storage.get(TASK_RESULTS_KEY);
-      const results = resultsData ? JSON.parse(resultsData) : [];
+      const resultsData = await this.ctx.storage.get(TASK_RESULTS_KEY)
+      const results = resultsData ? JSON.parse(resultsData) : []
 
       // 获取队列
-      const queueData = await this.ctx.storage.get(TASK_QUEUE_KEY);
-      const queue = queueData ? JSON.parse(queueData) : [];
+      const queueData = await this.ctx.storage.get(TASK_QUEUE_KEY)
+      const queue = queueData ? JSON.parse(queueData) : []
 
       // 确保结果是数组格式
       const resultsArray = Array.isArray(results)
         ? results
-        : Object.values(results);
-      const queueArray = Array.isArray(queue) ? queue : Object.values(queue);
+        : Object.values(results)
+      const queueArray = Array.isArray(queue) ? queue : Object.values(queue)
 
       // 统计信息 - 确保pendingTasks只统计真正待处理的任务
-      const pendingTasks = queueArray.filter((t) => t && t.status === "pending").length;
-      const processingTasks = queueArray.filter((t) => t && t.status === "processing").length;
-      
+      const pendingTasks = queueArray.filter(
+        t => t && t.status === 'pending',
+      ).length
+      const processingTasks = queueArray.filter(
+        t => t && t.status === 'processing',
+      ).length
+
       const stats = {
         totalTasks: resultsArray.length,
-        successfulTasks: resultsArray.filter((r) => r && r.status === "success")
+        successfulTasks: resultsArray.filter(r => r && r.status === 'success')
           .length,
-        failedTasks: resultsArray.filter((r) => r && r.status === "failed")
+        failedTasks: resultsArray.filter(r => r && r.status === 'failed')
           .length,
         pendingTasks: pendingTasks, // 只统计队列中真正pending的任务
         processingTasks: processingTasks,
         queueLength: queueArray.length,
         recentTasks: resultsArray.slice(-10).reverse(), // 最近10个任务
-        todayTasks: resultsArray.filter((r) => {
-          if (!r || !r.createdAt) return false;
-          const taskDate = new Date(r.createdAt || r.timestamp);
-          const today = new Date();
-          return taskDate.toDateString() === today.toDateString();
+        todayTasks: resultsArray.filter(r => {
+          if (!r || !r.createdAt) return false
+          const taskDate = new Date(r.createdAt || r.timestamp)
+          const today = new Date()
+          return taskDate.toDateString() === today.toDateString()
         }).length,
         lastUpdated: new Date().toISOString(),
-      };
+      }
 
-      return stats;
+      return stats
     } catch (error) {
-      console.error("[ToutiaoDO] Error getting stats:", error);
+      console.error('[ToutiaoDO] Error getting stats:', error)
       return {
         totalTasks: 0,
         successfulTasks: 0,
@@ -763,7 +740,7 @@ export class ToutiaoServiceDO2 extends DurableObject {
         todayTasks: 0,
         lastUpdated: new Date().toISOString(),
         error: error.message,
-      };
+      }
     }
   }
 }

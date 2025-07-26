@@ -7,7 +7,8 @@
     <link
       rel="icon"
       type="image/svg+xml"
-      href="https://pic.want.biz/favicon.svg" />
+      href="https://pic.want.biz/favicon.svg"
+    />
     <link rel="alternate icon" href="https://pic.want.biz/favicon.svg" />
     <script>
       //--CONFIG-PLACEHOLDER--//
@@ -32,7 +33,7 @@
           background-color 0.3s,
           color 0.3s;
       }
-      [data-theme="dark"] {
+      [data-theme='dark'] {
         --bg: #111827;
         --bg-panel: #1f2937;
         --text: #f9fafb;
@@ -55,8 +56,8 @@
       }
       body {
         font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          "Helvetica Neue", Arial, sans-serif;
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
         background: linear-gradient(
           135deg,
           var(--accent) 0%,
@@ -205,7 +206,7 @@
         border-radius: 8px;
         white-space: pre-wrap;
         word-wrap: break-word;
-        font-family: "Courier New", Courier, monospace;
+        font-family: 'Courier New', Courier, monospace;
         font-size: 0.85em;
         max-height: 150px;
         overflow-y: auto;
@@ -304,7 +305,7 @@
         width: 100%;
         margin-bottom: 12px;
       }
-      input[type="text"],
+      input[type='text'],
       select {
         flex-grow: 1;
         padding: 12px 16px;
@@ -318,10 +319,10 @@
         height: 44px;
         box-sizing: border-box;
       }
-      input[type="text"]::placeholder {
+      input[type='text']::placeholder {
         color: var(--text-sub);
       }
-      input[type="text"]:focus,
+      input[type='text']:focus,
       select:focus {
         outline: none;
         border-color: var(--accent);
@@ -347,7 +348,7 @@
         overflow: hidden;
       }
       button::before {
-        content: "";
+        content: '';
         position: absolute;
         top: 0;
         left: -100%;
@@ -469,8 +470,13 @@
         animation: pulse 1.5s infinite;
       }
       @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
       }
 
       /* ====== Inspiration/News Card Styles ====== */
@@ -626,7 +632,7 @@
           flex-wrap: wrap;
           gap: 8px;
         }
-        .form-group input[type="text"] {
+        .form-group input[type='text'] {
           min-width: 100%;
           margin-bottom: 8px;
         }
@@ -658,7 +664,8 @@
         <button
           onclick="toggleTheme()"
           class="theme-toggle-btn"
-          title="切换深色模式">
+          title="切换深色模式"
+        >
           🌓
         </button>
       </div>
@@ -667,7 +674,8 @@
       <div class="tabs">
         <button
           class="tab-button active"
-          onclick="switchTab('inspiration-management')">
+          onclick="switchTab('inspiration-management')"
+        >
           知乎
         </button>
         <button class="tab-button" onclick="switchTab('news-management')">
@@ -690,12 +698,14 @@
           <div class="input-with-clear">
             <textarea
               id="custom-inspiration-text"
-              placeholder="例如：写一篇关于“AI在量化交易中的应用”的文章，侧重于风险控制。"></textarea>
+              placeholder="例如：写一篇关于“AI在量化交易中的应用”的文章，侧重于风险控制。"
+            ></textarea>
             <button
               type="button"
               class="input-clear-btn"
               onclick="clearCustomInspirationText()"
-              title="清除内容">
+              title="清除内容"
+            >
               ×
             </button>
           </div>
@@ -704,14 +714,16 @@
             <button
               id="submit-custom-inspiration-btn"
               onclick="submitCustomInspiration()"
-              class="submit-button">
+              class="submit-button"
+            >
               ✍️ 生成并发布
             </button>
           </div>
           <div
             id="custom-inspiration-status"
             class="status-display"
-            style="display: none"></div>
+            style="display: none"
+          ></div>
         </div>
 
         <!-- 知乎灵感模块 -->
@@ -722,12 +734,14 @@
               <input
                 type="text"
                 id="inspiration-topic-input"
-                placeholder="输入关键词筛选" />
+                placeholder="输入关键词筛选"
+              />
               <button
                 type="button"
                 class="input-clear-btn"
                 onclick="clearInspirationInput()"
-                title="清除输入">
+                title="清除输入"
+              >
                 ×
               </button>
             </div>
@@ -746,7 +760,8 @@
           <div
             id="inspiration-status"
             class="status-display"
-            style="display: none"></div>
+            style="display: none"
+          ></div>
           <div id="inspiration-topics-container" class="inspiration-grid">
             <div
               class="inspiration-card"
@@ -754,7 +769,8 @@
                 justify-content: center;
                 align-items: center;
                 min-height: 120px;
-              ">
+              "
+            >
               <span style="color: var(--text-sub); font-style: italic"
                 >加载中...</span
               >
@@ -771,7 +787,8 @@
             <input
               type="text"
               id="news-topic-input"
-              placeholder="输入关键词筛选新闻" />
+              placeholder="输入关键词筛选新闻"
+            />
             <button onclick="searchNewsTopics()">筛选</button>
             <button onclick="fetchNews()" class="refresh-button">刷新</button>
           </div>
@@ -786,7 +803,8 @@
           <div
             id="news-status"
             class="status-display"
-            style="display: none"></div>
+            style="display: none"
+          ></div>
           <div id="news-topics-container" class="inspiration-grid">
             <div
               class="inspiration-card"
@@ -794,7 +812,8 @@
                 justify-content: center;
                 align-items: center;
                 min-height: 120px;
-              ">
+              "
+            >
               <span style="color: var(--text-sub); font-style: italic"
                 >加载中...</span
               >
@@ -813,11 +832,13 @@
                 justify-content: space-between;
                 align-items: center;
                 margin-bottom: 10px;
-              ">
+              "
+            >
               <h2 style="margin: 0; border: none; padding: 0">最新发布结果</h2>
               <span
                 id="latest-result-time"
-                style="font-size: 0.85em; color: var(--text-sub)"></span>
+                style="font-size: 0.85em; color: var(--text-sub)"
+              ></span>
             </div>
             <div id="latest-result-content"></div>
           </div>
@@ -830,12 +851,14 @@
                 justify-content: space-between;
                 align-items: center;
                 width: 100%;
-              ">
+              "
+            >
               <h2>📋 历史发布结果</h2>
               <button
                 onclick="fetchPublishResults()"
                 class="refresh-button"
-                style="padding: 6px 10px; font-size: 0.8em">
+                style="padding: 6px 10px; font-size: 0.8em"
+              >
                 🔄 刷新
               </button>
             </div>
@@ -871,7 +894,8 @@
               <input
                 type="text"
                 id="publish-check-task-id"
-                placeholder="输入任务ID" />
+                placeholder="输入任务ID"
+              />
               <button onclick="checkPublishTaskStatus()">查询状态</button>
             </div>
             <h3>任务详情:</h3>
@@ -898,7 +922,8 @@
               padding: 0;
               border: none;
               background: none;
-            ">
+            "
+          >
             <li
               class="no-rooms"
               style="
@@ -907,7 +932,8 @@
                 color: var(--text-sub);
                 cursor: default;
                 font-style: italic;
-              ">
+              "
+            >
               正在加载房间...
             </li>
           </ul>
@@ -923,7 +949,8 @@
             <input
               type="text"
               id="room-name-input"
-              placeholder="输入或选择房间名 (e.g., test)" />
+              placeholder="输入或选择房间名 (e.g., test)"
+            />
             <button id="load-users-btn">加载</button>
           </div>
           <div id="status-message" class="status-display"></div>
@@ -936,7 +963,8 @@
             <input
               type="text"
               id="new-user-input"
-              placeholder="输入要添加的用户名" />
+              placeholder="输入要添加的用户名"
+            />
             <button id="add-user-btn">添加</button>
           </div>
         </div>
@@ -948,113 +976,109 @@
       //  Initialization & Config
       // =================================================================
       const potentialRoomsToCheck = window.MANAGEMENT_ROOMS_LIST || [
-        "test",
-        "future",
-        "admin",
-        "kerry",
-      ];
-      const envConfig = window.ENV_CONFIG || {};
-      const apiDomain = window.ENV_CONFIG.apiDomain;
-      const urlParams = new URLSearchParams(window.location.search);
-      const adminSecret = urlParams.get("secret");
-      const initialRoom = urlParams.get("room");
+        'test',
+        'future',
+        'admin',
+        'kerry',
+      ]
+      const envConfig = window.ENV_CONFIG || {}
+      const apiDomain = window.ENV_CONFIG.apiDomain
+      const urlParams = new URLSearchParams(window.location.search)
+      const adminSecret = urlParams.get('secret')
+      const initialRoom = urlParams.get('room')
 
       // Store fetched data
-      let allInspirationsData = [];
-      let allNewsData = [];
+      let allInspirationsData = []
+      let allNewsData = []
 
       // =================================================================
       //  DOM Element Declarations
       // =================================================================
       // User Management
-      const roomNameInput = document.getElementById("room-name-input");
-      const userList = document.getElementById("user-list");
-      const newUserInput = document.getElementById("new-user-input");
-      const addUserBtn = document.getElementById("add-user-btn");
-      const loadUsersBtn = document.getElementById("load-users-btn");
-      const statusMessage = document.getElementById("status-message");
-      const activatedRoomList = document.getElementById("activated-room-list");
+      const roomNameInput = document.getElementById('room-name-input')
+      const userList = document.getElementById('user-list')
+      const newUserInput = document.getElementById('new-user-input')
+      const addUserBtn = document.getElementById('add-user-btn')
+      const loadUsersBtn = document.getElementById('load-users-btn')
+      const statusMessage = document.getElementById('status-message')
+      const activatedRoomList = document.getElementById('activated-room-list')
 
       // Inspiration Management
       const customInspirationText = document.getElementById(
-        "custom-inspiration-text"
-      );
+        'custom-inspiration-text',
+      )
       const customInspirationRoomSelect = document.getElementById(
-        "custom-inspiration-room-select"
-      );
+        'custom-inspiration-room-select',
+      )
       const customInspirationStatus = document.getElementById(
-        "custom-inspiration-status"
-      );
+        'custom-inspiration-status',
+      )
       const inspirationTopicInput = document.getElementById(
-        "inspiration-topic-input"
-      );
+        'inspiration-topic-input',
+      )
       const fetchedInspirationRoomSelect = document.getElementById(
-        "fetched-inspiration-room-select"
-      );
+        'fetched-inspiration-room-select',
+      )
       const inspirationTopicsContainer = document.getElementById(
-        "inspiration-topics-container"
-      );
-      const inspirationStatus = document.getElementById("inspiration-status");
+        'inspiration-topics-container',
+      )
+      const inspirationStatus = document.getElementById('inspiration-status')
 
       // News Management
-      const newsTopicInput = document.getElementById("news-topic-input");
-      const newsRoomSelect = document.getElementById("news-room-select");
+      const newsTopicInput = document.getElementById('news-topic-input')
+      const newsRoomSelect = document.getElementById('news-room-select')
       const newsTopicsContainer = document.getElementById(
-        "news-topics-container"
-      );
-      const newsStatus = document.getElementById("news-status");
+        'news-topics-container',
+      )
+      const newsStatus = document.getElementById('news-status')
 
       // Publish Management
-      const publishQueueLength = document.getElementById(
-        "publish-queue-length"
-      );
+      const publishQueueLength = document.getElementById('publish-queue-length')
       const publishPendingTasksList = document.getElementById(
-        "publish-pending-tasks-list"
-      );
+        'publish-pending-tasks-list',
+      )
       const publishCheckTaskId = document.getElementById(
-        "publish-check-task-id"
-      );
+        'publish-check-task-id',
+      )
       const publishTaskStatusDisplay = document.getElementById(
-        "publish-task-status-display"
-      );
+        'publish-task-status-display',
+      )
       const publishStatsDisplay = document.getElementById(
-        "publish-stats-display"
-      );
-      const publishResultsList = document.getElementById(
-        "publish-results-list"
-      );
+        'publish-stats-display',
+      )
+      const publishResultsList = document.getElementById('publish-results-list')
       const latestResultContainer = document.getElementById(
-        "latest-result-container"
-      );
-      const latestResult = document.getElementById("latest-result");
+        'latest-result-container',
+      )
+      const latestResult = document.getElementById('latest-result')
       const latestResultContent = document.getElementById(
-        "latest-result-content"
-      );
-      const latestResultTime = document.getElementById("latest-result-time");
+        'latest-result-content',
+      )
+      const latestResultTime = document.getElementById('latest-result-time')
 
       // =================================================================
       //  Core UI & Helpers
       // =================================================================
       function initTheme() {
-        const saved = localStorage.getItem("theme");
+        const saved = localStorage.getItem('theme')
         const prefersDark = window.matchMedia(
-          "(prefers-color-scheme: dark)"
-        ).matches;
-        const theme = saved ? saved : prefersDark ? "dark" : "light";
-        document.documentElement.setAttribute("data-theme", theme);
+          '(prefers-color-scheme: dark)',
+        ).matches
+        const theme = saved ? saved : prefersDark ? 'dark' : 'light'
+        document.documentElement.setAttribute('data-theme', theme)
       }
 
       function toggleTheme() {
-        const current = document.documentElement.getAttribute("data-theme");
-        const next = current === "dark" ? "light" : "dark";
-        document.documentElement.setAttribute("data-theme", next);
-        localStorage.setItem("theme", next);
+        const current = document.documentElement.getAttribute('data-theme')
+        const next = current === 'dark' ? 'light' : 'dark'
+        document.documentElement.setAttribute('data-theme', next)
+        localStorage.setItem('theme', next)
       }
 
-      function updateStatus(element, msg, type = "info", show = true) {
-        element.textContent = msg;
-        element.className = `status-display status-${type}`;
-        element.style.display = show ? "block" : "none";
+      function updateStatus(element, msg, type = 'info', show = true) {
+        element.textContent = msg
+        element.className = `status-display status-${type}`
+        element.style.display = show ? 'block' : 'none'
       }
 
       function populateRoomSelects() {
@@ -1062,50 +1086,50 @@
           customInspirationRoomSelect,
           fetchedInspirationRoomSelect,
           newsRoomSelect,
-        ];
-        selects.forEach((select) => {
-          if (!select) return;
-          select.innerHTML = "";
-          potentialRoomsToCheck.forEach((room) => {
-            const option = document.createElement("option");
-            option.value = room;
-            option.textContent = room;
-            select.appendChild(option);
-          });
-        });
+        ]
+        selects.forEach(select => {
+          if (!select) return
+          select.innerHTML = ''
+          potentialRoomsToCheck.forEach(room => {
+            const option = document.createElement('option')
+            option.value = room
+            option.textContent = room
+            select.appendChild(option)
+          })
+        })
       }
 
       function switchTab(tabId) {
         document
-          .querySelectorAll(".tab-content")
-          .forEach((c) => c.classList.remove("active"));
+          .querySelectorAll('.tab-content')
+          .forEach(c => c.classList.remove('active'))
         document
-          .querySelectorAll(".tab-button")
-          .forEach((b) => b.classList.remove("active"));
-        document.getElementById(tabId).classList.add("active");
+          .querySelectorAll('.tab-button')
+          .forEach(b => b.classList.remove('active'))
+        document.getElementById(tabId).classList.add('active')
         document
           .querySelector(`.tab-button[onclick="switchTab('${tabId}')"]`)
-          .classList.add("active");
+          .classList.add('active')
 
         switch (tabId) {
-          case "inspiration-management":
-            if (allInspirationsData.length === 0) fetchInspirations();
-            break;
-          case "news-management":
-            if (allNewsData.length === 0) fetchNews();
-            break;
-          case "publish-management":
-            fetchPublishQueueStatus();
-            fetchPublishStats();
-            fetchPublishResults();
-            break;
-          case "user-management":
-            fetchActivatedRooms();
+          case 'inspiration-management':
+            if (allInspirationsData.length === 0) fetchInspirations()
+            break
+          case 'news-management':
+            if (allNewsData.length === 0) fetchNews()
+            break
+          case 'publish-management':
+            fetchPublishQueueStatus()
+            fetchPublishStats()
+            fetchPublishResults()
+            break
+          case 'user-management':
+            fetchActivatedRooms()
             if (initialRoom) {
-              roomNameInput.value = initialRoom;
-              fetchUsers();
+              roomNameInput.value = initialRoom
+              fetchUsers()
             }
-            break;
+            break
         }
       }
 
@@ -1116,228 +1140,228 @@
         inspirationItem,
         roomName,
         buttonElement,
-        statusUpdater
+        statusUpdater,
       ) {
         if (!inspirationItem || !roomName) {
-          statusUpdater("未能找到话题的详细信息或目标房间", "error", true);
-          return;
+          statusUpdater('未能找到话题的详细信息或目标房间', 'error', true)
+          return
         }
 
-        const originalText = buttonElement.innerHTML;
-        buttonElement.disabled = true;
-        buttonElement.innerHTML = "生成中...";
-        statusUpdater(`正在为房间 [${roomName}] 提交生成任务...`, "info", true);
+        const originalText = buttonElement.innerHTML
+        buttonElement.disabled = true
+        buttonElement.innerHTML = '生成中...'
+        statusUpdater(`正在为房间 [${roomName}] 提交生成任务...`, 'info', true)
 
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
           const res = await fetch(`${domain}/api/inspirations/generate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               inspiration: inspirationItem,
               roomName: roomName,
               secret: adminSecret,
             }),
-          });
+          })
 
-          const data = await res.json();
+          const data = await res.json()
           if (res.ok && data.success) {
             statusUpdater(
               `✅ 任务已成功提交 (ID: ${data.taskId.substring(0, 8)}...)，请稍后在“发布管理”页查看。`,
-              "success",
-              true
-            );
-            fetchPublishQueueStatus(); // Auto-refresh queue
+              'success',
+              true,
+            )
+            fetchPublishQueueStatus() // Auto-refresh queue
           } else {
-            throw new Error(data.message || "未知错误");
+            throw new Error(data.message || '未知错误')
           }
         } catch (e) {
-          statusUpdater(`❌ 生成文章失败: ${e.message}`, "error", true);
+          statusUpdater(`❌ 生成文章失败: ${e.message}`, 'error', true)
         } finally {
-          buttonElement.disabled = false;
-          buttonElement.innerHTML = originalText;
+          buttonElement.disabled = false
+          buttonElement.innerHTML = originalText
         }
       }
 
       function submitCustomInspiration() {
-        const text = customInspirationText.value.trim();
-        const room = customInspirationRoomSelect.value;
-        const button = document.getElementById("submit-custom-inspiration-btn");
+        const text = customInspirationText.value.trim()
+        const room = customInspirationRoomSelect.value
+        const button = document.getElementById('submit-custom-inspiration-btn')
 
         if (!text) {
           updateStatus(
             customInspirationStatus,
-            "请输入主题或内容！",
-            "error",
-            true
-          );
-          return;
+            '请输入主题或内容！',
+            'error',
+            true,
+          )
+          return
         }
 
         const customInspiration = {
           title: text.substring(0, 50), // Use first 50 chars as title
           contentPrompt: text, // Full text is the prompt
-          type: "custom",
-        };
+          type: 'custom',
+        }
 
         generateArticleFromInspiration(
           customInspiration,
           room,
           button,
           (msg, type, show) =>
-            updateStatus(customInspirationStatus, msg, type, show)
-        );
+            updateStatus(customInspirationStatus, msg, type, show),
+        )
       }
 
       function clearCustomInspirationText() {
-        const textarea = document.getElementById("custom-inspiration-text");
-        const clearBtn = document.querySelector(".input-clear-btn");
+        const textarea = document.getElementById('custom-inspiration-text')
+        const clearBtn = document.querySelector('.input-clear-btn')
         if (textarea) {
-          textarea.value = "";
-          textarea.focus();
-          if (clearBtn) clearBtn.style.display = "none";
-          updateStatus(customInspirationStatus, "内容已清除", "success", true);
+          textarea.value = ''
+          textarea.focus()
+          if (clearBtn) clearBtn.style.display = 'none'
+          updateStatus(customInspirationStatus, '内容已清除', 'success', true)
           setTimeout(() => {
-            updateStatus(customInspirationStatus, "", "success", false);
-          }, 2000);
+            updateStatus(customInspirationStatus, '', 'success', false)
+          }, 2000)
         }
       }
 
       // 监听输入框内容变化，控制清除按钮显示
-      document.addEventListener("DOMContentLoaded", function () {
-        const textarea = document.getElementById("custom-inspiration-text");
-        const clearBtn = document.querySelector(".input-clear-btn");
+      document.addEventListener('DOMContentLoaded', function () {
+        const textarea = document.getElementById('custom-inspiration-text')
+        const clearBtn = document.querySelector('.input-clear-btn')
 
         if (textarea && clearBtn) {
           function updateClearButtonVisibility() {
-            clearBtn.style.display = textarea.value.trim() ? "flex" : "none";
+            clearBtn.style.display = textarea.value.trim() ? 'flex' : 'none'
           }
 
           // 初始状态检查
-          updateClearButtonVisibility();
+          updateClearButtonVisibility()
 
           // 监听输入事件
-          textarea.addEventListener("input", updateClearButtonVisibility);
+          textarea.addEventListener('input', updateClearButtonVisibility)
 
           // 监听粘贴事件
-          textarea.addEventListener("paste", function () {
-            setTimeout(updateClearButtonVisibility, 0);
-          });
+          textarea.addEventListener('paste', function () {
+            setTimeout(updateClearButtonVisibility, 0)
+          })
         }
-      });
+      })
 
       // =================================================================
       //  Inspiration & News Fetching and Rendering
       // =================================================================
       async function fetchInspirations() {
-        updateStatus(inspirationStatus, "正在获取知乎灵感...", "info", true);
+        updateStatus(inspirationStatus, '正在获取知乎灵感...', 'info', true)
         inspirationTopicsContainer.innerHTML =
-          '<div class="inspiration-card" style="justify-content: center; align-items: center;"><span style="color: var(--text-sub);">加载中...</span></div>';
+          '<div class="inspiration-card" style="justify-content: center; align-items: center;"><span style="color: var(--text-sub);">加载中...</span></div>'
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
           // 专门获取知乎相关的内容，避免与新闻重复
           const res = await fetch(
-            `${domain}/api/inspirations?secret=${adminSecret}&source=zhihu`
-          );
-          if (!res.ok) throw new Error(await res.text());
-          const data = await res.json();
+            `${domain}/api/inspirations?secret=${adminSecret}&source=zhihu`,
+          )
+          if (!res.ok) throw new Error(await res.text())
+          const data = await res.json()
           // 过滤出知乎相关的灵感
           allInspirationsData =
             data.data.filter(
-              (item) => item.source && item.source.includes("知乎")
-            ) || [];
+              item => item.source && item.source.includes('知乎'),
+            ) || []
 
           // 获取关键词并筛选
-          const keyword = inspirationTopicInput.value.trim().toLowerCase();
+          const keyword = inspirationTopicInput.value.trim().toLowerCase()
           if (keyword) {
-            const filtered = allInspirationsData.filter((t) =>
-              t.title.toLowerCase().includes(keyword)
-            );
-            renderInspirations(filtered);
+            const filtered = allInspirationsData.filter(t =>
+              t.title.toLowerCase().includes(keyword),
+            )
+            renderInspirations(filtered)
             updateStatus(
               inspirationStatus,
               `成功获取 ${allInspirationsData.length} 个知乎灵感，筛选出 ${filtered.length} 个`,
-              "success",
-              false
-            );
+              'success',
+              false,
+            )
           } else {
-            renderInspirations(allInspirationsData);
+            renderInspirations(allInspirationsData)
             updateStatus(
               inspirationStatus,
               `成功获取 ${allInspirationsData.length} 个知乎灵感`,
-              "success",
-              false
-            );
+              'success',
+              false,
+            )
           }
         } catch (e) {
           updateStatus(
             inspirationStatus,
             `获取知乎灵感失败: ${e.message}`,
-            "error",
-            true
-          );
+            'error',
+            true,
+          )
         }
       }
 
       async function fetchNews() {
-        updateStatus(newsStatus, "正在获取全网新闻...", "info", true);
+        updateStatus(newsStatus, '正在获取全网新闻...', 'info', true)
         newsTopicsContainer.innerHTML =
-          '<div class="inspiration-card" style="justify-content: center; align-items: center;"><span style="color: var(--text-sub);">加载中...</span></div>';
+          '<div class="inspiration-card" style="justify-content: center; align-items: center;"><span style="color: var(--text-sub);">加载中...</span></div>'
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
           // 专门获取新闻内容（抖音、微博、虎扑等），排除知乎内容
           const res = await fetch(
-            `${domain}/api/inspirations?secret=${adminSecret}&type=news`
-          );
-          if (!res.ok) throw new Error(await res.text());
-          const data = await res.json();
+            `${domain}/api/inspirations?secret=${adminSecret}&type=news`,
+          )
+          if (!res.ok) throw new Error(await res.text())
+          const data = await res.json()
           allNewsData =
             data.data.filter(
-              (item) => item.source && !item.source.includes("知乎")
-            ) || [];
-          renderNews(allNewsData);
+              item => item.source && !item.source.includes('知乎'),
+            ) || []
+          renderNews(allNewsData)
           updateStatus(
             newsStatus,
             `成功获取 ${allNewsData.length} 个全网新闻`,
-            "success",
-            false
-          );
+            'success',
+            false,
+          )
         } catch (e) {
           updateStatus(
             newsStatus,
             `获取全网新闻失败: ${e.message}`,
-            "error",
-            true
-          );
+            'error',
+            true,
+          )
         }
       }
 
       function clearInspirationInput() {
-        inspirationTopicInput.value = "";
-        renderInspirations(allInspirationsData);
-        updateStatus(inspirationStatus, "已清除筛选条件", "success", true);
-        inspirationTopicInput.focus();
+        inspirationTopicInput.value = ''
+        renderInspirations(allInspirationsData)
+        updateStatus(inspirationStatus, '已清除筛选条件', 'success', true)
+        inspirationTopicInput.focus()
 
         // 隐藏清除按钮
         const clearBtn =
-          inspirationTopicInput.parentElement.querySelector(".input-clear-btn");
+          inspirationTopicInput.parentElement.querySelector('.input-clear-btn')
         if (clearBtn) {
-          clearBtn.style.display = "none";
+          clearBtn.style.display = 'none'
         }
       }
 
       function searchNewsTopics() {
-        const keyword = newsTopicInput.value.trim().toLowerCase();
-        const filtered = allNewsData.filter((t) =>
-          t.title.toLowerCase().includes(keyword)
-        );
-        renderNews(filtered);
+        const keyword = newsTopicInput.value.trim().toLowerCase()
+        const filtered = allNewsData.filter(t =>
+          t.title.toLowerCase().includes(keyword),
+        )
+        renderNews(filtered)
         updateStatus(
           newsStatus,
           `筛选出 ${filtered.length} 个新闻`,
-          "info",
-          true
-        );
+          'info',
+          true,
+        )
       }
 
       function renderInspirations(topics) {
@@ -1345,8 +1369,8 @@
           topics,
           inspirationTopicsContainer,
           fetchedInspirationRoomSelect,
-          updateInspirationStatus
-        );
+          updateInspirationStatus,
+        )
       }
 
       function renderNews(topics) {
@@ -1354,74 +1378,74 @@
           topics,
           newsTopicsContainer,
           newsRoomSelect,
-          updateNewsStatus
-        );
+          updateNewsStatus,
+        )
       }
 
       function updateInspirationStatus(msg, type, show) {
-        updateStatus(inspirationStatus, msg, type, show);
+        updateStatus(inspirationStatus, msg, type, show)
       }
       function updateNewsStatus(msg, type, show) {
-        updateStatus(newsStatus, msg, type, show);
+        updateStatus(newsStatus, msg, type, show)
       }
 
       function renderCards(items, container, roomSelectElement, statusUpdater) {
-        container.innerHTML = "";
+        container.innerHTML = ''
         if (!items || items.length === 0) {
           container.innerHTML =
-            '<div class="inspiration-card" style="text-align: center;"><p>暂无数据</p></div>';
-          return;
+            '<div class="inspiration-card" style="text-align: center;"><p>暂无数据</p></div>'
+          return
         }
         items.forEach((item, index) => {
-          const card = document.createElement("div");
-          card.className = "inspiration-card";
+          const card = document.createElement('div')
+          card.className = 'inspiration-card'
 
-          const typeTag = "";
+          const typeTag = ''
           const sourceTag = item.source
             ? `<div style="font-size: 0.75em; color: var(--text-sub); margin-bottom: 4px;">📍 ${item.source}</div>`
-            : "";
-          const title = `<h3>${item.title}</h3>`;
-          const descriptionContent = item.excerpt || item.description;
+            : ''
+          const title = `<h3>${item.title}</h3>`
+          const descriptionContent = item.excerpt || item.description
           const description =
             descriptionContent && descriptionContent !== item.title
               ? `<div class="inspiration-card-description">${descriptionContent}</div>`
-              : "";
+              : ''
 
-          const actions = document.createElement("div");
-          actions.className = "inspiration-card-actions";
+          const actions = document.createElement('div')
+          actions.className = 'inspiration-card-actions'
 
-          const generateBtn = document.createElement("button");
-          generateBtn.innerHTML = "✍️ 一键成文";
-          generateBtn.className = "submit-button";
-          generateBtn.style.fontSize = "0.75em";
-          generateBtn.onclick = (e) => {
-            e.stopPropagation();
-            const selectedRoom = roomSelectElement.value;
+          const generateBtn = document.createElement('button')
+          generateBtn.innerHTML = '✍️ 一键成文'
+          generateBtn.className = 'submit-button'
+          generateBtn.style.fontSize = '0.75em'
+          generateBtn.onclick = e => {
+            e.stopPropagation()
+            const selectedRoom = roomSelectElement.value
             generateArticleFromInspiration(
               item,
               selectedRoom,
               generateBtn,
-              statusUpdater
-            );
-          };
+              statusUpdater,
+            )
+          }
 
-          const viewBtn = document.createElement("button");
-          viewBtn.textContent = "原文";
-          viewBtn.style.background = "var(--bg)";
-          viewBtn.style.color = "var(--text)";
-          viewBtn.style.border = "1px solid var(--border)";
-          viewBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (item.url) window.open(item.url, "_blank");
-          };
+          const viewBtn = document.createElement('button')
+          viewBtn.textContent = '原文'
+          viewBtn.style.background = 'var(--bg)'
+          viewBtn.style.color = 'var(--text)'
+          viewBtn.style.border = '1px solid var(--border)'
+          viewBtn.onclick = e => {
+            e.stopPropagation()
+            if (item.url) window.open(item.url, '_blank')
+          }
 
-          actions.appendChild(generateBtn);
-          if (item.url) actions.appendChild(viewBtn);
+          actions.appendChild(generateBtn)
+          if (item.url) actions.appendChild(viewBtn)
 
-          card.innerHTML = typeTag + sourceTag + title + description;
-          card.appendChild(actions);
-          container.appendChild(card);
-        });
+          card.innerHTML = typeTag + sourceTag + title + description
+          card.appendChild(actions)
+          container.appendChild(card)
+        })
       }
 
       // =================================================================
@@ -1429,406 +1453,408 @@
       // =================================================================
       async function fetchPublishQueueStatus() {
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
           console.log(
-            "Fetching queue status from:",
-            `${domain}/api/toutiao/queue?secret=${adminSecret}`
-          );
+            'Fetching queue status from:',
+            `${domain}/api/toutiao/queue?secret=${adminSecret}`,
+          )
           const res = await fetch(
-            `${domain}/api/toutiao/queue?secret=${adminSecret}`
-          );
+            `${domain}/api/toutiao/queue?secret=${adminSecret}`,
+          )
           if (!res.ok) {
-            const errorText = await res.text();
-            console.error("Failed to fetch queue status:", errorText);
-            throw new Error(errorText);
+            const errorText = await res.text()
+            console.error('Failed to fetch queue status:', errorText)
+            throw new Error(errorText)
           }
-          const data = await res.json();
-          console.log("Queue status data:", data);
-          publishQueueLength.textContent = data.length || 0;
-          publishPendingTasksList.innerHTML = "";
+          const data = await res.json()
+          console.log('Queue status data:', data)
+          publishQueueLength.textContent = data.length || 0
+          publishPendingTasksList.innerHTML = ''
           if (data.tasks && data.tasks.length > 0) {
-            data.tasks.forEach((task) => {
-              const li = document.createElement("li");
+            data.tasks.forEach(task => {
+              const li = document.createElement('li')
               const taskText =
-                (task.text || task.data?.text || task.content || "无内容").substring(0, 50) +
-                "...";
-              const status = task.status || "pending";
-              const statusClass = 
-                status === "pending" ? "status-tag pending" :
-                status === "processing" ? "status-tag processing" :
-                status === "completed" ? "status-tag success" :
-                status === "failed" ? "status-tag error" : "status-tag";
-              
-              li.innerHTML = `<strong>ID:</strong> ${task.id.substring(0, 8)}... <strong>内容:</strong> ${taskText} <span class="${statusClass}">${status}</span>`;
-              publishPendingTasksList.appendChild(li);
-            });
+                (
+                  task.text ||
+                  task.data?.text ||
+                  task.content ||
+                  '无内容'
+                ).substring(0, 50) + '...'
+              const status = task.status || 'pending'
+              const statusClass =
+                status === 'pending'
+                  ? 'status-tag pending'
+                  : status === 'processing'
+                    ? 'status-tag processing'
+                    : status === 'completed'
+                      ? 'status-tag success'
+                      : status === 'failed'
+                        ? 'status-tag error'
+                        : 'status-tag'
+
+              li.innerHTML = `<strong>ID:</strong> ${task.id.substring(0, 8)}... <strong>内容:</strong> ${taskText} <span class="${statusClass}">${status}</span>`
+              publishPendingTasksList.appendChild(li)
+            })
           } else {
-            publishPendingTasksList.innerHTML = "<li>队列为空</li>";
+            publishPendingTasksList.innerHTML = '<li>队列为空</li>'
           }
         } catch (e) {
-          console.error("Error fetching queue status:", e);
-          publishPendingTasksList.innerHTML = `<li style="color: var(--error);">加载失败: ${e.message}</li>`;
+          console.error('Error fetching queue status:', e)
+          publishPendingTasksList.innerHTML = `<li style="color: var(--error);">加载失败: ${e.message}</li>`
         }
       }
 
       async function clearPublishQueue() {
-        if (!confirm("确定要清空所有待处理的发布任务吗？")) return;
+        if (!confirm('确定要清空所有待处理的发布任务吗？')) return
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
-          await fetch(
-            `${domain}/api/toutiao/queue?secret=${adminSecret}`,
-            { method: "DELETE" }
-          );
-          fetchPublishQueueStatus();
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
+          await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`, {
+            method: 'DELETE',
+          })
+          fetchPublishQueueStatus()
         } catch (e) {
-          alert(`清空失败: ${e.message}`);
+          alert(`清空失败: ${e.message}`)
         }
       }
 
       async function processPublishQueue() {
-        if (!confirm("确定要立即处理队列中的所有任务吗？")) return;
+        if (!confirm('确定要立即处理队列中的所有任务吗？')) return
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
-          const res = await fetch(`${domain}/api/toutiao/queue?secret=${adminSecret}`, {
-            method: "POST",
-          });
-          if (!res.ok) throw new Error(await res.text());
-          
-          alert("队列处理已启动，请稍后刷新查看结果");
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
+          const res = await fetch(
+            `${domain}/api/toutiao/queue?secret=${adminSecret}`,
+            {
+              method: 'POST',
+            },
+          )
+          if (!res.ok) throw new Error(await res.text())
+
+          alert('队列处理已启动，请稍后刷新查看结果')
           setTimeout(() => {
-            fetchPublishQueueStatus();
-            fetchPublishResults();
-            fetchPublishStats();
-          }, 3000);
+            fetchPublishQueueStatus()
+            fetchPublishResults()
+            fetchPublishStats()
+          }, 3000)
         } catch (e) {
-          alert(`处理失败: ${e.message}`);
+          alert(`处理失败: ${e.message}`)
         }
       }
 
       async function checkPublishTaskStatus() {
-        const taskId = publishCheckTaskId.value.trim();
-        if (!taskId) return;
+        const taskId = publishCheckTaskId.value.trim()
+        if (!taskId) return
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
           const res = await fetch(
-            `${domain}/api/toutiao/results?id=${taskId}&secret=${adminSecret}`
-          );
-          const data = await res.json();
-          publishTaskStatusDisplay.textContent = JSON.stringify(data, null, 2);
+            `${domain}/api/toutiao/results?id=${taskId}&secret=${adminSecret}`,
+          )
+          const data = await res.json()
+          publishTaskStatusDisplay.textContent = JSON.stringify(data, null, 2)
         } catch (e) {
-          publishTaskStatusDisplay.textContent = `查询失败: ${e.message}`;
+          publishTaskStatusDisplay.textContent = `查询失败: ${e.message}`
         }
       }
 
       async function fetchPublishStats() {
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
           const res = await fetch(
-            `${domain}/api/toutiao/stats?secret=${adminSecret}`
-          );
-          const data = await res.json();
-          publishStatsDisplay.textContent = JSON.stringify(data, null, 2);
+            `${domain}/api/toutiao/stats?secret=${adminSecret}`,
+          )
+          const data = await res.json()
+          publishStatsDisplay.textContent = JSON.stringify(data, null, 2)
         } catch (e) {
-          publishStatsDisplay.textContent = `加载失败: ${e.message}`;
+          publishStatsDisplay.textContent = `加载失败: ${e.message}`
         }
       }
 
       async function fetchPublishResults() {
-        publishResultsList.innerHTML = "<li>加载中...</li>";
+        publishResultsList.innerHTML = '<li>加载中...</li>'
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
           console.log(
-            "Fetching publish results from:",
-            `${domain}/api/toutiao/results?secret=${adminSecret}`
-          );
+            'Fetching publish results from:',
+            `${domain}/api/toutiao/results?secret=${adminSecret}`,
+          )
           const res = await fetch(
-            `${domain}/api/toutiao/results?secret=${adminSecret}`
-          );
+            `${domain}/api/toutiao/results?secret=${adminSecret}`,
+          )
           if (!res.ok) {
-            const errorText = await res.text();
-            console.error("Failed to fetch publish results:", errorText);
-            throw new Error(errorText);
+            const errorText = await res.text()
+            console.error('Failed to fetch publish results:', errorText)
+            throw new Error(errorText)
           }
-          const data = await res.json();
-          console.log("Publish results data:", data);
-          publishResultsList.innerHTML = "";
+          const data = await res.json()
+          console.log('Publish results data:', data)
+          publishResultsList.innerHTML = ''
           if (data && data.length > 0) {
-            showLatestResult(data[0]);
-            data.forEach((result) => {
-              const li = document.createElement("li");
-              const title = result.title || result.topic || "无标题";
+            showLatestResult(data[0])
+            data.forEach(result => {
+              const li = document.createElement('li')
+              const title = result.title || result.topic || '无标题'
               const isSuccess =
                 result.success ||
                 (result.publishResult && result.publishResult.success) ||
-                result.status === "success";
+                result.status === 'success'
               const status = isSuccess
                 ? '<span class="status-tag success">成功</span>'
-                : '<span class="status-tag error">失败</span>';
-              const completedAt = result.createdAt || result.completedAt
-                ? new Date(result.createdAt || result.completedAt).toLocaleString()
-                : "N/A";
-              li.innerHTML = `${status} <strong>${title}</strong> <small>(${completedAt})</small>`;
-              publishResultsList.appendChild(li);
-            });
+                : '<span class="status-tag error">失败</span>'
+              const completedAt =
+                result.createdAt || result.completedAt
+                  ? new Date(
+                      result.createdAt || result.completedAt,
+                    ).toLocaleString()
+                  : 'N/A'
+              li.innerHTML = `${status} <strong>${title}</strong> <small>(${completedAt})</small>`
+              publishResultsList.appendChild(li)
+            })
           } else {
-            latestResultContainer.style.display = "none";
-            publishResultsList.innerHTML = "<li>暂无历史发布结果</li>";
+            latestResultContainer.style.display = 'none'
+            publishResultsList.innerHTML = '<li>暂无历史发布结果</li>'
           }
         } catch (e) {
-          console.error("Error fetching publish results:", e);
-          latestResultContainer.style.display = "none";
-          publishResultsList.innerHTML = `<li style="color: var(--error);">加载失败: ${e.message}</li>`;
+          console.error('Error fetching publish results:', e)
+          latestResultContainer.style.display = 'none'
+          publishResultsList.innerHTML = `<li style="color: var(--error);">加载失败: ${e.message}</li>`
         }
       }
 
       function showLatestResult(result) {
         if (!result) {
-          latestResultContainer.style.display = "none";
-          return;
+          latestResultContainer.style.display = 'none'
+          return
         }
-        latestResultContainer.style.display = "block";
+        latestResultContainer.style.display = 'block'
         const isSuccess =
           result.success ||
-          (result.publishResult && result.publishResult.success);
+          (result.publishResult && result.publishResult.success)
         latestResult.className = isSuccess
-          ? "latest-result"
-          : "latest-result error";
+          ? 'latest-result'
+          : 'latest-result error'
         latestResultTime.textContent = result.completedAt
           ? new Date(result.completedAt).toLocaleString()
-          : "N/A";
-        const title = result.title || result.topic || "无标题";
+          : 'N/A'
+        const title = result.title || result.topic || '无标题'
         const status = isSuccess
           ? '<span class="status-tag success">发布成功</span>'
-          : '<span class="status-tag error">发布失败</span>';
+          : '<span class="status-tag error">发布失败</span>'
         const errorMsg =
           result.publishResult && result.publishResult.error
             ? `<div style="color: var(--error); margin-top: 4px;">错误: ${result.publishResult.error}</div>`
-            : "";
-        latestResultContent.innerHTML = `<div style="font-weight: bold; font-size: 1.1em;">${title}</div><div><strong>状态:</strong> ${status}</div>${errorMsg}`;
+            : ''
+        latestResultContent.innerHTML = `<div style="font-weight: bold; font-size: 1.1em;">${title}</div><div><strong>状态:</strong> ${status}</div>${errorMsg}`
       }
 
       // =================================================================
       //  User Management Functions
       // =================================================================
       async function fetchActivatedRooms() {
-        activatedRoomList.innerHTML = '<li class="no-rooms">正在加载...</li>';
-        const activeRooms = [];
-        const domain = `https://${apiDomain || "api.yuangs.cc"}`;
-        const fetches = potentialRoomsToCheck.map((r) =>
+        activatedRoomList.innerHTML = '<li class="no-rooms">正在加载...</li>'
+        const activeRooms = []
+        const domain = `https://${apiDomain || 'api.yuangs.cc'}`
+        const fetches = potentialRoomsToCheck.map(r =>
           fetch(`${domain}/api/room/status?roomName=${encodeURIComponent(r)}`)
-            .then((res) => res.json())
-            .then((d) => (d.active ? r : null))
-            .catch((e) => {
-              console.error(`房间 ${r} 检查失败:`, e);
-              return null;
-            })
-        );
-        const results = await Promise.all(fetches);
-        results.forEach((r) => r && activeRooms.push(r));
+            .then(res => res.json())
+            .then(d => (d.active ? r : null))
+            .catch(e => {
+              console.error(`房间 ${r} 检查失败:`, e)
+              return null
+            }),
+        )
+        const results = await Promise.all(fetches)
+        results.forEach(r => r && activeRooms.push(r))
 
-        activatedRoomList.innerHTML = "";
+        activatedRoomList.innerHTML = ''
         if (!activeRooms.length) {
           activatedRoomList.innerHTML =
-            '<li class="no-rooms">暂无已激活的房间</li>';
+            '<li class="no-rooms">暂无已激活的房间</li>'
         } else {
-          activeRooms.forEach((r) => {
-            const li = document.createElement("li");
-            li.textContent = r;
-            li.style.cursor = "pointer";
+          activeRooms.forEach(r => {
+            const li = document.createElement('li')
+            li.textContent = r
+            li.style.cursor = 'pointer'
             li.onclick = () => {
-              roomNameInput.value = r;
-              fetchUsers();
-            };
-            activatedRoomList.appendChild(li);
-          });
+              roomNameInput.value = r
+              fetchUsers()
+            }
+            activatedRoomList.appendChild(li)
+          })
         }
       }
 
       async function fetchUsers() {
-        const room = roomNameInput.value.trim();
+        const room = roomNameInput.value.trim()
         if (!room) {
-          updateStatus(statusMessage, "请输入房间名！", "error");
-          return;
+          updateStatus(statusMessage, '请输入房间名！', 'error')
+          return
         }
-        updateStatus(statusMessage, `正在加载房间 "${room}" 的白名单…`, "info");
+        updateStatus(statusMessage, `正在加载房间 "${room}" 的白名单…`, 'info')
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
           console.log(
-            "获取用户白名单:",
-            `${domain}/api/users/list?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`
-          );
+            '获取用户白名单:',
+            `${domain}/api/users/list?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`,
+          )
 
           const res = await fetch(
-            `${domain}/api/users/list?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`
-          );
+            `${domain}/api/users/list?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`,
+          )
           if (!res.ok) {
-            const errorText = await res.text();
-            console.error("获取用户列表失败:", errorText);
-            throw new Error(errorText);
+            const errorText = await res.text()
+            console.error('获取用户列表失败:', errorText)
+            throw new Error(errorText)
           }
 
-          const data = await res.json();
-          console.log("用户列表数据:", data);
-          userList.innerHTML = "";
+          const data = await res.json()
+          console.log('用户列表数据:', data)
+          userList.innerHTML = ''
 
           if (!data.active) {
-            userList.innerHTML = "<li>此房间尚未激活白名单功能</li>";
+            userList.innerHTML = '<li>此房间尚未激活白名单功能</li>'
           } else if (!data.users || !data.users.length) {
-            userList.innerHTML = "<li>此房间白名单已激活但为空</li>";
+            userList.innerHTML = '<li>此房间白名单已激活但为空</li>'
           } else {
-            data.users.forEach((u) => {
-              const li = document.createElement("li");
-              li.style.display = "flex";
-              li.style.justifyContent = "space-between";
-              li.style.alignItems = "center";
-              li.style.padding = "8px";
+            data.users.forEach(u => {
+              const li = document.createElement('li')
+              li.style.display = 'flex'
+              li.style.justifyContent = 'space-between'
+              li.style.alignItems = 'center'
+              li.style.padding = '8px'
 
-              const span = document.createElement("span");
-              span.textContent = u;
-              span.style.marginRight = "10px";
+              const span = document.createElement('span')
+              span.textContent = u
+              span.style.marginRight = '10px'
 
-              const btn = document.createElement("button");
-              btn.textContent = "移除";
-              btn.className = "delete-button";
-              btn.style.fontSize = "0.8em";
-              btn.onclick = () => removeUser(u);
+              const btn = document.createElement('button')
+              btn.textContent = '移除'
+              btn.className = 'delete-button'
+              btn.style.fontSize = '0.8em'
+              btn.onclick = () => removeUser(u)
 
-              li.append(span, btn);
-              userList.appendChild(li);
-            });
+              li.append(span, btn)
+              userList.appendChild(li)
+            })
           }
           updateStatus(
             statusMessage,
             `房间 "${room}" 白名单已加载。`,
-            "success"
-          );
+            'success',
+          )
         } catch (e) {
-          console.error("获取用户列表异常:", e);
-          if (e.message.includes("404")) {
+          console.error('获取用户列表异常:', e)
+          if (e.message.includes('404')) {
             updateStatus(
               statusMessage,
-              "用户管理服务未启动，请检查后端配置",
-              "error"
-            );
-          } else if (e.message.includes("401")) {
-            updateStatus(
-              statusMessage,
-              "权限验证失败，请检查管理密钥",
-              "error"
-            );
+              '用户管理服务未启动，请检查后端配置',
+              'error',
+            )
+          } else if (e.message.includes('401')) {
+            updateStatus(statusMessage, '权限验证失败，请检查管理密钥', 'error')
           } else {
-            updateStatus(statusMessage, `错误: ${e.message}`, "error");
+            updateStatus(statusMessage, `错误: ${e.message}`, 'error')
           }
         }
       }
 
       async function addUser() {
-        const room = roomNameInput.value.trim();
-        const u = newUserInput.value.trim();
+        const room = roomNameInput.value.trim()
+        const u = newUserInput.value.trim()
         if (!room || !u)
-          return updateStatus(statusMessage, "请输入房间名和用户名！", "error");
+          return updateStatus(statusMessage, '请输入房间名和用户名！', 'error')
         if (!adminSecret)
           return updateStatus(
             statusMessage,
-            "无法执行操作，缺少 secret",
-            "error"
-          );
+            '无法执行操作，缺少 secret',
+            'error',
+          )
 
-        addUserBtn.disabled = true;
-        addUserBtn.textContent = "添加中…";
+        addUserBtn.disabled = true
+        addUserBtn.textContent = '添加中…'
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
-          console.log("添加用户:", { room, username: u, secret: adminSecret });
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
+          console.log('添加用户:', { room, username: u, secret: adminSecret })
 
           const res = await fetch(
             `${domain}/api/users/add?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`,
             {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ username: u }),
-            }
-          );
+            },
+          )
 
           if (!res.ok) {
-            const errorText = await res.text();
-            console.error("添加用户失败:", errorText);
-            throw new Error(errorText);
+            const errorText = await res.text()
+            console.error('添加用户失败:', errorText)
+            throw new Error(errorText)
           }
 
-          newUserInput.value = "";
-          await fetchUsers();
-          await fetchActivatedRooms();
-          updateStatus(statusMessage, `成功添加用户: ${u}`, "success");
+          newUserInput.value = ''
+          await fetchUsers()
+          await fetchActivatedRooms()
+          updateStatus(statusMessage, `成功添加用户: ${u}`, 'success')
         } catch (e) {
-          console.error("添加用户异常:", e);
-          if (e.message.includes("404")) {
+          console.error('添加用户异常:', e)
+          if (e.message.includes('404')) {
             updateStatus(
               statusMessage,
-              "用户管理服务未启动，请检查后端配置",
-              "error"
-            );
-          } else if (e.message.includes("401")) {
-            updateStatus(
-              statusMessage,
-              "权限验证失败，请检查管理密钥",
-              "error"
-            );
-          } else if (e.message.includes("409")) {
-            updateStatus(statusMessage, `用户 ${u} 已存在于白名单中`, "error");
+              '用户管理服务未启动，请检查后端配置',
+              'error',
+            )
+          } else if (e.message.includes('401')) {
+            updateStatus(statusMessage, '权限验证失败，请检查管理密钥', 'error')
+          } else if (e.message.includes('409')) {
+            updateStatus(statusMessage, `用户 ${u} 已存在于白名单中`, 'error')
           } else {
-            updateStatus(statusMessage, `添加失败: ${e.message}`, "error");
+            updateStatus(statusMessage, `添加失败: ${e.message}`, 'error')
           }
         } finally {
-          addUserBtn.disabled = false;
-          addUserBtn.textContent = "添加";
+          addUserBtn.disabled = false
+          addUserBtn.textContent = '添加'
         }
       }
 
       async function removeUser(u) {
-        const room = roomNameInput.value.trim();
+        const room = roomNameInput.value.trim()
         if (!room || !adminSecret)
-          return updateStatus(statusMessage, "缺少 room 或 secret", "error");
-        if (!confirm(`确认移除 "${u}"？`)) return;
+          return updateStatus(statusMessage, '缺少 room 或 secret', 'error')
+        if (!confirm(`确认移除 "${u}"？`)) return
 
         try {
-          const domain = `https://${apiDomain || "api.yuangs.cc"}`;
-          console.log("移除用户:", { room, username: u, secret: adminSecret });
+          const domain = `https://${apiDomain || 'api.yuangs.cc'}`
+          console.log('移除用户:', { room, username: u, secret: adminSecret })
 
           const res = await fetch(
             `${domain}/api/users/remove?roomName=${encodeURIComponent(room)}&secret=${adminSecret}`,
             {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ username: u }),
-            }
-          );
+            },
+          )
 
           if (!res.ok) {
-            const errorText = await res.text();
-            console.error("移除用户失败:", errorText);
-            throw new Error(errorText);
+            const errorText = await res.text()
+            console.error('移除用户失败:', errorText)
+            throw new Error(errorText)
           }
 
-          await fetchUsers();
-          updateStatus(statusMessage, `成功移除用户: ${u}`, "success");
+          await fetchUsers()
+          updateStatus(statusMessage, `成功移除用户: ${u}`, 'success')
         } catch (e) {
-          console.error("移除用户异常:", e);
-          if (e.message.includes("404")) {
+          console.error('移除用户异常:', e)
+          if (e.message.includes('404')) {
             updateStatus(
               statusMessage,
-              "用户管理服务未启动，请检查后端配置",
-              "error"
-            );
-          } else if (e.message.includes("401")) {
-            updateStatus(
-              statusMessage,
-              "权限验证失败，请检查管理密钥",
-              "error"
-            );
-          } else if (e.message.includes("404")) {
-            updateStatus(statusMessage, `用户 ${u} 不存在于白名单中`, "error");
+              '用户管理服务未启动，请检查后端配置',
+              'error',
+            )
+          } else if (e.message.includes('401')) {
+            updateStatus(statusMessage, '权限验证失败，请检查管理密钥', 'error')
+          } else if (e.message.includes('404')) {
+            updateStatus(statusMessage, `用户 ${u} 不存在于白名单中`, 'error')
           } else {
-            updateStatus(statusMessage, `移除失败: ${e.message}`, "error");
+            updateStatus(statusMessage, `移除失败: ${e.message}`, 'error')
           }
         }
       }
@@ -1836,51 +1862,51 @@
       // =================================================================
       //  Event Listeners & Initial Load
       // =================================================================
-      document.addEventListener("DOMContentLoaded", () => {
+      document.addEventListener('DOMContentLoaded', () => {
         if (!adminSecret) {
           document.body.innerHTML =
-            "<h1>未授权访问</h1><p>请在URL中提供正确的管理密钥 (?secret=您的密钥)。</p>";
-          return;
+            '<h1>未授权访问</h1><p>请在URL中提供正确的管理密钥 (?secret=您的密钥)。</p>'
+          return
         }
-        initTheme();
-        populateRoomSelects();
-        switchTab("inspiration-management"); // Default to inspiration tab
+        initTheme()
+        populateRoomSelects()
+        switchTab('inspiration-management') // Default to inspiration tab
 
         // 预加载发布管理相关数据
-        fetchPublishStats();
-        fetchPublishResults();
-        fetchPublishQueueStatus();
+        fetchPublishStats()
+        fetchPublishResults()
+        fetchPublishQueueStatus()
 
         // Bind user management events
-        loadUsersBtn.onclick = fetchUsers;
-        addUserBtn.onclick = addUser;
+        loadUsersBtn.onclick = fetchUsers
+        addUserBtn.onclick = addUser
 
         // 为知乎灵感输入框添加事件监听器
         const inspirationInput = document.getElementById(
-          "inspiration-topic-input"
-        );
+          'inspiration-topic-input',
+        )
         const inspirationClearBtn =
-          inspirationInput?.parentElement?.querySelector(".input-clear-btn");
+          inspirationInput?.parentElement?.querySelector('.input-clear-btn')
 
         if (inspirationInput && inspirationClearBtn) {
           // 初始化清除按钮状态
           inspirationClearBtn.style.display = inspirationInput.value
-            ? "flex"
-            : "none";
+            ? 'flex'
+            : 'none'
 
           // 输入时显示/隐藏清除按钮
-          inspirationInput.addEventListener("input", function () {
-            inspirationClearBtn.style.display = this.value ? "flex" : "none";
-          });
+          inspirationInput.addEventListener('input', function () {
+            inspirationClearBtn.style.display = this.value ? 'flex' : 'none'
+          })
 
           // 粘贴时显示/隐藏清除按钮
-          inspirationInput.addEventListener("paste", function () {
+          inspirationInput.addEventListener('paste', function () {
             setTimeout(() => {
-              inspirationClearBtn.style.display = this.value ? "flex" : "none";
-            }, 10);
-          });
+              inspirationClearBtn.style.display = this.value ? 'flex' : 'none'
+            }, 10)
+          })
         }
-      });
+      })
     </script>
   </body>
 </html>
